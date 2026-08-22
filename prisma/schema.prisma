@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Song {
+  id              String        @id @default(cuid())
+  title           String
+  artist          String
+  album           String?
+  key             String
+  bpm             Int
+  timeSignature   String        @default("4/4")
+  tag             String
+  durationSeconds Int?
+  createdAt       DateTime      @default(now())
+  sections        Section[]
+  setlistSongs    SetlistSong[]
+}
+
+model Section {
+  id     String @id @default(cuid())
+  songId String
+  song   Song   @relation(fields: [songId], references: [id], onDelete: Cascade)
+  label  String
+  order  Int
+  lines  Line[]
+
+  @@index([songId])
+}
+
+model Line {
+  id        String  @id @default(cuid())
+  sectionId String
+  section   Section @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  chords    String  @default("")
+  lyric     String
+  order     Int
+
+  @@index([sectionId])
+}
+
+model Setlist {
+  id          String        @id @default(cuid())
+  name        String
+  description String?
+  serviceName String?
+  date        DateTime?
+  colorIndex  Int
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  songs       SetlistSong[]
+}
+
+model SetlistSong {
+  id            String  @id @default(cuid())
+  setlistId     String
+  setlist       Setlist @relation(fields: [setlistId], references: [id], onDelete: Cascade)
+  songId        String
+  song          Song    @relation(fields: [songId], references: [id])
+  order         Int
+  transposedKey String?
+  notes         String?
+
+  @@index([setlistId])
+  @@index([songId])
+}
+
+model Preference {
+  id                   Int     @id
+  theme                String  @default("dark")
+  presentationFontSize String  @default("medium")
+  lastSetlistId        String?
+}

@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Inter, system-ui, -apple-system, sans-serif;
+  --font-serif: Georgia, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+:root,
+[data-theme="dark"] {
+  --bg: #1c1612;
+  --surface: #231d18;
+  --card: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.08);
+  --accent: #c4622d;
+  --accent-soft: rgba(196, 98, 45, 0.18);
+  --text: #f5f0e8;
+  --text-dim: rgba(245, 240, 232, 0.45);
+  --text-faint: rgba(245, 240, 232, 0.28);
+  --danger: #e25c4a;
+  --warn: #e09a3e;
+  --shadow: rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] {
+  --bg: #f7f3ee;
+  --surface: #ede7df;
+  --card: rgba(44, 31, 20, 0.05);
+  --border: rgba(44, 31, 20, 0.08);
+  --accent: #c4622d;
+  --accent-soft: rgba(196, 98, 45, 0.16);
+  --text: #2c1f14;
+  --text-dim: rgba(44, 31, 20, 0.45);
+  --text-faint: rgba(44, 31, 20, 0.28);
+  --danger: #c23b2a;
+  --warn: #b56a12;
+  --shadow: rgba(44, 31, 20, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+
+@keyframes eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.eq-bar {
+  width: 3px;
+  height: 12px;
+  background: var(--accent);
+  border-radius: 1px;
+  transform-origin: bottom;
+  animation: eq 0.85s ease-in-out infinite;
+}
+
+.eq-bar:nth-child(2) {
+  animation-delay: 0.15s;
+  height: 14px;
+}
+
+.eq-bar:nth-child(3) {
+  animation-delay: 0.28s;
+  height: 10px;
+}
+
+@keyframes lyrics-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes lyrics-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lyrics-out {
+  animation: lyrics-out 250ms ease forwards;
+}
+
+.lyrics-in {
+  animation: lyrics-in 350ms ease 50ms both;
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--card) 0%, var(--border) 50%, var(--card) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
