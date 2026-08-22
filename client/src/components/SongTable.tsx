@@ -60,12 +60,13 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
   }
 
   return (
-    <div className="px-4 pb-6">
+    <div className="overflow-x-auto px-4 pb-6">
       <div
         className="grid px-3 pb-2 text-[10px] font-semibold tracking-[0.12em]"
         style={{
           gridTemplateColumns: '40px 1fr 56px 48px 88px 48px 36px',
           color: 'var(--text-faint)',
+          minWidth: 560,
         }}
       >
         <span>#</span>
@@ -154,6 +155,7 @@ function SortableRow({
   return (
     <div
       ref={setNodeRef}
+      className="group relative grid items-center rounded-[8px] px-3"
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -162,8 +164,8 @@ function SortableRow({
         boxShadow: active ? 'inset 3px 0 0 var(--accent)' : undefined,
         color: active ? 'var(--accent)' : 'var(--text)',
         opacity: isDragging ? 0.7 : 1,
+        minWidth: 560,
       }}
-      className="group relative grid items-center rounded-[8px] px-3"
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
       onClick={onSelect}

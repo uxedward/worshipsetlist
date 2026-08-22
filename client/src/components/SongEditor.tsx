@@ -177,7 +177,7 @@ export function SongEditor() {
 
       <div className="grid min-h-0 flex-1 md:grid-cols-[340px_1fr]">
         <div className="scrollbar-thin space-y-3 overflow-y-auto p-5" style={{ borderRight: '1px solid var(--border)' }}>
-          <Field label="Title *" error={tried ? errors.title : ''}>
+          <Field label="Title *" error={(dirty || tried) ? errors.title : ''}>
             <input
               className={inputClass}
               style={inputStyle}
@@ -185,7 +185,7 @@ export function SongEditor() {
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </Field>
-          <Field label="Artist *" error={tried ? errors.artist : ''}>
+          <Field label="Artist *" error={(dirty || tried) ? errors.artist : ''}>
             <input
               className={inputClass}
               style={inputStyle}
@@ -201,7 +201,7 @@ export function SongEditor() {
               onChange={(e) => setForm({ ...form, album: e.target.value })}
             />
           </Field>
-          <Field label="Key" error={tried ? errors.key : ''}>
+          <Field label="Key" error={(dirty || tried) ? errors.key : ''}>
             <select
               className={inputClass}
               style={inputStyle}
@@ -215,7 +215,7 @@ export function SongEditor() {
               ))}
             </select>
           </Field>
-          <Field label="BPM" error={tried ? errors.bpm : ''}>
+          <Field label="BPM" error={(dirty || tried) ? errors.bpm : ''}>
             <input
               type="number"
               min={BPM_MIN}
@@ -254,7 +254,7 @@ export function SongEditor() {
               ))}
             </select>
           </Field>
-          <Field label="Duration (mm:ss)" error={tried ? errors.duration : ''}>
+          <Field label="Duration (mm:ss)" error={(dirty || tried) ? errors.duration : ''}>
             <input
               className={inputClass}
               style={inputStyle}
@@ -263,7 +263,7 @@ export function SongEditor() {
               onChange={(e) => setForm({ ...form, duration: e.target.value })}
             />
           </Field>
-          {tried && errors.chart ? (
+          { (dirty || tried) && errors.chart ? (
             <p className="text-[12px]" style={{ color: 'var(--danger)' }}>
               {errors.chart}
             </p>
