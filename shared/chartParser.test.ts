@@ -42,15 +42,31 @@ Just a lyric`)
     expect(sections[0].lines[0]).toMatchObject({ chords: '', lyric: 'Just a lyric' })
   })
 
-  it('resets pending chords on a blank line', () => {
-    const text = `[Verse]
+  it('keeps chord-only lines when a blank follows, and does not attach them to later lyrics', () => {
+    const text = `[Intro]
 G              D
 
 Orphan lyric`
     const { sections } = parseChart(text)
+    expect(sections[0].lines).toHaveLength(2)
+    expect(sections[0].lines[0].chords).toBe('G              D')
+    expect(sections[0].lines[0].lyric).toBe('')
+    expect(sections[0].lines[1].chords).toBe('')
+    expect(sections[0].lines[1].lyric).toBe('Orphan lyric')
+  })
+
+  it('keeps intro chords with no lyric line', () => {
+    const { sections } = parseChart(`[Intro]
+Bm   A/C#   D   A   G
+
+[Verse 1]
+Bm                    A/C#         D
+You call me out upon the waters`)
+    expect(sections[0].label).toBe('Intro')
     expect(sections[0].lines).toHaveLength(1)
-    expect(sections[0].lines[0].chords).toBe('')
-    expect(sections[0].lines[0].lyric).toBe('Orphan lyric')
+    expect(sections[0].lines[0].chords).toBe('Bm   A/C#   D   A   G')
+    expect(sections[0].lines[0].lyric).toBe('')
+    expect(sections[1].lines[0].lyric).toBe('You call me out upon the waters')
   })
 
   it('preserves internal chord spacing', () => {

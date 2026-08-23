@@ -69,6 +69,17 @@ export function parseChart(text: string): ParsedChart {
     })
   }
 
+  const flushPendingChords = () => {
+    if (!pendingChords) return
+    const section = ensureSection()
+    section.lines.push({
+      chords: pendingChords,
+      lyric: '',
+      order: section.lines.length,
+    })
+    pendingChords = null
+  }
+
   rawLines.forEach((line, lineIndex) => {
     const trimmed = line.trim()
 
@@ -82,18 +93,18 @@ export function parseChart(text: string): ParsedChart {
 
     const sectionMatch = trimmed.match(SECTION_RE)
     if (sectionMatch) {
+      flushPendingChords()
       const label = sectionMatch[1].trim()
       if (!label) {
         warnings.push({ lineIndex, line, message: 'Section header is empty.' })
       }
       current = { label: label || 'Section', order: sections.length, lines: [] }
       sections.push(current)
-      pendingChords = null
       return
     }
 
     if (trimmed === '') {
-      pendingChords = null
+      flushPendingChords()
       return
     }
 
@@ -122,12 +133,7 @@ export function parseChart(text: string): ParsedChart {
       line: pendingChords,
       message: 'Chord line has no lyric beneath it.',
     })
-    const section = ensureSection()
-    section.lines.push({
-      chords: pendingChords,
-      lyric: '',
-      order: section.lines.length,
-    })
+    flushPendingChords()
   }
 
   return { sections, warnings }

@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
+    "db:songs": "tsx prisma/upsertSongs.ts",
     "db:reset": "prisma migrate reset --force",
     "postinstall": "prisma generate"
   },

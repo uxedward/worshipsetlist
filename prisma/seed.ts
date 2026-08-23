@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { upsertWorshipSongs } from './upsertSongs.ts'
 
 const prisma = new PrismaClient()
 
@@ -53,6 +54,8 @@ async function main() {
       data: { lastSetlistId: first.id },
     })
   }
+
+  await upsertWorshipSongs(prisma)
 }
 
 main()
