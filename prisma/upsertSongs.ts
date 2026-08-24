@@ -262,28 +262,99 @@ async function upsertOne(client: PrismaClient, song: SeedSong) {
 async function attachToSundayAm(client: PrismaClient) {
   const setlist = await client.setlist.findFirst({
     where: { name: 'Sunday AM' },
+    include: { songs: true },
   })
   if (!setlist) return
 
-  const desiredIds: string[] = []
+  const already = new Set(setlist.songs.map((s) => s.songId))
+  let order = setlist.songs.reduce((m, s) => Math.max(m, s.order), -1)
+  let added = 0
+
   for (const song of SONGS.filter((s) => s.addToSundayAm)) {
     const row = await client.song.findFirst({
       where: { title: song.title, artist: song.artist },
     })
-    if (row) desiredIds.push(row.id)
+    if (!row || already.has(row.id)) continue
+    order += 1
+    await client.setlistSong.create({
+      data: { setlistId: setlist.id, songId: row.id, order },
+    })
+    already.add(row.id)
+    added += 1
   }
+  console.log(`Sunday AM has ${already.size} songs (${added} added)`)
+}
 
-  await client.setlistSong.deleteMany({ where: { setlistId: setlist.id } })
-  if (desiredIds.length) {
-    await client.setlistSong.createMany({
-      data: desiredIds.map((songId, order) => ({
-        setlistId: setlist.id,
-        songId,
-        order,
-      })),
+function nextSunday(): Date {
+  const d = new Date()
+  d.setHours(10, 0, 0, 0)
+  const day = d.getDay()
+  const add = day === 0 ? 0 : 7 - day
+  d.setDate(d.getDate() + add)
+  return d
+}
+
+export async function ensureDemoData(client: PrismaClient = prisma) {
+  await client.preference.upsert({
+    where: { id: 1 },
+    create: {
+      id: 1,
+      theme: 'dark',
+      presentationFontSize: 'medium',
+    },
+    update: {},
+  })
+
+  if ((await client.setlist.count()) === 0) {
+    await client.setlist.createMany({
+      data: [
+        {
+          name: 'Sunday AM',
+          serviceName: 'Morning Worship',
+          date: nextSunday(),
+          colorIndex: 0,
+        },
+        {
+          name: 'Midweek',
+          serviceName: 'Wednesday Night',
+          colorIndex: 2,
+        },
+        {
+          name: 'Easter',
+          serviceName: 'Resurrection Sunday',
+          colorIndex: 3,
+        },
+      ],
     })
   }
-  console.log(`Sunday AM now has ${desiredIds.length} songs`)
+
+  const first = await client.setlist.findFirst({ orderBy: { createdAt: 'asc' } })
+  if (first) {
+    const prefs = await client.preference.findUnique({ where: { id: 1 } })
+    if (!prefs?.lastSetlistId) {
+      await client.preference.update({
+        where: { id: 1 },
+        data: { lastSetlistId: first.id },
+      })
+    }
+  }
+
+  const songCount = await client.song.count()
+  const hasPlaylist = await client.song.findFirst({
+    where: { title: { contains: 'Never Walk Alone' } },
+  })
+  if (songCount === 0 || !hasPlaylist) {
+    await upsertWorshipSongs(client)
+    return
+  }
+
+  const sunday = await client.setlist.findFirst({
+    where: { name: 'Sunday AM' },
+    include: { _count: { select: { songs: true } } },
+  })
+  if (sunday && sunday._count.songs === 0) {
+    await attachToSundayAm(client)
+  }
 }
 
 export async function upsertWorshipSongs(client: PrismaClient = prisma) {

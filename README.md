@@ -22,13 +22,15 @@ npm run dev
 App: http://localhost:5173  
 API: http://localhost:3001
 
-The library ships empty. Seed data is 2–3 example setlists with no songs.
+The API also loads the worship library automatically on startup if it is empty, so lyrics and chords show up without a separate seed step after Postgres is running.
+
+Seed data includes Sunday AM / Midweek / Easter setlists plus 21 worship songs with charts (the referenced playlist is attached to Sunday AM).
 
 ## Scripts
 
 - `npm run dev` — API + Vite together
-- `npm test` — chord parser and transpose unit tests
-- `npm run db:migrate` / `npm run db:seed`
+- `npm test` — chord parser, transpose, and presentation unit tests
+- `npm run db:migrate` / `npm run db:seed` / `npm run db:songs`
 
 ## Import / export
 

@@ -37,13 +37,17 @@ export function ChordChart({
                 <div key={line.id || `${line.order}`}>
                   {!lyricsOnly && line.chords?.trim() ? (
                     <pre
-                      className="m-0 font-mono text-[11px] font-bold leading-[1.3]"
+                      className="m-0 font-mono text-[13px] font-bold leading-[1.35]"
                       style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}
                     >
                       {transposeChordLine(line.chords, semitones ?? 0, preferFlats ?? false)}
                     </pre>
                   ) : null}
-                  <p className="m-0 text-[13px] leading-[1.6]">{line.lyric}</p>
+                  {line.lyric?.trim() ? (
+                    <p className="m-0 text-[16px] leading-[1.6]" style={{ color: 'var(--text)' }}>
+                      {line.lyric}
+                    </p>
+                  ) : null}
                 </div>
               ))}
           </div>

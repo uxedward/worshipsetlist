@@ -104,6 +104,7 @@ function AppInner() {
   }, [playing, activeSsId, setlistSongs, setElapsed, setPlaying])
 
   const loading = prefs.isLoading || setlists.isLoading
+  const loadError = prefs.isError || setlists.isError
 
   if (loading) {
     return (
@@ -120,6 +121,25 @@ function AppInner() {
           <div className="skeleton mb-3 h-12 w-full" />
           <div className="skeleton h-12 w-full" />
         </div>
+      </div>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-8" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+        <p className="font-serif text-[22px]">Can’t reach the Setflow API</p>
+        <p className="max-w-md text-center text-[13px]" style={{ color: 'var(--text-dim)' }}>
+          Start the app with `npm run dev` so the client (port 5173) and API (port 3001) are both running, then refresh.
+        </p>
+        <button
+          type="button"
+          className="rounded-[8px] px-4 py-2 text-[13px]"
+          style={{ background: 'var(--accent)', color: '#fff' }}
+          onClick={() => window.location.reload()}
+        >
+          Retry
+        </button>
       </div>
     )
   }

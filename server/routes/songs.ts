@@ -2,17 +2,11 @@ import { Router } from 'express'
 import { prisma } from '../db.ts'
 import { parseBulkImport, serializeExport } from '../../shared/bulkFormat.ts'
 import type { SongInput } from '../../shared/types.ts'
+import { songWithChart } from '../songInclude.ts'
 
 export const songsRouter = Router()
 
-const fullSong = {
-  sections: {
-    orderBy: { order: 'asc' as const },
-    include: {
-      lines: { orderBy: { order: 'asc' as const } },
-    },
-  },
-}
+const fullSong = songWithChart
 
 songsRouter.get('/export', async (_req, res) => {
   const songs = await prisma.song.findMany({
@@ -84,6 +78,7 @@ songsRouter.get('/', async (req, res) => {
         : sort === 'bpm'
           ? [{ bpm: 'asc' }, { title: 'asc' }]
           : [{ artist: 'asc' }, { title: 'asc' }],
+    include: fullSong,
   })
   res.json(songs)
 })

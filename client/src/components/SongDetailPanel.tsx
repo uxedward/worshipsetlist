@@ -19,7 +19,7 @@ export function SongDetailPanel({
   songOverride?: Song | null
 }) {
   const songId = songOverride?.id ?? setlistSong?.songId ?? null
-  const { data: full } = useSong(songId)
+  const { data: full, isLoading, isError } = useSong(songId)
   const song = full ?? songOverride ?? setlistSong?.song
   const lyricsOnly = useAppStore((s) => s.lyricsOnly)
   const setLyricsOnly = useAppStore((s) => s.setLyricsOnly)
@@ -171,7 +171,17 @@ export function SongDetailPanel({
       ) : null}
 
       <div className="scrollbar-thin mt-3 flex-1 overflow-y-auto px-5 pb-6">
-        {sections.length === 0 ? (
+        {isLoading && sections.length === 0 ? (
+          <div className="space-y-2">
+            <div className="skeleton h-4 w-24" />
+            <div className="skeleton h-16 w-full" />
+            <div className="skeleton h-16 w-full" />
+          </div>
+        ) : isError && sections.length === 0 ? (
+          <p className="text-[13px]" style={{ color: 'var(--warn)' }}>
+            Could not load this chart. Check that the API is running, then refresh.
+          </p>
+        ) : sections.length === 0 ? (
           <p className="text-[13px]" style={{ color: 'var(--text-dim)' }}>
             No chart yet. Click the pencil to add one.
           </p>

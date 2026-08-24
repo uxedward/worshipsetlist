@@ -36,6 +36,16 @@ if (process.env.NODE_ENV === 'production') {
   })
 }
 
-app.listen(PORT, () => {
-  console.log(`Setflow API on http://localhost:${PORT}`)
-})
+async function boot() {
+  try {
+    const { ensureDemoData } = await import('../prisma/upsertSongs.ts')
+    await ensureDemoData(prisma)
+  } catch (err) {
+    console.error('Could not load the song library on startup', err)
+  }
+  app.listen(PORT, () => {
+    console.log(`Setflow API on http://localhost:${PORT}`)
+  })
+}
+
+void boot()
