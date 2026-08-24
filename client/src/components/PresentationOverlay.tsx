@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Minus, Plus, X } from 'lucide-react'
 import type { SetlistSong, PresentationFontSize } from '@shared/types.ts'
 import { soundingKey } from '@shared/transpose.ts'
+import { firstSlideIndexForSection, slidesFromSections } from '@shared/presentationSlides.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSong } from '../hooks/useQueries.ts'
 import { useIsMobile } from '../hooks/useMediaQuery.ts'
@@ -18,8 +19,8 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const close = useAppStore((s) => s.closePresentation)
   const activeId = useAppStore((s) => s.activeSetlistSongId)
   const setActive = useAppStore((s) => s.setActiveSetlistSongId)
-  const section = useAppStore((s) => s.presentationSection)
-  const setSection = useAppStore((s) => s.setPresentationSection)
+  const slide = useAppStore((s) => s.presentationSection)
+  const setSlide = useAppStore((s) => s.setPresentationSection)
   const fontSize = useAppStore((s) => s.fontSize)
   const setFontSize = useAppStore((s) => s.setFontSize)
   const { patchPrefs } = useMutations()
@@ -37,30 +38,31 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
     () => [...(song?.sections ?? [])].sort((a, b) => a.order - b.order),
     [song],
   )
-  const currentSection = sections[section]
-  const nextSection = sections[section + 1]
-  const lyrics = (currentSection?.lines ?? []).map((l) => l.lyric).filter(Boolean)
-  const preview = (nextSection?.lines ?? []).map((l) => l.lyric).filter(Boolean).slice(0, 2)
+  const slides = useMemo(() => slidesFromSections(sections), [sections])
+  const currentSlide = slides[slide] ?? slides[0]
+  const nextSlide = slides[slide + 1]
+  const lyrics = currentSlide?.lines ?? []
+  const preview = (nextSlide?.lines ?? []).slice(0, 2)
   const key = current ? soundingKey(current.song.key, current.transposedKey) : ''
 
-  const goSection = (next: number) => {
+  const goSlide = (next: number) => {
     if (next < 0) {
       if (index > 0) {
         setActive(songs[index - 1].id)
-        setSection(0)
+        setSlide(0)
       }
       return
     }
-    if (next >= sections.length) {
+    if (next >= slides.length) {
       if (index < songs.length - 1) {
         setActive(songs[index + 1].id)
-        setSection(0)
+        setSlide(0)
       }
       return
     }
     setAnim('out')
     window.setTimeout(() => {
-      setSection(next)
+      setSlide(next)
       setAnim('in')
     }, 250)
   }
@@ -74,24 +76,32 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   }
 
   useEffect(() => {
+    if (slides.length === 0) {
+      if (slide !== 0) setSlide(0)
+      return
+    }
+    if (slide >= slides.length) setSlide(0)
+  }, [song?.id, slides.length, slide, setSlide])
+
+  useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') close()
       if (e.key === ' ' || e.key === 'ArrowRight') {
         e.preventDefault()
-        goSection(section + 1)
+        goSlide(slide + 1)
       }
-      if (e.key === 'ArrowLeft') goSection(section - 1)
+      if (e.key === 'ArrowLeft') goSlide(slide - 1)
       if (e.key === 'n' || e.key === 'N') {
         if (index < songs.length - 1) {
           setActive(songs[index + 1].id)
-          setSection(0)
+          setSlide(0)
         }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, section, index, songs, close, setActive, setSection, sections.length])
+  }, [open, slide, index, songs, close, setActive, setSlide, slides.length])
 
   if (!open || !current || !song) return null
 
@@ -112,8 +122,8 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
         const end = e.changedTouches[0]?.clientX
         if (start == null || end == null) return
         const dx = end - start
-        if (dx < -40) goSection(section + 1)
-        if (dx > 40) goSection(section - 1)
+        if (dx < -40) goSlide(slide + 1)
+        if (dx > 40) goSlide(slide - 1)
       }}
     >
       <div className="flex h-11 items-center justify-between px-4">
@@ -126,15 +136,16 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
               key={s.id}
               type="button"
               onClick={() => {
+                const target = firstSlideIndexForSection(slides, i)
                 setAnim('out')
                 window.setTimeout(() => {
-                  setSection(i)
+                  setSlide(target)
                   setAnim('in')
                 }, 180)
               }}
               className="shrink-0 rounded-[20px] px-3 py-1 text-[12px]"
               style={
-                i === section
+                currentSlide?.sectionIndex === i
                   ? { background: 'var(--accent)', color: '#fff' }
                   : {
                       background: 'rgba(0,0,0,0.25)',
@@ -175,7 +186,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
       <div
         className="flex flex-1 cursor-pointer flex-col items-center"
         style={{ paddingTop: '18vh' }}
-        onClick={() => goSection(section + 1)}
+        onClick={() => goSlide(slide + 1)}
       >
         <div
           className={cn(anim === 'out' ? 'lyrics-out' : 'lyrics-in', 'flex flex-col items-center')}
@@ -185,7 +196,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
             className="mb-6 text-[11px] uppercase"
             style={{ letterSpacing: '0.15em', color: 'rgba(255,255,255,0.35)' }}
           >
-            {currentSection?.label ?? ''}
+            {currentSlide?.sectionLabel ?? ''}
           </div>
           <div
             className="text-center font-serif font-normal"
@@ -195,9 +206,11 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
               textShadow: '0 2px 24px rgba(0,0,0,0.4)',
             }}
           >
-            {lyrics.map((line) => (
-              <div key={line}>{line}</div>
-            ))}
+            {lyrics.length > 0 ? (
+              lyrics.map((line) => <div key={line}>{line}</div>)
+            ) : (
+              <div style={{ color: 'rgba(255,255,255,0.4)' }}>Instrumental</div>
+            )}
           </div>
           {!layoutSimple && preview.length > 0 ? (
             <div
@@ -217,24 +230,24 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
           type="button"
           onClick={(e) => {
             e.stopPropagation()
-            goSection(section - 1)
+            goSlide(slide - 1)
           }}
           className={cn('rounded-[24px] px-4 py-2 text-[13px]', isMobile && 'min-h-11')}
           style={{ background: 'rgba(0,0,0,0.4)' }}
         >
           <ChevronLeft size={14} className="inline" /> Prev
         </button>
-        <div className="flex items-center gap-1.5">
-          {sections.map((s, i) => (
+        <div className="flex max-w-[50%] items-center gap-1.5 overflow-x-auto">
+          {slides.map((s, i) => (
             <span
-              key={s.id}
-              className="h-2 rounded-full"
+              key={`${s.sectionLabel}-${i}`}
+              className="h-2 shrink-0 rounded-full"
               style={{
-                width: i === section ? 8 : 6,
+                width: i === slide ? 8 : 6,
                 background:
-                  i === section
+                  i === slide
                     ? 'var(--accent)'
-                    : i < section
+                    : i < slide
                       ? 'rgba(255,255,255,0.4)'
                       : 'rgba(255,255,255,0.2)',
               }}
@@ -245,7 +258,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
           type="button"
           onClick={(e) => {
             e.stopPropagation()
-            goSection(section + 1)
+            goSlide(slide + 1)
           }}
           className={cn('rounded-[24px] px-4 py-2 text-[13px]', isMobile && 'min-h-11')}
           style={{ background: 'var(--accent)' }}

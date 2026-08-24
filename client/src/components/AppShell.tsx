@@ -89,7 +89,7 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1">
-          <div className="flex min-w-0 flex-1 flex-col" style={{ background: 'var(--bg)' }}>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ background: 'var(--bg)' }}>
             {isMobile ? (showSetlist ? mainSetlist : showLibrary ? <LibraryView setlistId={setlist?.id ?? null} setlistSongs={songs} /> : <MobileSongView songs={songs} />) : showLibrary ? (
               <LibraryView setlistId={setlist?.id ?? null} setlistSongs={songs} />
             ) : (

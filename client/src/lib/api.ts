@@ -152,7 +152,11 @@ export const endpoints = {
   duplicateSetlist: (id: string) =>
     api(`/api/setlists/${id}/duplicate`, { method: 'POST', json: {}, queueOnFail: true }),
   addSongToSetlist: (setlistId: string, songId: string) =>
-    api(`/api/setlists/${setlistId}/songs`, { method: 'POST', json: { songId }, queueOnFail: true }),
+    api<import('@shared/types.ts').SetlistSong>(`/api/setlists/${setlistId}/songs`, {
+      method: 'POST',
+      json: { songId },
+      queueOnFail: true,
+    }),
   patchSetlistSong: (setlistId: string, ssId: string, body: Record<string, unknown>) =>
     api(`/api/setlists/${setlistId}/songs/${ssId}`, { method: 'PATCH', json: body, queueOnFail: true }),
   removeSetlistSong: (setlistId: string, ssId: string) =>

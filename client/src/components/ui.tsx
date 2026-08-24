@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react'
-import { COLOR_GRADIENTS } from '@shared/types.ts'
 import { cn } from '../lib/cn.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useRetrySave } from '../hooks/useQueries.ts'
 import { Moon, Sun, X } from 'lucide-react'
+
+const COVER_COUNT = 5
 
 export function KeyBadge({ value, size = 'md' }: { value: string; size?: 'sm' | 'md' }) {
   const dim = size === 'sm' ? 28 : 34
@@ -32,8 +33,7 @@ export function SetlistThumb({
   size: number
   radius?: number
 }) {
-  const [a, b] = COLOR_GRADIENTS[Math.abs(colorIndex) % COLOR_GRADIENTS.length]
-  const bar = Math.max(2, size * 0.1)
+  const idx = Math.abs(colorIndex) % COVER_COUNT
   return (
     <div
       className="relative shrink-0 overflow-hidden"
@@ -41,38 +41,19 @@ export function SetlistThumb({
         width: size,
         height: size,
         borderRadius: radius ?? (size > 64 ? 12 : 8),
-        background: `linear-gradient(145deg, ${a} 0%, ${b} 100%)`,
+        background: 'var(--card)',
       }}
     >
+      <img
+        src={`/covers/${idx}.jpg`}
+        alt=""
+        draggable={false}
+        className="h-full w-full object-cover"
+      />
       <div
         className="pointer-events-none absolute inset-0"
         style={{
-          background:
-            'radial-gradient(circle at 30% 22%, rgba(255,255,255,0.2), transparent 55%)',
-        }}
-      />
-      <div
-        className="absolute"
-        style={{
-          left: '50%',
-          top: '44%',
-          width: bar,
-          height: size * 0.48,
-          background: 'rgba(255,255,255,0.32)',
-          transform: 'translate(-50%, -50%)',
-          borderRadius: 1,
-        }}
-      />
-      <div
-        className="absolute"
-        style={{
-          left: '50%',
-          top: '38%',
-          width: size * 0.34,
-          height: bar,
-          background: 'rgba(255,255,255,0.32)',
-          transform: 'translate(-50%, -50%)',
-          borderRadius: 1,
+          background: 'linear-gradient(180deg, transparent 45%, rgba(0,0,0,0.32) 100%)',
         }}
       />
     </div>

@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client'
 import { parseChart } from '../shared/chartParser.ts'
+import { PLAYLIST_SONGS, type SeedSong } from './playlistSongs.ts'
 
 const prisma = new PrismaClient()
 
@@ -187,7 +188,7 @@ What a powerful Name it is the Name of Jesus
 Bm7       A           G
 What a powerful Name it is the Name of Jesus`
 
-const SONGS = [
+const CORE_SONGS: SeedSong[] = [
   {
     title: 'Oceans (Where Feet May Fail)',
     artist: 'Hillsong United',
@@ -204,55 +205,89 @@ const SONGS = [
     tag: 'Praise',
     chart: BEAUTIFUL_NAME_CHART,
   },
-] as const
+]
+
+const SONGS: SeedSong[] = [...CORE_SONGS, ...PLAYLIST_SONGS]
+
+async function upsertOne(client: PrismaClient, song: SeedSong) {
+  const { sections, warnings } = parseChart(song.chart)
+  if (warnings.length) {
+    console.warn(`${song.title} parse notes:`, warnings.map((w) => w.message))
+  }
+  const payload = {
+    title: song.title,
+    artist: song.artist,
+    album: song.album ?? null,
+    key: song.key,
+    bpm: song.bpm,
+    tag: song.tag,
+    durationSeconds: song.durationSeconds ?? null,
+    timeSignature: '4/4',
+    sections: {
+      create: sections.map((s) => ({
+        label: s.label,
+        order: s.order,
+        lines: {
+          create: s.lines.map((l) => ({
+            chords: l.chords,
+            lyric: l.lyric,
+            order: l.order,
+          })),
+        },
+      })),
+    },
+  }
+
+  const existing = await client.song.findFirst({
+    where: { title: song.title, artist: song.artist },
+  })
+
+  if (existing) {
+    await client.$transaction(async (tx) => {
+      await tx.line.deleteMany({ where: { section: { songId: existing.id } } })
+      await tx.section.deleteMany({ where: { songId: existing.id } })
+      await tx.song.update({
+        where: { id: existing.id },
+        data: payload,
+      })
+    })
+    console.log(`Updated ${song.title}`)
+    return existing.id
+  }
+  const created = await client.song.create({ data: payload })
+  console.log(`Created ${song.title}`)
+  return created.id
+}
+
+async function attachToSundayAm(client: PrismaClient) {
+  const setlist = await client.setlist.findFirst({
+    where: { name: 'Sunday AM' },
+    include: { songs: true },
+  })
+  if (!setlist) return
+
+  const already = new Set(setlist.songs.map((s) => s.songId))
+  let order = setlist.songs.reduce((m, s) => Math.max(m, s.order), -1)
+
+  for (const song of SONGS.filter((s) => s.addToSundayAm)) {
+    const row = await client.song.findFirst({
+      where: { title: song.title, artist: song.artist },
+    })
+    if (!row || already.has(row.id)) continue
+    order += 1
+    await client.setlistSong.create({
+      data: { setlistId: setlist.id, songId: row.id, order },
+    })
+    already.add(row.id)
+    console.log(`Added ${song.title} to Sunday AM`)
+  }
+}
 
 export async function upsertWorshipSongs(client: PrismaClient = prisma) {
   for (const song of SONGS) {
-    const { sections, warnings } = parseChart(song.chart)
-    if (warnings.length) {
-      console.warn(`${song.title} parse notes:`, warnings.map((w) => w.message))
-    }
-    const payload = {
-      title: song.title,
-      artist: song.artist,
-      key: song.key,
-      bpm: song.bpm,
-      tag: song.tag,
-      timeSignature: '4/4',
-      sections: {
-        create: sections.map((s) => ({
-          label: s.label,
-          order: s.order,
-          lines: {
-            create: s.lines.map((l) => ({
-              chords: l.chords,
-              lyric: l.lyric,
-              order: l.order,
-            })),
-          },
-        })),
-      },
-    }
-
-    const existing = await client.song.findFirst({
-      where: { title: song.title, artist: song.artist },
-    })
-
-    if (existing) {
-      await client.$transaction(async (tx) => {
-        await tx.line.deleteMany({ where: { section: { songId: existing.id } } })
-        await tx.section.deleteMany({ where: { songId: existing.id } })
-        await tx.song.update({
-          where: { id: existing.id },
-          data: payload,
-        })
-      })
-      console.log(`Updated ${song.title}`)
-    } else {
-      await client.song.create({ data: payload })
-      console.log(`Created ${song.title}`)
-    }
+    await upsertOne(client, song)
   }
+  await attachToSundayAm(client)
 }
 
 const isMain = process.argv[1]?.includes('upsertSongs')

@@ -109,7 +109,7 @@ export function SetlistHeader({ setlist, songs }: { setlist: Setlist; songs: Set
           <Btn accent onClick={openPresentation}>
             <Play size={14} fill="currentColor" /> Present
           </Btn>
-          <Btn ghost onClick={() => useAppStore.getState().setMainView('library')}>
+          <Btn ghost onClick={() => useAppStore.getState().setAddPickerOpen(true)}>
             <Plus size={14} /> Add Song
           </Btn>
           <Btn ghost onClick={() => void copyPlain()}>

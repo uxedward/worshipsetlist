@@ -8,6 +8,7 @@ import { SongEditor } from './components/SongEditor.tsx'
 import { PresentationOverlay } from './components/PresentationOverlay.tsx'
 import { SetlistEditModal } from './components/SetlistEditModal.tsx'
 import { BulkImportModal, ExportModal } from './components/Modals.tsx'
+import { AddSongPicker } from './components/AddSongPicker.tsx'
 import { SetlistContextMenu } from './components/SetlistContextMenu.tsx'
 import { ConfirmDialog, OfflineBanner } from './components/ui.tsx'
 
@@ -133,6 +134,7 @@ function AppInner() {
         songCount={songsQuery.data?.length ?? 0}
       />
       <SongEditor />
+      <AddSongPicker />
       <PresentationOverlay songs={setlistSongs} />
       <SetlistEditModal setlists={setlists.data ?? []} />
       <BulkImportModal />

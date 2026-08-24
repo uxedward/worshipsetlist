@@ -29,7 +29,7 @@ function sounding(ss: SetlistSong) {
 export function SongTable({ setlistId, songs }: { setlistId: string; songs: SetlistSong[] }) {
   const activeId = useAppStore((s) => s.activeSetlistSongId)
   const setActive = useAppStore((s) => s.setActiveSetlistSongId)
-  const setMainView = useAppStore((s) => s.setMainView)
+  const setAddPickerOpen = useAppStore((s) => s.setAddPickerOpen)
   const playing = useAppStore((s) => s.playing)
   const { removeSong, patchSetlistSong, reorder } = useMutations()
   const qc = useQueryClient()
@@ -116,7 +116,7 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
       </DndContext>
       <button
         type="button"
-        onClick={() => setMainView('library')}
+        onClick={() => setAddPickerOpen(true)}
         className="mt-1 w-full rounded-[8px] px-3 py-3 text-left text-[13px]"
         style={{ color: 'var(--text-dim)' }}
       >

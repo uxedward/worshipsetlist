@@ -2,11 +2,12 @@ import { useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Check, Pencil, Plus, Search } from 'lucide-react'
 import { TAGS } from '@shared/types.ts'
-import type { SetlistSong, Song } from '@shared/types.ts'
+import type { Setlist, SetlistSong, Song } from '@shared/types.ts'
 import { cn } from '../lib/cn.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSongs } from '../hooks/useQueries.ts'
 import { Btn, KeyBadge, Pill } from './ui.tsx'
+import { useQueryClient } from '@tanstack/react-query'
 
 type Row =
   | { type: 'header'; id: string; artist: string; count: number }
@@ -25,8 +26,12 @@ export function LibraryView({
   const [sort, setSort] = useState<'artist' | 'title' | 'bpm'>('artist')
   const openEditor = useAppStore((s) => s.openEditor)
   const setBulkImportOpen = useAppStore((s) => s.setBulkImportOpen)
+  const storeSetlistId = useAppStore((s) => s.activeSetlistId)
+  const targetSetlistId = setlistId ?? storeSetlistId
+  const [addError, setAddError] = useState<string | null>(null)
   const { addSong } = useMutations()
   const { data: songs = [], isLoading } = useSongs({ search, artist, tag, sort })
+  const qc = useQueryClient()
 
   const inSetlist = useMemo(() => new Set(setlistSongs.map((s) => s.songId)), [setlistSongs])
   const artists = useMemo(() => {
@@ -69,9 +74,34 @@ export function LibraryView({
   })
 
   const addedCount = songs.filter((s) => inSetlist.has(s.id)).length
+  const useVirtual = grouped.length > 80
+
+  const addToSetlist = (song: Song) => {
+    if (!targetSetlistId) {
+      setAddError('Open a setlist, then add songs to it.')
+      return
+    }
+    setAddError(null)
+    addSong.mutate(
+      { setlistId: targetSetlistId, songId: song.id },
+      {
+        onSuccess: (row) => {
+          qc.setQueryData<Setlist>(['setlist', targetSetlistId], (prev) => {
+            if (!prev) return prev
+            const list = prev.songs ?? []
+            if (list.some((s) => s.id === row.id || s.songId === song.id)) return prev
+            return { ...prev, songs: [...list, row] }
+          })
+        },
+        onError: (err) => {
+          setAddError(err instanceof Error ? err.message : 'Could not add that song.')
+        },
+      },
+    )
+  }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col">
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-5">
         <h1 className="font-serif text-[28px] font-bold">Song Library</h1>
         <div className="flex gap-2">
@@ -141,6 +171,12 @@ export function LibraryView({
         </select>
       </div>
 
+      {addError ? (
+        <div className="px-6 pt-2 text-[12px]" style={{ color: 'var(--warn)' }}>
+          {addError}
+        </div>
+      ) : null}
+
       <div ref={parentRef} className="scrollbar-thin mt-2 min-h-0 flex-1 overflow-y-auto px-4">
         {isLoading ? (
           <div className="space-y-2 p-2">
@@ -152,7 +188,7 @@ export function LibraryView({
           <div className="px-4 py-12 text-center text-[13px]" style={{ color: 'var(--text-dim)' }}>
             No songs yet. Click + New Song to add your first chart.
           </div>
-        ) : (
+        ) : useVirtual ? (
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
             {virtualizer.getVirtualItems().map((v) => {
               const row = grouped[v.index]
@@ -179,7 +215,7 @@ export function LibraryView({
                     <LibraryRow
                       song={row.song}
                       added={inSetlist.has(row.song.id)}
-                      onAdd={() => setlistId && addSong.mutate({ setlistId, songId: row.song.id })}
+                      onAdd={() => addToSetlist(row.song)}
                       onEdit={() => openEditor(row.song.id)}
                     />
                   )}
@@ -187,6 +223,26 @@ export function LibraryView({
               )
             })}
           </div>
+        ) : (
+          grouped.map((row) =>
+            row.type === 'header' ? (
+              <div
+                key={row.id}
+                className="px-2 pt-3 text-[10px] font-semibold tracking-[0.14em]"
+                style={{ color: 'var(--text-faint)' }}
+              >
+                {row.artist.toUpperCase()} · {row.count} {row.count === 1 ? 'song' : 'songs'}
+              </div>
+            ) : (
+              <LibraryRow
+                key={row.id}
+                song={row.song}
+                added={inSetlist.has(row.song.id)}
+                onAdd={() => addToSetlist(row.song)}
+                onEdit={() => openEditor(row.song.id)}
+              />
+            ),
+          )
         )}
       </div>
 
@@ -224,7 +280,10 @@ function LibraryRow({
       </button>
       <button
         type="button"
-        onClick={onAdd}
+        onClick={(e) => {
+          e.stopPropagation()
+          onAdd()
+        }}
         disabled={added}
         className="flex h-8 items-center gap-1 rounded-[8px] px-2 text-[12px]"
         style={{

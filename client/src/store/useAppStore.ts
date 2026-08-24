@@ -22,6 +22,7 @@ interface AppState {
   activeSectionIndex: number
   presentationOpen: boolean
   presentationSection: number
+  addPickerOpen: boolean
   editorOpen: boolean
   editorSongId: string | null
   setlistModalId: string | 'new' | null
@@ -47,6 +48,7 @@ interface AppState {
   openPresentation: () => void
   closePresentation: () => void
   setPresentationSection: (n: number) => void
+  setAddPickerOpen: (v: boolean) => void
   openEditor: (songId: string | null) => void
   closeEditor: () => void
   openSetlistModal: (id: string | 'new' | null) => void
@@ -75,6 +77,7 @@ export const useAppStore = create<AppState>((set) => ({
   activeSectionIndex: 0,
   presentationOpen: false,
   presentationSection: 0,
+  addPickerOpen: false,
   editorOpen: false,
   editorSongId: null,
   setlistModalId: null,
@@ -106,6 +109,7 @@ export const useAppStore = create<AppState>((set) => ({
   openPresentation: () => set({ presentationOpen: true, presentationSection: 0 }),
   closePresentation: () => set({ presentationOpen: false }),
   setPresentationSection: (presentationSection) => set({ presentationSection }),
+  setAddPickerOpen: (addPickerOpen) => set({ addPickerOpen }),
   openEditor: (editorSongId) => set({ editorOpen: true, editorSongId }),
   closeEditor: () => set({ editorOpen: false, editorSongId: null }),
   openSetlistModal: (setlistModalId) => set({ setlistModalId: setlistModalId, contextMenu: null }),

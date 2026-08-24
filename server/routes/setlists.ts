@@ -158,6 +158,15 @@ setlistsRouter.post('/:id/songs', async (req, res) => {
     return
   }
   const maxOrder = setlist.songs.reduce((m, s) => Math.max(m, s.order), -1)
+  const already = setlist.songs.find((s) => s.songId === songId)
+  if (already) {
+    const row = await prisma.setlistSong.findUnique({
+      where: { id: already.id },
+      include: { song: true },
+    })
+    res.status(200).json(row)
+    return
+  }
   const row = await prisma.setlistSong.create({
     data: {
       setlistId: setlist.id,
