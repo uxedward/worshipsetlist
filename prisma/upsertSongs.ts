@@ -262,25 +262,28 @@ async function upsertOne(client: PrismaClient, song: SeedSong) {
 async function attachToSundayAm(client: PrismaClient) {
   const setlist = await client.setlist.findFirst({
     where: { name: 'Sunday AM' },
-    include: { songs: true },
   })
   if (!setlist) return
 
-  const already = new Set(setlist.songs.map((s) => s.songId))
-  let order = setlist.songs.reduce((m, s) => Math.max(m, s.order), -1)
-
+  const desiredIds: string[] = []
   for (const song of SONGS.filter((s) => s.addToSundayAm)) {
     const row = await client.song.findFirst({
       where: { title: song.title, artist: song.artist },
     })
-    if (!row || already.has(row.id)) continue
-    order += 1
-    await client.setlistSong.create({
-      data: { setlistId: setlist.id, songId: row.id, order },
-    })
-    already.add(row.id)
-    console.log(`Added ${song.title} to Sunday AM`)
+    if (row) desiredIds.push(row.id)
   }
+
+  await client.setlistSong.deleteMany({ where: { setlistId: setlist.id } })
+  if (desiredIds.length) {
+    await client.setlistSong.createMany({
+      data: desiredIds.map((songId, order) => ({
+        setlistId: setlist.id,
+        songId,
+        order,
+      })),
+    })
+  }
+  console.log(`Sunday AM now has ${desiredIds.length} songs`)
 }
 
 export async function upsertWorshipSongs(client: PrismaClient = prisma) {
