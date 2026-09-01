@@ -4,10 +4,11 @@ import { parseBulkImport, serializeExport, parseBulkBlock } from './bulkFormat.t
 import type { Song } from './types.ts'
 
 describe('isChordLine', () => {
-  it('accepts a line of only chords', () => {
-    expect(isChordLine('G              D')).toBe(true)
-    expect(isChordLine('C#m7  D/F#  Gmaj7')).toBe(true)
-    expect(isChordLine('Am')).toBe(true)
+  it('accepts slash chords and sevenths from Oceans and Beautiful Name', () => {
+    expect(isChordLine('Bm   A/C#   D   A   G')).toBe(true)
+    expect(isChordLine('D/F#                           A')).toBe(true)
+    expect(isChordLine('Bm7                           F#m7')).toBe(true)
+    expect(isChordLine('Bm7       A           G')).toBe(true)
   })
 
   it('rejects lyrics and mixed lines', () => {
@@ -53,6 +54,34 @@ Orphan lyric`
     expect(sections[0].lines[0].lyric).toBe('')
     expect(sections[0].lines[1].chords).toBe('')
     expect(sections[0].lines[1].lyric).toBe('Orphan lyric')
+  })
+
+  it('parses the Beautiful Name closing chorus exactly', () => {
+    const { sections } = parseChart(`[Chorus 3]
+D                              A
+What a powerful Name it is what a powerful Name it is
+Bm        A           G
+The Name of Jesus Christ my King
+D/F#                           A
+What a powerful Name it is nothing can stand against
+Bm7       A           G
+What a powerful Name it is the Name of Jesus
+Bm7       A           G
+What a powerful Name it is the Name of Jesus
+Bm7       A           G
+What a powerful Name it is the Name of Jesus`)
+    expect(sections[0].label).toBe('Chorus 3')
+    expect(sections[0].lines.map((l) => l.lyric)).toEqual([
+      'What a powerful Name it is what a powerful Name it is',
+      'The Name of Jesus Christ my King',
+      'What a powerful Name it is nothing can stand against',
+      'What a powerful Name it is the Name of Jesus',
+      'What a powerful Name it is the Name of Jesus',
+      'What a powerful Name it is the Name of Jesus',
+    ])
+    expect(sections[0].lines[0].chords).toBe('D                              A')
+    expect(sections[0].lines[2].chords).toBe('D/F#                           A')
+    expect(sections[0].lines[3].chords).toBe('Bm7       A           G')
   })
 
   it('keeps intro chords with no lyric line', () => {

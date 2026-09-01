@@ -193,8 +193,8 @@ const CORE_SONGS: SeedSong[] = [
   {
     title: 'Oceans (Where Feet May Fail)',
     artist: 'Hillsong United',
-    key: 'D',
-    bpm: 64,
+    key: 'Bm',
+    bpm: 71,
     tag: 'Worship',
     chart: OCEANS_CHART,
   },
@@ -320,6 +320,10 @@ export async function ensureDemoData(client: PrismaClient = prisma) {
   })
   if (songCount === 0 || !hasPlaylist || !hasMore) {
     await upsertWorshipSongs(client)
+  } else {
+    for (const song of CORE_SONGS) {
+      await upsertOne(client, song)
+    }
   }
 
   await client.setlistSong.deleteMany({

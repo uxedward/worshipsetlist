@@ -11,15 +11,14 @@ import { CSS } from '@dnd-kit/utilities'
 import { AlertTriangle, GripVertical, Minus, Plus, X } from 'lucide-react'
 import type { SetlistSong } from '@shared/types.ts'
 import { formatDuration } from '@shared/duration.ts'
-import { keyJump, soundingKey, transposeKey, semitonesFromKeys, preferFlatsForKey } from '@shared/transpose.ts'
+import { keyJump, soundingKey, transposeKey, semitonesFromKeys } from '@shared/transpose.ts'
 import { TRANSPOSE_MAX, TRANSPOSE_MIN } from '@shared/types.ts'
 import type { Setlist } from '@shared/types.ts'
 import { cn } from '../lib/cn.ts'
 import { useAppStore } from '../store/useAppStore.ts'
-import { useMutations, useSong } from '../hooks/useQueries.ts'
+import { useMutations } from '../hooks/useQueries.ts'
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback.ts'
 import { EqualizerBars, KeyBadge } from './ui.tsx'
-import { ChordChart } from './ChordChart.tsx'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
@@ -115,7 +114,6 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
           })}
         </SortableContext>
       </DndContext>
-      <ActiveChart songs={songs} />
       <button
         type="button"
         onClick={() => setAddPickerOpen(true)}
@@ -255,47 +253,6 @@ function SortableRow({
           <X size={14} />
         </button>
       </div>
-    </div>
-  )
-}
-
-function ActiveChart({ songs }: { songs: SetlistSong[] }) {
-  const activeId = useAppStore((s) => s.activeSetlistSongId)
-  const lyricsOnly = useAppStore((s) => s.lyricsOnly)
-  const current = songs.find((s) => s.id === activeId) ?? null
-  const { data: full, isLoading } = useSong(current?.songId ?? null)
-  const song = full ?? current?.song
-  if (!current || !song) return null
-
-  const sections = [...(song.sections ?? [])].sort((a, b) => a.order - b.order)
-  const key = soundingKey(song.key, current.transposedKey)
-  const offset = current.transposedKey ? semitonesFromKeys(song.key, current.transposedKey) : 0
-
-  return (
-    <div
-      className="mt-3 rounded-[12px] px-4 py-4"
-      style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
-    >
-      <div className="mb-3 text-[10px] font-semibold tracking-[0.14em]" style={{ color: 'var(--text-faint)' }}>
-        {song.title.toUpperCase()} · CHORDS & LYRICS
-      </div>
-      {isLoading && sections.length === 0 ? (
-        <div className="space-y-2">
-          <div className="skeleton h-4 w-40" />
-          <div className="skeleton h-20 w-full" />
-        </div>
-      ) : sections.length === 0 ? (
-        <p className="text-[13px]" style={{ color: 'var(--text-dim)' }}>
-          No chart loaded for this song.
-        </p>
-      ) : (
-        <ChordChart
-          sections={sections}
-          lyricsOnly={lyricsOnly}
-          semitones={offset}
-          preferFlats={preferFlatsForKey(key)}
-        />
-      )}
     </div>
   )
 }
