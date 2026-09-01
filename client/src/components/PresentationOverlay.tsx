@@ -108,15 +108,19 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
     if (!el) return
 
     const fit = () => {
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        setFittedSize(preferredSize)
-        return
+      let size = preferredSize
+      el.style.fontSize = `${size}px`
+      for (let i = 0; i < 24; i++) {
+        const width = el.clientWidth
+        const longest = Math.max(
+          el.scrollWidth,
+          ...Array.from(el.children).map((child) => (child as HTMLElement).scrollWidth),
+        )
+        if (width <= 1 || longest <= width + 1 || size <= minSize) break
+        size = fittedFontSize(size, longest, width * 0.98, minSize)
+        el.style.fontSize = `${size}px`
       }
-      ctx.font = `${preferredSize}px ${PRESENT_FONT}`
-      const longest = lyrics.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0)
-      setFittedSize(fittedFontSize(preferredSize, longest, el.clientWidth, minSize))
+      setFittedSize((prev) => (prev === size ? prev : size))
     }
 
     fit()
@@ -310,6 +314,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
             ref={lyricsBoxRef}
             className="relative w-full text-center font-serif font-normal"
             style={{
+              fontFamily: PRESENT_FONT,
               fontSize: fittedSize,
               lineHeight: 1.45,
               textShadow: lyricTextShadow(presentSettings.shadow),
@@ -317,7 +322,11 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
           >
             {lyrics.length > 0 ? (
               lyrics.map((line, i) => (
-                <div key={`${i}-${line}`} className="overflow-hidden whitespace-nowrap">
+                <div
+                  key={`${i}-${line}`}
+                  className="overflow-hidden"
+                  style={{ whiteSpace: 'nowrap' }}
+                >
                   {line}
                 </div>
               ))
