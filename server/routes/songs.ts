@@ -65,9 +65,9 @@ songsRouter.get('/', async (req, res) => {
       ...(search
         ? {
             OR: [
-              { title: { contains: search, mode: 'insensitive' } },
-              { artist: { contains: search, mode: 'insensitive' } },
-              { album: { contains: search, mode: 'insensitive' } },
+              { title: { contains: search } },
+              { artist: { contains: search } },
+              { album: { contains: search } },
             ],
           }
         : {}),

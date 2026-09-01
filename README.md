@@ -6,15 +6,14 @@ Worship setlist builder — charts, transpose, presentation mode.
 
 - React + Vite + TypeScript
 - Tailwind CSS
-- Express + Prisma + PostgreSQL
+- Express + Prisma + **SQLite** (database file lives in this GitHub repo)
 
 ## Setup
 
 ```bash
 cp .env.example .env
-docker compose up -d        # or use a local Postgres matching DATABASE_URL
 npm install
-npx prisma migrate dev
+npx prisma db push
 npx prisma db seed
 npm run dev
 ```
@@ -22,16 +21,14 @@ npm run dev
 App: http://localhost:5173  
 API: http://localhost:3001
 
-The API also loads the worship library automatically on startup if it is empty, so lyrics and chords show up without a separate seed step after Postgres is running.
+The song library and Sunday AM playlist are stored in `prisma/setflow.db` and rebuilt from `prisma/playlistSongs.ts` + `prisma/playlistMore.ts`.
 
-Seed data includes Sunday AM / Midweek / Easter setlists plus 21 worship songs with charts (the referenced playlist is attached to Sunday AM).
+## Vercel
+
+The project is set up for Vercel (`vercel.json` + `api/index.ts`). The SQLite file is copied into `/tmp` on each serverless start so the seeded charts are available without a hosted Postgres database.
 
 ## Scripts
 
 - `npm run dev` — API + Vite together
 - `npm test` — chord parser, transpose, and presentation unit tests
 - `npm run db:migrate` / `npm run db:seed` / `npm run db:songs`
-
-## Import / export
-
-Songs round-trip through a `===` text format (library Import / Export all songs).

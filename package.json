@@ -3,11 +3,14 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "vite --config client/vite.config.ts",
     "dev:server": "tsx watch server/index.ts",
-    "build": "vite build --config client/vite.config.ts",
+    "build": "prisma generate && vite build --config client/vite.config.ts",
     "start": "NODE_ENV=production tsx server/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",

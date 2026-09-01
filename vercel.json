@@ -1,0 +1,14 @@
+{
+  "buildCommand": "prisma generate && vite build --config client/vite.config.ts",
+  "outputDirectory": "client/dist",
+  "framework": null,
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "prisma/**",
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" }
+  ]
+}

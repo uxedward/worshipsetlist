@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 import { parseChart } from '../shared/chartParser.ts'
 import { PLAYLIST_SONGS, type SeedSong } from './playlistSongs.ts'
+import { MORE_PLAYLIST_SONGS } from './playlistMore.ts'
 
 const prisma = new PrismaClient()
 
@@ -207,7 +208,7 @@ const CORE_SONGS: SeedSong[] = [
   },
 ]
 
-const SONGS: SeedSong[] = [...CORE_SONGS, ...PLAYLIST_SONGS]
+const SONGS: SeedSong[] = [...CORE_SONGS, ...PLAYLIST_SONGS, ...MORE_PLAYLIST_SONGS]
 
 async function upsertOne(client: PrismaClient, song: SeedSong) {
   const { sections, warnings } = parseChart(song.chart)
@@ -343,7 +344,10 @@ export async function ensureDemoData(client: PrismaClient = prisma) {
   const hasPlaylist = await client.song.findFirst({
     where: { title: { contains: 'Never Walk Alone' } },
   })
-  if (songCount === 0 || !hasPlaylist) {
+  const hasMore = await client.song.findFirst({
+    where: { title: { contains: 'Been So Good' } },
+  })
+  if (songCount === 0 || !hasPlaylist || !hasMore) {
     await upsertWorshipSongs(client)
     return
   }
