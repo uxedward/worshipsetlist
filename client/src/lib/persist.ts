@@ -1,4 +1,4 @@
-import type { Setlist, SetlistSong, Song } from '@shared/types.ts'
+import type { Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
 
 const KEY = 'setflow.persist.v2'
 const LEGACY_KEYS = ['setflow.persist.v1']
@@ -171,6 +171,44 @@ export function overlaySong(id: string, server: Song | null): Song | null {
   const state = loadPersist()
   if (state.deletedSongIds.includes(id)) return null
   return state.extraSongs[id] ?? server
+}
+
+export function rememberSongs(songs: Song[]) {
+  if (songs.length === 0) return
+  write((state) => {
+    for (const song of songs) {
+      state.deletedSongIds = state.deletedSongIds.filter((id) => id !== song.id)
+      state.extraSongs[song.id] = song
+    }
+  })
+}
+
+export function songFromInput(body: SongInput, id = `local-${crypto.randomUUID()}`): Song {
+  return {
+    id,
+    title: body.title,
+    artist: body.artist,
+    album: body.album ?? null,
+    key: body.key,
+    bpm: body.bpm,
+    timeSignature: body.timeSignature ?? '4/4',
+    tag: body.tag,
+    durationSeconds: body.durationSeconds ?? null,
+    createdAt: new Date().toISOString(),
+    sections: body.sections.map((s, i) => ({
+      id: `${id}-sec-${i}`,
+      songId: id,
+      label: s.label,
+      order: s.order,
+      lines: s.lines.map((l, j) => ({
+        id: `${id}-line-${i}-${j}`,
+        sectionId: `${id}-sec-${i}`,
+        chords: l.chords,
+        lyric: l.lyric,
+        order: l.order,
+      })),
+    })),
+  }
 }
 
 export function appendSetlistSong(setlistId: string, row: SetlistSong) {

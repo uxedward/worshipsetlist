@@ -117,7 +117,7 @@ export function LibraryView({
             Export
           </Btn>
           <Btn ghost onClick={() => setBulkImportOpen(true)}>
-            Import
+            Spotify / Import
           </Btn>
           <Btn accent onClick={() => openEditor(null)}>
             <Plus size={14} /> New Song
@@ -186,7 +186,7 @@ export function LibraryView({
           </div>
         ) : grouped.length === 0 ? (
           <div className="px-4 py-12 text-center text-[13px]" style={{ color: 'var(--text-dim)' }}>
-            No songs yet. Click + New Song to add your first chart.
+            No songs yet. Import a Spotify playlist or click + New Song.
           </div>
         ) : useVirtual ? (
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
