@@ -1,0 +1,21 @@
+Live HD present-mode clips are muted, trimmed camera footage from Wikimedia Commons.
+
+ocean.webm
+  Ocean waves at Lækjavik beach, Iceland
+  Alexander Grebenkov, CC BY 3.0
+  https://commons.wikimedia.org/wiki/File:Ocean_waves_at_L%C3%A6kjavik_beach,_Iceland.webm
+
+forest.webm
+  Trees in the wind
+  דוד שי (David Shay), CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:Trees_in_the_wind.webm
+
+lake.webm
+  Jezioro Cisie - panorama 1080p (trimmed)
+  Lubicz, CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:Jezioro_Cisie_-_panorama_1080p.webm
+
+mountains.webm
+  Steens Mountain, East Side
+  BLM Oregon & Washington, public domain
+  https://commons.wikimedia.org/wiki/File:Steens_Mountain,_East_Side_(33900331335).webm

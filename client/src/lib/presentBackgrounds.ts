@@ -12,6 +12,8 @@ export type PresentBackground = {
 export const DEFAULT_PRESENT_BACKGROUND = 'dusk'
 const STORAGE_KEY = 'setflow.presentBackground'
 
+// Live HD clips are real (muted, looping) nature camera footage, not Ken Burns stills.
+// Sources and licenses: client/public/backgrounds/CREDITS.txt
 export const PRESENT_BACKGROUNDS: PresentBackground[] = [
   { id: 'dusk', label: 'Warm dusk', kind: 'gradient', group: 'still' },
   { id: 'ocean', label: 'Ocean', kind: 'photo', group: 'still', src: '/backgrounds/ocean.jpg' },
