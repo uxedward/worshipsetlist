@@ -140,6 +140,36 @@ button:disabled {
   animation: lyrics-in 350ms ease 50ms both;
 }
 
+.present-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  width: 100%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  outline: none;
+}
+
+.present-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+}
+
+.present-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+}
+
 .skeleton {
   background: linear-gradient(90deg, var(--card) 0%, var(--border) 50%, var(--card) 100%);
   background-size: 200% 100%;

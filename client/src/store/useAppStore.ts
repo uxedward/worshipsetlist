@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import type { PresentationFontSize, Theme } from '@shared/types.ts'
 import { loadPresentBackgroundId, savePresentBackgroundId } from '../lib/presentBackgrounds.ts'
+import {
+  clampPresentSettings,
+  loadPresentSettings,
+  savePresentSettings,
+  type PresentSettings,
+} from '../lib/presentSettings.ts'
 
 export type MainView = 'setlist' | 'library'
 export type MobileTab = 'setlist' | 'library' | 'song'
@@ -40,6 +46,7 @@ interface AppState {
   theme: Theme
   fontSize: PresentationFontSize
   presentBackgroundId: string
+  presentSettings: PresentSettings
 
   setMainView: (v: MainView) => void
   setMobileTab: (v: MobileTab) => void
@@ -69,6 +76,7 @@ interface AppState {
   setTheme: (t: Theme) => void
   setFontSize: (s: PresentationFontSize) => void
   setPresentBackgroundId: (id: string) => void
+  setPresentSettings: (patch: Partial<PresentSettings>) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -97,6 +105,7 @@ export const useAppStore = create<AppState>((set) => ({
   theme: 'dark',
   fontSize: 'medium',
   presentBackgroundId: loadPresentBackgroundId(),
+  presentSettings: loadPresentSettings(),
 
   setMainView: (mainView) => set({ mainView, mobileTab: mainView === 'library' ? 'library' : 'setlist' }),
   setMobileTab: (mobileTab) =>
@@ -136,4 +145,10 @@ export const useAppStore = create<AppState>((set) => ({
     savePresentBackgroundId(presentBackgroundId)
     set({ presentBackgroundId })
   },
+  setPresentSettings: (patch) =>
+    set((s) => {
+      const presentSettings = clampPresentSettings({ ...s.presentSettings, ...patch })
+      savePresentSettings(presentSettings)
+      return { presentSettings }
+    }),
 }))

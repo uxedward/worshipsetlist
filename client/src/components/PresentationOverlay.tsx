@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Image as ImageIcon, Minus, Plus, X } from 'lucide-react'
-import type { SetlistSong, PresentationFontSize } from '@shared/types.ts'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Image as ImageIcon, Minus, Plus, Settings, X } from 'lucide-react'
+import type { SetlistSong } from '@shared/types.ts'
 import { soundingKey } from '@shared/transpose.ts'
 import { LYRICS_PER_SLIDE, firstSlideIndexForSection, slidesFromSections } from '@shared/presentationSlides.ts'
 import { useAppStore } from '../store/useAppStore.ts'
@@ -12,12 +12,18 @@ import {
   findPresentBackground,
   type PresentBackground,
 } from '../lib/presentBackgrounds.ts'
-
-const DESKTOP_SIZE: Record<PresentationFontSize, number> = {
-  small: 36,
-  medium: 52,
-  large: 68,
-}
+import {
+  FONT_MAX,
+  FONT_MIN,
+  LINE_WIDTH_MAX,
+  LINE_WIDTH_MIN,
+  PRESENT_FONT,
+  coarseFontSize,
+  fittedFontSize,
+  lyricPlateColor,
+  lyricTextShadow,
+  screenVeil,
+} from '../lib/presentSettings.ts'
 
 export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const open = useAppStore((s) => s.presentationOpen)
@@ -26,16 +32,20 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const setActive = useAppStore((s) => s.setActiveSetlistSongId)
   const slide = useAppStore((s) => s.presentationSection)
   const setSlide = useAppStore((s) => s.setPresentationSection)
-  const fontSize = useAppStore((s) => s.fontSize)
   const setFontSize = useAppStore((s) => s.setFontSize)
   const backgroundId = useAppStore((s) => s.presentBackgroundId)
   const setBackgroundId = useAppStore((s) => s.setPresentBackgroundId)
+  const presentSettings = useAppStore((s) => s.presentSettings)
+  const setPresentSettings = useAppStore((s) => s.setPresentSettings)
   const { patchPrefs } = useMutations()
   const isMobile = useIsMobile()
   const [anim, setAnim] = useState<'in' | 'out'>('in')
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(false)
+  const [fittedSize, setFittedSize] = useState(presentSettings.fontSize)
   const touchX = useRef<number | null>(null)
+  const lyricsBoxRef = useRef<HTMLDivElement>(null)
   const background = findPresentBackground(backgroundId)
 
   const selectedIndex = songs.findIndex((s) => s.id === activeId)
@@ -52,6 +62,20 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const currentSlide = slides[slide] ?? slides[0]
   const lyrics = (currentSlide?.lines ?? []).slice(0, LYRICS_PER_SLIDE)
   const key = current ? soundingKey(current.song.key, current.transposedKey) : ''
+  const minSize = isMobile ? 18 : FONT_MIN
+  const preferredSize = isMobile ? Math.round(presentSettings.fontSize * 0.52) : presentSettings.fontSize
+
+  const lastCoarse = useRef(coarseFontSize(presentSettings.fontSize))
+
+  const applyFontSize = (next: number) => {
+    setPresentSettings({ fontSize: next })
+    const coarse = coarseFontSize(next)
+    setFontSize(coarse)
+    if (lastCoarse.current !== coarse) {
+      lastCoarse.current = coarse
+      patchPrefs.mutate({ presentationFontSize: coarse })
+    }
+  }
 
   const goSlide = (next: number) => {
     if (next < 0) {
@@ -75,13 +99,31 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
     }, 250)
   }
 
-  const cycleFont = (dir: number) => {
-    const order: PresentationFontSize[] = ['small', 'medium', 'large']
-    const i = Math.max(0, Math.min(2, order.indexOf(fontSize) + dir))
-    const next = order[i]
-    setFontSize(next)
-    patchPrefs.mutate({ presentationFontSize: next })
+  const nudgeFont = (dir: number) => {
+    applyFontSize(presentSettings.fontSize + dir * 4)
   }
+
+  useLayoutEffect(() => {
+    const el = lyricsBoxRef.current
+    if (!el) return
+
+    const fit = () => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        setFittedSize(preferredSize)
+        return
+      }
+      ctx.font = `${preferredSize}px ${PRESENT_FONT}`
+      const longest = lyrics.reduce((max, line) => Math.max(max, ctx.measureText(line).width), 0)
+      setFittedSize(fittedFontSize(preferredSize, longest, el.clientWidth, minSize))
+    }
+
+    fit()
+    const observer = new ResizeObserver(fit)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [lyrics, preferredSize, minSize, presentSettings.lineWidth])
 
   useEffect(() => {
     if (slides.length === 0) {
@@ -101,21 +143,35 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   }, [])
 
   useEffect(() => {
-    if (!open) setPickerOpen(false)
+    if (!open) {
+      setPickerOpen(false)
+      setSettingsOpen(false)
+    }
   }, [open])
 
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
+      const fromSlider = (e.target as HTMLElement | null)?.tagName === 'INPUT'
       if (e.key === 'Escape') {
+        if (settingsOpen) {
+          setSettingsOpen(false)
+          return
+        }
         if (pickerOpen) {
           setPickerOpen(false)
           return
         }
         close()
       }
+      if (fromSlider) return
       if (e.key === 'b' || e.key === 'B') {
         setPickerOpen((v) => !v)
+        setSettingsOpen(false)
+      }
+      if (e.key === 's' || e.key === 'S') {
+        setSettingsOpen((v) => !v)
+        setPickerOpen(false)
       }
       if (e.key === ' ' || e.key === 'ArrowRight') {
         e.preventDefault()
@@ -131,11 +187,9 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, slide, index, songs, close, setActive, setSlide, slides.length, pickerOpen])
+  }, [open, slide, index, songs, close, setActive, setSlide, slides.length, pickerOpen, settingsOpen])
 
   if (!open || !current || !song) return null
-
-  const size = isMobile ? 26 : DESKTOP_SIZE[fontSize]
 
   return (
     <div
@@ -152,7 +206,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
         if (dx > 40) goSlide(slide - 1)
       }}
     >
-      <PresentBackdrop background={background} reduceMotion={reduceMotion} />
+      <PresentBackdrop background={background} reduceMotion={reduceMotion} overlay={presentSettings.overlay} />
       <div className="relative z-10 flex h-11 items-center justify-between px-4">
         <div className="w-[28%] truncate text-[13px]" style={{ color: 'rgba(255,255,255,0.6)' }}>
           {song.title} · {index + 1} of {songs.length} · {key}
@@ -189,15 +243,30 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
           <button
             type="button"
             title="Backgrounds"
-            onClick={() => setPickerOpen((v) => !v)}
+            onClick={() => {
+              setPickerOpen((v) => !v)
+              setSettingsOpen(false)
+            }}
             className="flex h-7 w-7 items-center justify-center rounded-[8px]"
             style={{ background: pickerOpen ? 'var(--accent)' : 'rgba(0,0,0,0.25)' }}
           >
             <ImageIcon size={14} />
           </button>
+          <button
+            type="button"
+            title="Text settings"
+            onClick={() => {
+              setSettingsOpen((v) => !v)
+              setPickerOpen(false)
+            }}
+            className="flex h-7 w-7 items-center justify-center rounded-[8px]"
+            style={{ background: settingsOpen ? 'var(--accent)' : 'rgba(0,0,0,0.25)' }}
+          >
+            <Settings size={14} />
+          </button>
           {[
-            { title: 'Smaller', onClick: () => cycleFont(-1), icon: <Minus size={14} /> },
-            { title: 'Larger', onClick: () => cycleFont(1), icon: <Plus size={14} /> },
+            { title: 'Smaller', onClick: () => nudgeFont(-1), icon: <Minus size={14} /> },
+            { title: 'Larger', onClick: () => nudgeFont(1), icon: <Plus size={14} /> },
             { title: 'Exit', onClick: close, icon: <X size={14} /> },
           ].map((b) => (
             <button
@@ -216,29 +285,42 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
 
       <div
         className="relative z-10 flex flex-1 cursor-pointer flex-col items-center"
-        style={{ paddingTop: '18vh' }}
+        style={{ paddingTop: '16vh' }}
         onClick={() => goSlide(slide + 1)}
       >
         <div
-          className={cn(anim === 'out' ? 'lyrics-out' : 'lyrics-in', 'flex flex-col items-center')}
-          style={{ maxWidth: '80%' }}
+          className={cn(anim === 'out' ? 'lyrics-out' : 'lyrics-in', 'relative flex flex-col items-center')}
+          style={{ width: `${presentSettings.lineWidth}%`, maxWidth: '96%' }}
         >
           <div
-            className="mb-6 text-[11px] uppercase"
+            className="pointer-events-none absolute rounded-[28px]"
+            style={{
+              inset: '-1.4rem -1.8rem',
+              background: lyricPlateColor(presentSettings.overlay),
+            }}
+            aria-hidden
+          />
+          <div
+            className="relative mb-6 text-[11px] uppercase"
             style={{ letterSpacing: '0.15em', color: 'rgba(255,255,255,0.35)' }}
           >
             {currentSlide?.sectionLabel ?? ''}
           </div>
           <div
-            className="text-center font-serif font-normal"
+            ref={lyricsBoxRef}
+            className="relative w-full text-center font-serif font-normal"
             style={{
-              fontSize: size,
+              fontSize: fittedSize,
               lineHeight: 1.45,
-              textShadow: '0 2px 28px rgba(0,0,0,0.8), 0 0 18px rgba(0,0,0,0.55)',
+              textShadow: lyricTextShadow(presentSettings.shadow),
             }}
           >
             {lyrics.length > 0 ? (
-              lyrics.map((line, i) => <div key={`${i}-${line}`}>{line}</div>)
+              lyrics.map((line, i) => (
+                <div key={`${i}-${line}`} className="overflow-hidden whitespace-nowrap">
+                  {line}
+                </div>
+              ))
             ) : (
               <div style={{ color: 'rgba(255,255,255,0.4)' }}>Instrumental</div>
             )}
@@ -250,6 +332,18 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
         <BackgroundPicker
           selectedId={background.id}
           onSelect={setBackgroundId}
+        />
+      ) : null}
+      {settingsOpen ? (
+        <PresentSettingsPanel
+          fontSize={presentSettings.fontSize}
+          lineWidth={presentSettings.lineWidth}
+          overlay={presentSettings.overlay}
+          shadow={presentSettings.shadow}
+          onFontSize={applyFontSize}
+          onLineWidth={(lineWidth) => setPresentSettings({ lineWidth })}
+          onOverlay={(overlay) => setPresentSettings({ overlay })}
+          onShadow={(shadow) => setPresentSettings({ shadow })}
         />
       ) : null}
 
@@ -304,9 +398,11 @@ const DUSK_GRADIENT =
 function PresentBackdrop({
   background,
   reduceMotion,
+  overlay,
 }: {
   background: PresentBackground
   reduceMotion: boolean
+  overlay: number
 }) {
   const showVideo = background.kind === 'video' && Boolean(background.src) && !reduceMotion
   return (
@@ -334,14 +430,93 @@ function PresentBackdrop({
       ) : null}
       <div
         className="absolute inset-0"
-        style={{
-          background:
-            background.kind === 'gradient'
-              ? 'transparent'
-              : 'linear-gradient(180deg, rgba(8,4,2,0.28) 0%, rgba(8,4,2,0.42) 45%, rgba(8,4,2,0.62) 100%)',
-        }}
+        style={{ background: screenVeil(overlay, background.kind === 'gradient') }}
       />
     </div>
+  )
+}
+
+function PresentSettingsPanel({
+  fontSize,
+  lineWidth,
+  overlay,
+  shadow,
+  onFontSize,
+  onLineWidth,
+  onOverlay,
+  onShadow,
+}: {
+  fontSize: number
+  lineWidth: number
+  overlay: number
+  shadow: number
+  onFontSize: (n: number) => void
+  onLineWidth: (n: number) => void
+  onOverlay: (n: number) => void
+  onShadow: (n: number) => void
+}) {
+  return (
+    <div
+      className="relative z-20 mx-4 mb-3 rounded-[12px] px-4 py-3"
+      style={{ background: 'rgba(12,8,6,0.78)', border: '1px solid rgba(255,255,255,0.12)' }}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <div className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-white/50">TEXT</div>
+      <PresentSlider
+        label="Size"
+        value={fontSize}
+        min={FONT_MIN}
+        max={FONT_MAX}
+        onChange={onFontSize}
+      />
+      <PresentSlider
+        label="Line width"
+        value={lineWidth}
+        min={LINE_WIDTH_MIN}
+        max={LINE_WIDTH_MAX}
+        suffix="%"
+        onChange={onLineWidth}
+      />
+      <div className="mb-2 mt-3 text-[10px] font-semibold tracking-[0.14em] text-white/50">READABILITY</div>
+      <PresentSlider label="Dark overlay" value={overlay} min={0} max={100} onChange={onOverlay} />
+      <PresentSlider label="Text shadow" value={shadow} min={0} max={100} onChange={onShadow} />
+    </div>
+  )
+}
+
+function PresentSlider({
+  label,
+  value,
+  min,
+  max,
+  suffix = '',
+  onChange,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  suffix?: string
+  onChange: (n: number) => void
+}) {
+  return (
+    <label className="flex items-center gap-3 py-1.5">
+      <span className="w-[7.2rem] shrink-0 text-[12px] text-white/75">{label}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        value={value}
+        aria-label={label}
+        className="present-slider min-h-8 flex-1"
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
+      <span className="w-11 text-right text-[11px] tabular-nums text-white/55">
+        {value}
+        {suffix}
+      </span>
+    </label>
   )
 }
 
