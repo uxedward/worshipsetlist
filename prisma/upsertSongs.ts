@@ -320,14 +320,11 @@ export async function ensureDemoData(client: PrismaClient = prisma) {
           serviceName: 'Wednesday Night',
           colorIndex: 2,
         },
-        {
-          name: 'Easter',
-          serviceName: 'Resurrection Sunday',
-          colorIndex: 3,
-        },
       ],
     })
   }
+
+  await client.setlist.deleteMany({ where: { name: 'Easter' } })
 
   const first = await client.setlist.findFirst({ orderBy: { createdAt: 'asc' } })
   if (first) {

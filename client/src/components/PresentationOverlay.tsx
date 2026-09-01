@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Minus, Plus, X } from 'lucide-react'
 import type { SetlistSong, PresentationFontSize } from '@shared/types.ts'
 import { soundingKey } from '@shared/transpose.ts'
-import { firstSlideIndexForSection, slidesFromSections } from '@shared/presentationSlides.ts'
+import { LYRICS_PER_SLIDE, firstSlideIndexForSection, slidesFromSections } from '@shared/presentationSlides.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSong } from '../hooks/useQueries.ts'
 import { useIsMobile } from '../hooks/useMediaQuery.ts'
@@ -25,12 +25,12 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const setFontSize = useAppStore((s) => s.setFontSize)
   const { patchPrefs } = useMutations()
   const isMobile = useIsMobile()
-  const [layoutSimple, setLayoutSimple] = useState(false)
   const [anim, setAnim] = useState<'in' | 'out'>('in')
   const touchX = useRef<number | null>(null)
 
-  const index = Math.max(0, songs.findIndex((s) => s.id === activeId))
-  const current = songs[index] ?? songs[0]
+  const selectedIndex = songs.findIndex((s) => s.id === activeId)
+  const index = selectedIndex >= 0 ? selectedIndex : 0
+  const current = songs[index]
   const { data: full } = useSong(current?.songId ?? null)
   const song = full ?? current?.song
 
@@ -40,9 +40,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   )
   const slides = useMemo(() => slidesFromSections(sections), [sections])
   const currentSlide = slides[slide] ?? slides[0]
-  const nextSlide = slides[slide + 1]
-  const lyrics = currentSlide?.lines ?? []
-  const preview = (nextSlide?.lines ?? []).slice(0, 2)
+  const lyrics = (currentSlide?.lines ?? []).slice(0, LYRICS_PER_SLIDE)
   const key = current ? soundingKey(current.song.key, current.transposedKey) : ''
 
   const goSlide = (next: number) => {
@@ -160,11 +158,6 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
         </div>
         <div className="flex w-[28%] justify-end gap-1">
           {[
-            {
-              title: 'Layout',
-              onClick: () => setLayoutSimple((v) => !v),
-              icon: <span className="text-[11px]">{layoutSimple ? 'A' : '∷'}</span>,
-            },
             { title: 'Smaller', onClick: () => cycleFont(-1), icon: <Minus size={14} /> },
             { title: 'Larger', onClick: () => cycleFont(1), icon: <Plus size={14} /> },
             { title: 'Exit', onClick: close, icon: <X size={14} /> },
@@ -207,21 +200,11 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
             }}
           >
             {lyrics.length > 0 ? (
-              lyrics.map((line) => <div key={line}>{line}</div>)
+              lyrics.map((line, i) => <div key={`${i}-${line}`}>{line}</div>)
             ) : (
               <div style={{ color: 'rgba(255,255,255,0.4)' }}>Instrumental</div>
             )}
           </div>
-          {!layoutSimple && preview.length > 0 ? (
-            <div
-              className="mt-12 text-center font-serif"
-              style={{ fontSize: isMobile ? 16 : 22, color: 'rgba(255,255,255,0.28)' }}
-            >
-              {preview.map((line) => (
-                <div key={line}>{line}</div>
-              ))}
-            </div>
-          ) : null}
         </div>
       </div>
 

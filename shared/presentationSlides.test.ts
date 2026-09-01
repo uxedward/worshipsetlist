@@ -22,6 +22,19 @@ describe('slidesFromSections', () => {
     expect(slides[0].sectionLabel).toBe('Chorus')
   })
 
+  it('never puts more than four lyric lines on a slide', () => {
+    const slides = slidesFromSections([
+      {
+        label: 'Bridge',
+        lines: Array.from({ length: 11 }, (_, i) => ({ lyric: `line ${i + 1}` })),
+      },
+    ])
+    expect(slides).toHaveLength(3)
+    expect(slides.every((s) => s.lines.length <= 4)).toBe(true)
+    expect(slides[0].lines).toHaveLength(4)
+    expect(slides[2].lines).toHaveLength(3)
+  })
+
   it('skips chord-only sections and blank lines', () => {
     const slides = slidesFromSections([
       { label: 'Intro', lines: [{ lyric: '' }, { lyric: '   ' }] },

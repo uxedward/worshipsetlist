@@ -262,7 +262,7 @@ function SortableRow({
 function ActiveChart({ songs }: { songs: SetlistSong[] }) {
   const activeId = useAppStore((s) => s.activeSetlistSongId)
   const lyricsOnly = useAppStore((s) => s.lyricsOnly)
-  const current = songs.find((s) => s.id === activeId) ?? songs[0]
+  const current = songs.find((s) => s.id === activeId) ?? null
   const { data: full, isLoading } = useSong(current?.songId ?? null)
   const song = full ?? current?.song
   if (!current || !song) return null

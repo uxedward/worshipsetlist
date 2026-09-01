@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import type { Setlist, SetlistSong } from '@shared/types.ts'
 import { keyJump, soundingKey } from '@shared/transpose.ts'
 import { formatDurationLong } from '@shared/duration.ts'
@@ -39,13 +38,7 @@ export function AppShell({
   const drawerOpen = useAppStore((s) => s.drawerOpen)
   const setDrawerOpen = useAppStore((s) => s.setDrawerOpen)
   const activeSsId = useAppStore((s) => s.activeSetlistSongId)
-  const activeSs = songs.find((s) => s.id === activeSsId) ?? songs[0] ?? null
-
-  useEffect(() => {
-    if (!activeSsId && songs[0]) {
-      useAppStore.getState().setActiveSetlistSongId(songs[0].id)
-    }
-  }, [activeSsId, songs])
+  const activeSs = songs.find((s) => s.id === activeSsId) ?? null
 
   const warnings = songs.filter((ss, i) => {
     if (i === 0) return false

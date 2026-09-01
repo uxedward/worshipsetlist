@@ -30,8 +30,8 @@ export function Playbar({ setlist, songs }: { setlist?: Setlist; songs: SetlistS
   const setExportOpen = useAppStore((s) => s.setExportOpen)
   const { patchSetlistSong } = useMutations()
 
-  const index = Math.max(0, songs.findIndex((s) => s.id === activeId))
-  const current = songs[index] ?? songs[0]
+  const index = songs.findIndex((s) => s.id === activeId)
+  const current = index >= 0 ? songs[index] : null
   const duration = current?.song.durationSeconds ?? 0
   const progress = duration > 0 ? Math.min(1, elapsed / duration) : 0
   const key = current ? soundingKey(current.song.key, current.transposedKey) : ''
@@ -55,12 +55,17 @@ export function Playbar({ setlist, songs }: { setlist?: Setlist; songs: SetlistS
   if (!current) {
     return (
       <div
-        className="hidden h-[72px] items-center px-4 md:flex"
+        className="hidden h-[72px] items-center justify-between px-4 md:flex"
         style={{ background: 'var(--surface)', borderTop: '1px solid var(--border)' }}
       >
         <span className="text-[12px]" style={{ color: 'var(--text-dim)' }}>
-          Add songs to start rehearsing
+          {songs.length === 0 ? 'Add songs to start rehearsing' : 'Select a song to rehearse'}
         </span>
+        {songs.length > 0 ? (
+          <button type="button" title="Present" onClick={openPresentation} style={{ color: 'var(--text)' }}>
+            <Presentation size={16} />
+          </button>
+        ) : null}
       </div>
     )
   }
@@ -167,8 +172,8 @@ export function MiniPlayer({ songs }: { setlist?: Setlist; songs: SetlistSong[] 
   const elapsed = useAppStore((s) => s.elapsed)
   const setElapsed = useAppStore((s) => s.setElapsed)
 
-  const index = Math.max(0, songs.findIndex((s) => s.id === activeId))
-  const current = songs[index] ?? songs[0]
+  const index = songs.findIndex((s) => s.id === activeId)
+  const current = index >= 0 ? songs[index] : null
   if (!current) return null
   const duration = current.song.durationSeconds ?? 0
   const progress = duration > 0 ? Math.min(1, elapsed / duration) : 0
