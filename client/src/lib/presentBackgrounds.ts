@@ -26,7 +26,7 @@ export const PRESENT_BACKGROUNDS: PresentBackground[] = [
     label: 'Ocean live',
     kind: 'video',
     group: 'motion',
-    src: '/backgrounds/ocean.webm',
+    src: '/backgrounds/ocean.webm?v=2',
     poster: '/backgrounds/ocean.jpg',
   },
   {
@@ -34,7 +34,7 @@ export const PRESENT_BACKGROUNDS: PresentBackground[] = [
     label: 'Mountains live',
     kind: 'video',
     group: 'motion',
-    src: '/backgrounds/mountains.webm',
+    src: '/backgrounds/mountains.webm?v=2',
     poster: '/backgrounds/mountains.jpg',
   },
   {
@@ -42,7 +42,7 @@ export const PRESENT_BACKGROUNDS: PresentBackground[] = [
     label: 'Forest live',
     kind: 'video',
     group: 'motion',
-    src: '/backgrounds/forest.webm',
+    src: '/backgrounds/forest.webm?v=2',
     poster: '/backgrounds/forest.jpg',
   },
   {
@@ -50,7 +50,7 @@ export const PRESENT_BACKGROUNDS: PresentBackground[] = [
     label: 'Lake live',
     kind: 'video',
     group: 'motion',
-    src: '/backgrounds/lake.webm',
+    src: '/backgrounds/lake.webm?v=2',
     poster: '/backgrounds/lake.jpg',
   },
 ]

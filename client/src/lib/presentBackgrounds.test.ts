@@ -32,6 +32,7 @@ describe('present backgrounds', () => {
     expect(kinds).toEqual(new Set(['gradient', 'photo', 'video']))
     expect(PRESENT_BACKGROUNDS.filter((bg) => bg.group === 'still').length).toBeGreaterThanOrEqual(5)
     expect(PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'video')).toHaveLength(4)
+    expect(PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'video').every((bg) => bg.src?.includes('.webm'))).toBe(true)
   })
 
   it('falls back to dusk for unknown ids', () => {
