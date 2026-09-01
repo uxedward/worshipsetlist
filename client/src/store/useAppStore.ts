@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { PresentationFontSize, Theme } from '@shared/types.ts'
+import { loadPresentBackgroundId, savePresentBackgroundId } from '../lib/presentBackgrounds.ts'
 
 export type MainView = 'setlist' | 'library'
 export type MobileTab = 'setlist' | 'library' | 'song'
@@ -38,6 +39,7 @@ interface AppState {
   elapsed: number
   theme: Theme
   fontSize: PresentationFontSize
+  presentBackgroundId: string
 
   setMainView: (v: MainView) => void
   setMobileTab: (v: MobileTab) => void
@@ -66,6 +68,7 @@ interface AppState {
   setElapsed: (n: number | ((p: number) => number)) => void
   setTheme: (t: Theme) => void
   setFontSize: (s: PresentationFontSize) => void
+  setPresentBackgroundId: (id: string) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -93,6 +96,7 @@ export const useAppStore = create<AppState>((set) => ({
   elapsed: 0,
   theme: 'dark',
   fontSize: 'medium',
+  presentBackgroundId: loadPresentBackgroundId(),
 
   setMainView: (mainView) => set({ mainView, mobileTab: mainView === 'library' ? 'library' : 'setlist' }),
   setMobileTab: (mobileTab) =>
@@ -128,4 +132,8 @@ export const useAppStore = create<AppState>((set) => ({
     set((s) => ({ elapsed: typeof n === 'function' ? n(s.elapsed) : n })),
   setTheme: (theme) => set({ theme }),
   setFontSize: (fontSize) => set({ fontSize }),
+  setPresentBackgroundId: (presentBackgroundId) => {
+    savePresentBackgroundId(presentBackgroundId)
+    set({ presentBackgroundId })
+  },
 }))
