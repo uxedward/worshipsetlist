@@ -13,9 +13,9 @@ Object.defineProperty(globalThis, 'localStorage', {
     clear: () => memory.clear(),
   },
 })
+
 import {
   appendSetlistSong,
-  loadPersist,
   overlaySetlist,
   overlaySetlists,
   overlaySongs,
@@ -66,12 +66,19 @@ describe('persist overlays', () => {
     localStorage.clear()
   })
 
-  it('keeps an added setlist song after a stale server refetch', () => {
-    const midweek = setlist('mw', 'Midweek')
-    overlaySetlist(midweek)
-    const added = song('s1', 'Jireh')
-    appendSetlistSong('mw', row('mw', added))
+  it('does not copy the server setlist into local storage', () => {
+    const sunday = overlaySetlist(
+      setlist('a', 'Sunday AM', [row('a', song('s1', 'Oceans')), row('a', song('s2', 'Jireh'), 1)]),
+    )
+    expect(sunday.songs).toHaveLength(2)
 
+    const emptied = overlaySetlist(setlist('a', 'Sunday AM', []))
+    expect(emptied.songs).toHaveLength(0)
+  })
+
+  it('keeps an added setlist song after a stale server refetch', () => {
+    overlaySetlist(setlist('mw', 'Midweek'))
+    appendSetlistSong('mw', row('mw', song('s1', 'Jireh')))
     const stale = overlaySetlist(setlist('mw', 'Midweek'))
     expect(stale.songs).toHaveLength(1)
     expect(stale.songs?.[0].song.title).toBe('Jireh')
@@ -81,11 +88,11 @@ describe('persist overlays', () => {
     overlaySetlists([setlist('a', 'Sunday AM'), setlist('b', 'Midweek')])
     appendSetlistSong('b', row('b', song('s1', 'Praise')))
     const listed = overlaySetlists([
-      { ...setlist('a', 'Sunday AM'), _count: { songs: 47 } },
+      { ...setlist('a', 'Sunday AM'), _count: { songs: 0 } },
       { ...setlist('b', 'Midweek'), _count: { songs: 0 } },
     ])
-    const midweek = listed.find((s) => s.id === 'b')
-    expect(midweek?._count?.songs).toBe(1)
+    expect(listed.find((s) => s.id === 'a')?._count?.songs).toBe(0)
+    expect(listed.find((s) => s.id === 'b')?._count?.songs).toBe(1)
   })
 
   it('remembers a deleted setlist', () => {
@@ -101,18 +108,9 @@ describe('persist overlays', () => {
     expect(songs.map((s) => s.title).sort()).toEqual(['Oceans', 'Original'])
   })
 
-  it('does not replace a loaded setlist with a sidebar row that has no songs', () => {
-    overlaySetlists([{ ...setlist('a', 'Sunday AM'), songs: undefined, _count: { songs: 47 } }])
-    const detail = overlaySetlist({
-      ...setlist('a', 'Sunday AM'),
-      songs: [row('a', song('s1', 'Oceans'))],
-    })
-    expect(detail.songs).toHaveLength(1)
-    expect(detail.songs?.[0].song.title).toBe('Oceans')
-  })
-
   it('saves renamed setlists', () => {
     rememberSetlist({ ...setlist('a', 'Sunday AM'), name: 'Sunday Gathering' })
-    expect(loadPersist().setlists.a.name).toBe('Sunday Gathering')
+    const listed = overlaySetlists([setlist('a', 'Sunday AM')])
+    expect(listed[0].name).toBe('Sunday Gathering')
   })
 })

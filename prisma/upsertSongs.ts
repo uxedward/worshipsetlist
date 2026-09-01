@@ -260,32 +260,6 @@ async function upsertOne(client: PrismaClient, song: SeedSong) {
   return created.id
 }
 
-async function attachToSundayAm(client: PrismaClient) {
-  const setlist = await client.setlist.findFirst({
-    where: { name: 'Sunday AM' },
-    include: { songs: true },
-  })
-  if (!setlist) return
-
-  const already = new Set(setlist.songs.map((s) => s.songId))
-  let order = setlist.songs.reduce((m, s) => Math.max(m, s.order), -1)
-  let added = 0
-
-  for (const song of SONGS.filter((s) => s.addToSundayAm)) {
-    const row = await client.song.findFirst({
-      where: { title: song.title, artist: song.artist },
-    })
-    if (!row || already.has(row.id)) continue
-    order += 1
-    await client.setlistSong.create({
-      data: { setlistId: setlist.id, songId: row.id, order },
-    })
-    already.add(row.id)
-    added += 1
-  }
-  console.log(`Sunday AM has ${already.size} songs (${added} added)`)
-}
-
 function nextSunday(): Date {
   const d = new Date()
   d.setHours(10, 0, 0, 0)
@@ -346,23 +320,17 @@ export async function ensureDemoData(client: PrismaClient = prisma) {
   })
   if (songCount === 0 || !hasPlaylist || !hasMore) {
     await upsertWorshipSongs(client)
-    return
   }
 
-  const sunday = await client.setlist.findFirst({
-    where: { name: 'Sunday AM' },
-    include: { _count: { select: { songs: true } } },
+  await client.setlistSong.deleteMany({
+    where: { setlist: { name: 'Sunday AM' } },
   })
-  if (sunday && sunday._count.songs === 0) {
-    await attachToSundayAm(client)
-  }
 }
 
 export async function upsertWorshipSongs(client: PrismaClient = prisma) {
   for (const song of SONGS) {
     await upsertOne(client, song)
   }
-  await attachToSundayAm(client)
 }
 
 const isMain = process.argv[1]?.includes('upsertSongs')

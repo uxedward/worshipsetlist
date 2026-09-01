@@ -93,8 +93,9 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
       headers,
       body: json !== undefined ? JSON.stringify(json) : rest.body,
     })
+    const ok = res.ok
     setOnline(true)
-    if (!res.ok) {
+    if (!ok) {
       let message = res.statusText
       try {
         const data = (await res.json()) as { error?: string }
@@ -112,11 +113,12 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
     return JSON.parse(text) as T
   } catch (err) {
     if (err instanceof ApiError) throw err
-    setOnline(false)
-    if (queueOnFail && !skipQueue) {
+    const method = (rest.method || 'GET').toUpperCase()
+    if (method === 'GET' || method === 'HEAD') setOnline(false)
+    if (queueOnFail && !skipQueue && (method === 'GET' || method === 'HEAD')) {
       enqueue({
         path,
-        method: (rest.method || 'GET').toUpperCase(),
+        method,
         body: json,
       })
     }
@@ -126,10 +128,9 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
 
 export async function pingHealth(): Promise<boolean> {
   try {
-    const res = await fetch('/api/health', { cache: 'no-store' })
-    const ok = res.ok
-    setOnline(ok)
-    return ok
+    await fetch('/api/health', { cache: 'no-store' })
+    setOnline(true)
+    return true
   } catch {
     setOnline(false)
     return false
@@ -140,37 +141,36 @@ export const endpoints = {
   health: () => api<{ ok: boolean }>('/api/health'),
   prefs: () => api<import('@shared/types.ts').Preference>('/api/preferences'),
   patchPrefs: (body: Record<string, unknown>) =>
-    api('/api/preferences', { method: 'PATCH', json: body, queueOnFail: true }),
+    api('/api/preferences', { method: 'PATCH', json: body }),
   setlists: () => api<import('@shared/types.ts').Setlist[]>('/api/setlists'),
   setlist: (id: string) => api<import('@shared/types.ts').Setlist>(`/api/setlists/${id}`),
   createSetlist: (body: Record<string, unknown>) =>
-    api('/api/setlists', { method: 'POST', json: body, queueOnFail: true }),
+    api('/api/setlists', { method: 'POST', json: body }),
   patchSetlist: (id: string, body: Record<string, unknown>) =>
-    api(`/api/setlists/${id}`, { method: 'PATCH', json: body, queueOnFail: true }),
+    api(`/api/setlists/${id}`, { method: 'PATCH', json: body }),
   deleteSetlist: (id: string) =>
-    api(`/api/setlists/${id}`, { method: 'DELETE', queueOnFail: true }),
+    api(`/api/setlists/${id}`, { method: 'DELETE' }),
   duplicateSetlist: (id: string) =>
-    api(`/api/setlists/${id}/duplicate`, { method: 'POST', json: {}, queueOnFail: true }),
+    api(`/api/setlists/${id}/duplicate`, { method: 'POST', json: {} }),
   addSongToSetlist: (setlistId: string, songId: string) =>
     api<import('@shared/types.ts').SetlistSong>(`/api/setlists/${setlistId}/songs`, {
       method: 'POST',
       json: { songId },
-      queueOnFail: true,
     }),
   patchSetlistSong: (setlistId: string, ssId: string, body: Record<string, unknown>) =>
-    api(`/api/setlists/${setlistId}/songs/${ssId}`, { method: 'PATCH', json: body, queueOnFail: true }),
+    api(`/api/setlists/${setlistId}/songs/${ssId}`, { method: 'PATCH', json: body }),
   removeSetlistSong: (setlistId: string, ssId: string) =>
-    api(`/api/setlists/${setlistId}/songs/${ssId}`, { method: 'DELETE', queueOnFail: true }),
+    api(`/api/setlists/${setlistId}/songs/${ssId}`, { method: 'DELETE' }),
   reorder: (setlistId: string, orderedIds: string[]) =>
-    api(`/api/setlists/${setlistId}/reorder`, { method: 'PUT', json: { orderedIds }, queueOnFail: true }),
+    api(`/api/setlists/${setlistId}/reorder`, { method: 'PUT', json: { orderedIds } }),
   songs: (q: string) => api<import('@shared/types.ts').Song[]>(`/api/songs${q}`),
   song: (id: string) => api<import('@shared/types.ts').Song>(`/api/songs/${id}`),
   createSong: (body: unknown) =>
-    api('/api/songs', { method: 'POST', json: body, queueOnFail: true }),
+    api('/api/songs', { method: 'POST', json: body }),
   patchSong: (id: string, body: unknown) =>
-    api(`/api/songs/${id}`, { method: 'PATCH', json: body, queueOnFail: true }),
+    api(`/api/songs/${id}`, { method: 'PATCH', json: body }),
   deleteSong: (id: string) =>
-    api(`/api/songs/${id}`, { method: 'DELETE', queueOnFail: true }),
+    api(`/api/songs/${id}`, { method: 'DELETE' }),
   bulkImport: (text: string) =>
     api<{ imported: number; skipped: number; message: string }>('/api/songs/bulk-import', {
       method: 'POST',

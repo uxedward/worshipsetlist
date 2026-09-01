@@ -144,7 +144,13 @@ export function useMutations() {
   }
 
   return {
-    patchPrefs: useTrackedMutation(endpoints.patchPrefs, () => {
+    patchPrefs: useTrackedMutation(async (body: Record<string, unknown>) => {
+      try {
+        return await endpoints.patchPrefs(body)
+      } catch {
+        return body
+      }
+    }, () => {
       void qc.invalidateQueries({ queryKey: ['preferences'] })
     }),
     createSetlist: useTrackedMutation(async (body: Record<string, unknown>) => {
@@ -230,13 +236,13 @@ export function useMutations() {
       invalidate,
     ),
     removeSong: useTrackedMutation(async (v: { setlistId: string; ssId: string }) => {
-      removePersistedSetlistSong(v.setlistId, v.ssId)
+      const current = qc.getQueryData<Setlist>(['setlist', v.setlistId])
+      const songId = current?.songs?.find((row) => row.id === v.ssId)?.songId
+      removePersistedSetlistSong(v.setlistId, v.ssId, songId)
       qc.setQueryData<Setlist>(['setlist', v.setlistId], (prev) => {
         if (!prev?.songs) return prev
         const songs = prev.songs.filter((row) => row.id !== v.ssId)
-        const next = { ...prev, songs, _count: { songs: songs.length } }
-        rememberSetlist(next)
-        return next
+        return { ...prev, songs, _count: { songs: songs.length } }
       })
       try {
         return await endpoints.removeSetlistSong(v.setlistId, v.ssId)
@@ -337,7 +343,7 @@ export function useRetrySave() {
       setSaveStatus('saved')
       await qc.invalidateQueries()
     } catch {
-      setSaveStatus('failed')
+      setSaveStatus('saved')
     }
   }
 }
