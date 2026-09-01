@@ -8,10 +8,37 @@ import { prisma } from './db.js'
 
 export const app = express()
 
+let seeded = false
+let seeding: Promise<void> | null = null
+
+async function ensureEmptyDefaultSetlists() {
+  if (seeded) return
+  if (!process.env.VERCEL) {
+    seeded = true
+    return
+  }
+  if (!seeding) {
+    seeding = prisma.setlistSong
+      .deleteMany({ where: { setlist: { name: 'Sunday AM' } } })
+      .then(() => {
+        seeded = true
+      })
+      .catch((err) => {
+        seeding = null
+        console.error('Could not reset Sunday AM setlist', err)
+      })
+  }
+  await seeding
+}
+
 app.use((req, _res, next) => {
   const original = vercelOriginalUrl(req)
   if (original && original !== req.url) req.url = original
   next()
+})
+
+app.use((_req, _res, next) => {
+  void ensureEmptyDefaultSetlists().finally(() => next())
 })
 
 app.use(cors())

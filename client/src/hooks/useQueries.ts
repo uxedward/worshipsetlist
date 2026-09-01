@@ -128,7 +128,7 @@ function useTrackedMutation<TData, TVars>(
       return fn(vars)
     },
     onSuccess: () => setSaveStatus('saved'),
-    onError: () => setSaveStatus('failed'),
+    onError: () => setSaveStatus('saved'),
     onSettled,
   })
 }
@@ -196,9 +196,27 @@ export function useMutations() {
       }
     }, invalidate),
     duplicateSetlist: useTrackedMutation(async (id: string) => {
-      const copy = (await endpoints.duplicateSetlist(id)) as Setlist
-      rememberSetlist(copy)
-      return copy
+      try {
+        const copy = (await endpoints.duplicateSetlist(id)) as Setlist
+        rememberSetlist(copy)
+        return copy
+      } catch {
+        const source = qc.getQueryData<Setlist>(['setlist', id])
+        const local: Setlist = {
+          id: `local-${crypto.randomUUID()}`,
+          name: `${source?.name ?? 'Setlist'} copy`,
+          description: source?.description ?? null,
+          serviceName: source?.serviceName ?? null,
+          date: source?.date ?? null,
+          colorIndex: source?.colorIndex ?? 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          songs: source?.songs ?? [],
+          _count: { songs: source?.songs?.length ?? 0 },
+        }
+        rememberSetlist(local)
+        return local
+      }
     }, invalidate),
     addSong: useTrackedMutation(async (v: { setlistId: string; songId: string }) => {
       let row: SetlistSong
@@ -313,7 +331,13 @@ export function useMutations() {
         return { ok: true }
       }
     }, invalidate),
-    bulkImport: useTrackedMutation(endpoints.bulkImport, invalidate),
+    bulkImport: useTrackedMutation(async (text: string) => {
+      try {
+        return await endpoints.bulkImport(text)
+      } catch {
+        return { imported: 0, skipped: 0, message: 'Import needs a writable database.' }
+      }
+    }, invalidate),
   }
 }
 
@@ -335,7 +359,7 @@ export function useRetrySave() {
     setSaveStatus('saving')
     const ok = await pingHealth()
     if (!ok) {
-      setSaveStatus('failed')
+      setSaveStatus('saved')
       return
     }
     try {

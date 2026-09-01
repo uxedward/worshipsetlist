@@ -113,4 +113,22 @@ describe('persist overlays', () => {
     const listed = overlaySetlists([setlist('a', 'Sunday AM')])
     expect(listed[0].name).toBe('Sunday Gathering')
   })
+
+  it('ignores the old full-setlist snapshot that preloaded Sunday AM', () => {
+    localStorage.setItem(
+      'setflow.persist.v1',
+      JSON.stringify({
+        v: 1,
+        setlists: {
+          a: setlist('a', 'Sunday AM', [
+            row('a', song('s1', 'Oceans')),
+            row('a', song('s2', 'Jireh'), 1),
+          ]),
+        },
+      }),
+    )
+    const listed = overlaySetlists([{ ...setlist('a', 'Sunday AM'), _count: { songs: 0 } }])
+    expect(listed[0]._count?.songs).toBe(0)
+    expect(localStorage.getItem('setflow.persist.v1')).toBeNull()
+  })
 })

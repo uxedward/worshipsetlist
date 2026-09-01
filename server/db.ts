@@ -29,14 +29,11 @@ function databaseUrl() {
   const bundled = findBundledDb()
   if (process.env.VERCEL) {
     const dest = '/tmp/setflow.db'
-    if (bundled && !fs.existsSync(dest)) {
-      fs.copyFileSync(bundled, dest)
-    }
-    if (fs.existsSync(dest)) return `file:${dest}`
     if (bundled) {
       fs.copyFileSync(bundled, dest)
       return `file:${dest}`
     }
+    if (fs.existsSync(dest)) return `file:${dest}`
     console.error('SQLite file missing. cwd=', process.cwd(), 'here=', here)
   }
   if (bundled) return `file:${bundled}`

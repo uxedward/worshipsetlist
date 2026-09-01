@@ -208,7 +208,7 @@ export function OfflineBanner() {
       className="z-40 px-4 py-2 text-center text-[13px]"
       style={{ background: 'var(--warn)', color: '#1c1612' }}
     >
-      Working offline — setlist edits stay on this device
+      You’re offline — setlist edits stay on this device
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import type { Setlist, SetlistSong, Song } from '@shared/types.ts'
 
 const KEY = 'setflow.persist.v2'
+const LEGACY_KEYS = ['setflow.persist.v1']
 
 export type SetlistEdit = {
   added: SetlistSong[]
@@ -26,8 +27,20 @@ function editFor(state: PersistState, id: string): SetlistEdit {
   return state.edits[id]
 }
 
+function discardLegacyPersist() {
+  if (typeof localStorage === 'undefined') return
+  for (const key of LEGACY_KEYS) {
+    try {
+      localStorage.removeItem(key)
+    } catch {
+      /* ignore quota / private-mode failures */
+    }
+  }
+}
+
 export function loadPersist(): PersistState {
   if (typeof localStorage === 'undefined') return empty()
+  discardLegacyPersist()
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return empty()

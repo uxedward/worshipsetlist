@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { onConnectionChange, pingHealth, flushQueue } from '../lib/api.ts'
+import { onConnectionChange, pingHealth, flushQueue, syncBrowserConnection } from '../lib/api.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 
 export function useOfflineSync() {
@@ -7,34 +7,32 @@ export function useOfflineSync() {
   const setSaveStatus = useAppStore((s) => s.setSaveStatus)
 
   useEffect(() => {
-    const unsub = onConnectionChange((online) => {
+    const apply = () => {
+      const online = syncBrowserConnection()
       setOffline(!online)
-      if (online) {
-        void (async () => {
-          try {
-            await flushQueue()
-            setSaveStatus('saved')
-          } catch {
-            setSaveStatus('saved')
-          }
-        })()
-      }
-    })
-    const iv = window.setInterval(() => {
-      void pingHealth().then(async (ok) => {
-        setOffline(!ok)
-        if (ok) {
-          try {
-            await flushQueue()
-          } catch {
-            /* writes may not persist on the host; local edits still apply */
-          }
+      if (!online) return
+      void (async () => {
+        try {
+          await flushQueue()
+          setSaveStatus('saved')
+        } catch {
+          setSaveStatus('saved')
         }
-      })
+      })()
+    }
+
+    apply()
+    window.addEventListener('online', apply)
+    window.addEventListener('offline', apply)
+    const unsub = onConnectionChange((online) => setOffline(!online))
+    const iv = window.setInterval(() => {
+      void pingHealth()
     }, 30_000)
     return () => {
       unsub()
       window.clearInterval(iv)
+      window.removeEventListener('online', apply)
+      window.removeEventListener('offline', apply)
     }
   }, [setOffline, setSaveStatus])
 }
