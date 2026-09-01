@@ -1,10 +1,10 @@
 {
-  "buildCommand": "prisma generate && vite build --config client/vite.config.ts",
+  "buildCommand": "DATABASE_URL=\"file:./setflow.db\" prisma generate && vite build --config client/vite.config.ts",
   "outputDirectory": "client/dist",
   "framework": null,
   "functions": {
     "api/index.ts": {
-      "includeFiles": "prisma/**",
+      "includeFiles": "{prisma/**,node_modules/.prisma/client/**,node_modules/@prisma/engines/**}",
       "maxDuration": 30
     }
   },

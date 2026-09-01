@@ -1,6 +1,6 @@
-import { parseChart, chartToText } from './chartParser.ts'
-import { parseDuration, formatDuration } from './duration.ts'
-import type { Song, SongInput } from './types.ts'
+import { parseChart, chartToText } from './chartParser'
+import { parseDuration, formatDuration } from './duration'
+import type { Song, SongInput } from './types'
 
 export interface BulkBlockMeta {
   title?: string

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { prisma } from '../db.ts'
+import { prisma } from '../db'
 
 export const preferencesRouter = Router()
 

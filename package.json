@@ -9,16 +9,16 @@
   "scripts": {
     "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "vite --config client/vite.config.ts",
-    "dev:server": "tsx watch server/index.ts",
-    "build": "prisma generate && vite build --config client/vite.config.ts",
-    "start": "NODE_ENV=production tsx server/index.ts",
+    "dev:server": "tsx watch server/listen.ts",
+    "build": "DATABASE_URL=\"file:./setflow.db\" prisma generate && vite build --config client/vite.config.ts",
+    "start": "NODE_ENV=production tsx server/listen.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "db:songs": "tsx prisma/upsertSongs.ts",
     "db:reset": "prisma migrate reset --force",
-    "postinstall": "prisma generate"
+    "postinstall": "DATABASE_URL=\"file:./setflow.db\" prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -34,6 +34,7 @@
     "express": "^5.1.0",
     "jspdf": "^3.0.1",
     "lucide-react": "^0.542.0",
+    "prisma": "^6.13.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "zustand": "^5.0.8"
@@ -47,7 +48,6 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
     "concurrently": "^9.2.1",
-    "prisma": "^6.13.0",
     "tailwindcss": "^4.1.12",
     "tsx": "^4.20.5",
     "typescript": "~5.9.2",

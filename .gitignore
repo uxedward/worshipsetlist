@@ -2,7 +2,7 @@ node_modules
 dist
 dist-ssr
 *.local
-.env
+/.env
 *.log
 .DS_Store
 .vscode

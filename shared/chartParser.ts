@@ -1,4 +1,4 @@
-import { CHORD_TOKEN } from './transpose.ts'
+import { CHORD_TOKEN } from './transpose'
 
 export interface ParseWarning {
   lineIndex: number

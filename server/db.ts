@@ -3,20 +3,45 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const schemaDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '../prisma')
-const bundledDb = path.join(schemaDir, 'setflow.db')
+const here = path.dirname(fileURLToPath(import.meta.url))
 
-function databaseUrl() {
-  if (process.env.VERCEL) {
-    const dest = '/tmp/setflow.db'
-    if (fs.existsSync(bundledDb)) {
-      fs.copyFileSync(bundledDb, dest)
+function existingFile(candidates: string[]) {
+  return candidates.find((file) => {
+    try {
+      return fs.statSync(file).isFile()
+    } catch {
+      return false
     }
-    return `file:${dest}`
-  }
-  return process.env.DATABASE_URL || `file:${bundledDb}`
+  })
 }
 
+export function findBundledDb() {
+  return existingFile([
+    path.join(here, '../prisma/setflow.db'),
+    path.join(process.cwd(), 'prisma/setflow.db'),
+    path.join(process.cwd(), 'setflow.db'),
+    '/var/task/prisma/setflow.db',
+    '/var/task/setflow.db',
+  ])
+}
+
+function databaseUrl() {
+  const bundled = findBundledDb()
+  if (process.env.VERCEL) {
+    const dest = '/tmp/setflow.db'
+    if (bundled) {
+      fs.copyFileSync(bundled, dest)
+      return `file:${dest}`
+    }
+    console.error('SQLite file missing. cwd=', process.cwd(), 'here=', here)
+  }
+  if (bundled) return `file:${bundled}`
+  return process.env.DATABASE_URL || 'file:./setflow.db'
+}
+
+const url = databaseUrl()
+process.env.DATABASE_URL = url
+
 export const prisma = new PrismaClient({
-  datasources: { db: { url: databaseUrl() } },
+  datasources: { db: { url } },
 })
