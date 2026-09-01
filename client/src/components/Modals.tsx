@@ -51,7 +51,8 @@ export function BulkImportModal() {
           <>
             <p className="mb-2 text-[12px]" style={{ color: 'var(--text-dim)' }}>
               Paste a Spotify playlist, album, or song link. Spotify does not include lyrics, so each
-              song is added with an “Add lyrics” placeholder — open Edit to paste your chart.
+              song is added with an “Add lyrics” placeholder — open Edit to paste your chart. Playlists
+              import the first 50 tracks.
             </p>
             <input
               value={spotifyUrl}

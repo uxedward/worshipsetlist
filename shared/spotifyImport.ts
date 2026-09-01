@@ -22,7 +22,18 @@ export function songInputFromSpotifyTrack(track: SpotifyTrack): SongInput {
 }
 
 export function sameSongIdentity(a: { title: string; artist: string }, b: { title: string; artist: string }): boolean {
-  return normalizeId(a.title) === normalizeId(b.title) && normalizeId(a.artist) === normalizeId(b.artist)
+  if (normalizeId(a.title) !== normalizeId(b.title)) return false
+  const left = billedArtists(a.artist)
+  const right = billedArtists(b.artist)
+  if (left.length === 0 || right.length === 0) return false
+  return left[0] === right[0]
+}
+
+function billedArtists(value: string): string[] {
+  return value
+    .split(',')
+    .map((part) => normalizeId(part))
+    .filter(Boolean)
 }
 
 function normalizeId(value: string): string {

@@ -23,6 +23,8 @@ API: http://localhost:3001
 
 The song library and Sunday AM playlist are stored in `prisma/setflow.db` and rebuilt from `prisma/playlistSongs.ts` + `prisma/playlistMore.ts`.
 
+Import more titles from **Song Library → Spotify / Import** by pasting a Spotify playlist, album, or song link. Spotify does not provide lyrics, so imports use an “Add lyrics” placeholder you can replace in Edit. Playlist imports include the first 50 tracks.
+
 ## Vercel
 
 The project is set up for Vercel (`vercel.json` + `api/index.ts`). The SQLite file is copied into `/tmp` on each serverless start so the seeded charts are available without a hosted Postgres database.

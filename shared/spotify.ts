@@ -82,14 +82,49 @@ function str(value: unknown): string {
 }
 
 export function entityFromEmbedHtml(html: string): Record<string, unknown> | null {
-  const match = html.match(/<script id="__NEXT_DATA__"[^>]*>(.*?)<\/script>/s)
+  const match = html.match(/<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i)
   if (!match) return null
   try {
-    const parsed = JSON.parse(match[1]) as {
-      props?: { pageProps?: { state?: { data?: { entity?: Record<string, unknown> } } } }
-    }
-    return parsed.props?.pageProps?.state?.data?.entity ?? null
+    const parsed = JSON.parse(match[1]) as unknown
+    const fromPath = nestedEntity(parsed)
+    if (fromPath) return fromPath
+    return findEntity(parsed, 0)
   } catch {
     return null
   }
+}
+
+function nestedEntity(parsed: unknown): Record<string, unknown> | null {
+  if (!parsed || typeof parsed !== 'object') return null
+  const entity = (parsed as { props?: { pageProps?: { state?: { data?: { entity?: unknown } } } } }).props
+    ?.pageProps?.state?.data?.entity
+  return asEntity(entity)
+}
+
+function findEntity(node: unknown, depth: number): Record<string, unknown> | null {
+  if (depth > 12 || !node || typeof node !== 'object') return null
+  const direct = asEntity(node)
+  if (direct) return direct
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const found = findEntity(item, depth + 1)
+      if (found) return found
+    }
+    return null
+  }
+  for (const value of Object.values(node as Record<string, unknown>)) {
+    const found = findEntity(value, depth + 1)
+    if (found) return found
+  }
+  return null
+}
+
+function asEntity(node: unknown): Record<string, unknown> | null {
+  if (!node || typeof node !== 'object' || Array.isArray(node)) return null
+  const rec = node as Record<string, unknown>
+  if (Array.isArray(rec.trackList)) return rec
+  if (typeof rec.title === 'string' && rec.title.trim() && (Array.isArray(rec.artists) || typeof rec.subtitle === 'string')) {
+    return rec
+  }
+  return null
 }

@@ -66,6 +66,12 @@ describe('tracksFromEmbedEntity', () => {
       duration: 321000,
     })
   })
+
+  it('finds the entity when the script attributes are reordered', () => {
+    const html =
+      '<html><script type="application/json" id="__NEXT_DATA__">{"props":{"pageProps":{"state":{"data":{"entity":{"title":"Oceans","subtitle":"Hillsong UNITED","trackList":[]}}}}}}</script></html>'
+    expect(entityFromEmbedHtml(html)?.title).toBe('Oceans')
+  })
 })
 
 describe('songInputFromSpotifyTrack', () => {
@@ -78,5 +84,17 @@ describe('songInputFromSpotifyTrack', () => {
     expect(input.title).toBe('Oceans')
     expect(input.sections[0].lines[0].lyric).toBe('Add lyrics')
     expect(sameSongIdentity(input, { title: 'oceans', artist: 'hillsong united' })).toBe(true)
+    expect(
+      sameSongIdentity(
+        { title: 'What A Beautiful Name', artist: 'Hillsong Worship' },
+        { title: 'What A Beautiful Name', artist: 'Hillsong Worship, Brooke Ligertwood' },
+      ),
+    ).toBe(true)
+    expect(
+      sameSongIdentity(
+        { title: 'What A Beautiful Name', artist: 'Hillsong Worship' },
+        { title: 'What A Beautiful Name', artist: 'Elevation Worship' },
+      ),
+    ).toBe(false)
   })
 })
