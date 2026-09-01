@@ -104,15 +104,13 @@ function putSetlistSong(
     return next
   })
   if (!added) return
+  const detail = qc.getQueryData<Setlist>(['setlist', setlistId])
+  const nextCount = detail?.songs?.length
   const listed = qc.getQueryData<Setlist[]>(['setlists'])
-  if (listed) {
+  if (listed && typeof nextCount === 'number') {
     qc.setQueryData<Setlist[]>(
       ['setlists'],
-      listed.map((s) =>
-        s.id === setlistId
-          ? { ...s, _count: { songs: (s._count?.songs ?? s.songs?.length ?? 0) + 1 } }
-          : s,
-      ),
+      listed.map((s) => (s.id === setlistId ? { ...s, _count: { songs: nextCount } } : s)),
     )
   }
 }

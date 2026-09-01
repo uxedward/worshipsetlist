@@ -144,12 +144,14 @@ export function overlaySetlists(server: Setlist[]): Setlist[] {
     const base = extra ?? remote
     if (!base) continue
     const edit = state.edits[id]
-    const songs = base.songs ? applyEdits(base, edit) : undefined
+    const sourceSongs = extra?.songs ?? remote?.songs
+    const songs = sourceSongs ? applyEdits({ ...base, songs: sourceSongs }, edit) : undefined
+    const uniqueAdded = new Set(edit?.added.map((row) => row.songId) ?? []).size
     const count = songs
       ? songs.length
       : Math.max(
           0,
-          (remote?._count?.songs ?? 0) - (edit?.removedSongIds.length ?? 0) + (edit?.added.length ?? 0),
+          (remote?._count?.songs ?? 0) - (edit?.removedSongIds.length ?? 0) + uniqueAdded,
         )
     out.push({ ...base, ...edit?.meta, _count: { songs: count } })
   }

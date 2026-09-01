@@ -114,6 +114,15 @@ describe('persist overlays', () => {
     expect(listed[0].name).toBe('Sunday Gathering')
   })
 
+  it('does not double-count a song already on the server setlist', () => {
+    const s1 = song('s1', 'Abba I Know')
+    appendSetlistSong('b', row('b', s1))
+    const listed = overlaySetlists([
+      { ...setlist('b', 'Midweek', [row('b', s1)]), _count: { songs: 1 } },
+    ])
+    expect(listed[0]._count?.songs).toBe(1)
+  })
+
   it('ignores the old full-setlist snapshot that preloaded Sunday AM', () => {
     localStorage.setItem(
       'setflow.persist.v1',
