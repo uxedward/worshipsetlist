@@ -317,11 +317,15 @@ export function useMutations() {
     }, invalidate),
     spotifyImport: useTrackedMutation(async (url: string) => {
       const lookup = await endpoints.spotifyLookup(url)
-      const cached: Song[] = []
-      for (const [, songs] of qc.getQueriesData<Song[]>({ queryKey: ['songs'] })) {
-        if (songs) cached.push(...songs)
+      let server: Song[] = []
+      try {
+        server = await endpoints.songs('')
+      } catch {
+        for (const [, songs] of qc.getQueriesData<Song[]>({ queryKey: ['songs'] })) {
+          if (songs) server.push(...songs)
+        }
       }
-      const existing = overlaySongs(cached)
+      const existing = overlaySongs(server)
       const created: Song[] = []
       let skipped = 0
       let remote = true

@@ -23,6 +23,9 @@ export function BulkImportModal() {
   const ready = preview.filter((p) => p.input)
   const skipped = preview.filter((p) => !p.input)
   const spotifyLink = parseSpotifyUrl(spotifyUrl)
+  const spotifyLooksComplete = /(?:\/(?:playlist|album|track)\/|spotify:(?:playlist|album|track):)/i.test(
+    spotifyUrl,
+  )
 
   if (!open) return null
 
@@ -65,7 +68,7 @@ export function BulkImportModal() {
               className="h-10 rounded-[12px] px-3 text-[13px] outline-none"
               style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
-            {spotifyUrl.trim() && !spotifyLink ? (
+            {spotifyLooksComplete && !spotifyLink ? (
               <div className="mt-2 text-[12px]" style={{ color: 'var(--warn)' }}>
                 That does not look like a Spotify playlist, album, or song link.
               </div>
