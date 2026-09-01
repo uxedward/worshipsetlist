@@ -1,6 +1,6 @@
 import { Router } from 'express'
-import { prisma } from '../db'
-import { songWithChart } from '../songInclude'
+import { prisma } from '../db.js'
+import { songWithChart } from '../songInclude.js'
 
 export const setlistsRouter = Router()
 

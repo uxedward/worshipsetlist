@@ -42,6 +42,9 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       task: listDir('/var/task'),
       prisma: listDir('/var/task/prisma'),
       api: listDir('/var/task/api'),
+      server: listDir('/var/task/server'),
+      serverRoutes: listDir('/var/task/server/routes'),
+      shared: listDir('/var/task/shared'),
       prismaClient: listDir('/var/task/node_modules/.prisma/client'),
       cwdPrisma: listDir(path.join(process.cwd(), 'prisma')),
     })
@@ -49,7 +52,7 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
   }
 
   try {
-    const { app } = await import('../server/index')
+    const { app } = await import('../server/index.js')
     return app(req as never, res as never)
   } catch (err) {
     sendJson(res, 500, {

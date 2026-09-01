@@ -1,4 +1,4 @@
-import { FLAT_KEYS } from './types'
+import { FLAT_KEYS } from './types.js'
 
 /** Longest-first so "maj" is not eaten by "m". */
 export const CHORD_TOKEN =

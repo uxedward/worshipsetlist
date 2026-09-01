@@ -4,7 +4,7 @@
   "framework": null,
   "functions": {
     "api/index.ts": {
-      "includeFiles": "{prisma/**,node_modules/.prisma/client/**,node_modules/@prisma/engines/**}",
+      "includeFiles": "{prisma/setflow.db,prisma/schema.prisma,node_modules/.prisma/client/**,node_modules/@prisma/engines/**}",
       "maxDuration": 30
     }
   },

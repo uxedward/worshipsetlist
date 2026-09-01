@@ -1,8 +1,8 @@
 import { Router } from 'express'
-import { prisma } from '../db'
-import { parseBulkImport, serializeExport } from '../../shared/bulkFormat'
-import type { SongInput } from '../../shared/types'
-import { songWithChart } from '../songInclude'
+import { prisma } from '../db.js'
+import { parseBulkImport, serializeExport } from '../../shared/bulkFormat.js'
+import type { SongInput } from '../../shared/types.js'
+import { songWithChart } from '../songInclude.js'
 
 export const songsRouter = Router()
 

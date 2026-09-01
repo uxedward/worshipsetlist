@@ -1,6 +1,6 @@
-import { app } from './index'
-import { prisma } from './db'
-import { ensureDemoData } from '../prisma/upsertSongs'
+import { app } from './index.js'
+import { prisma } from './db.js'
+import { ensureDemoData } from '../prisma/upsertSongs.js'
 
 const PORT = Number(process.env.PORT) || 3001
 

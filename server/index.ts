@@ -1,10 +1,10 @@
 import express from 'express'
 import cors from 'cors'
 import type { IncomingMessage } from 'node:http'
-import { songsRouter } from './routes/songs'
-import { setlistsRouter } from './routes/setlists'
-import { preferencesRouter } from './routes/preferences'
-import { prisma } from './db'
+import { songsRouter } from './routes/songs.js'
+import { setlistsRouter } from './routes/setlists.js'
+import { preferencesRouter } from './routes/preferences.js'
+import { prisma } from './db.js'
 
 export const app = express()
 
