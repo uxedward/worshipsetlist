@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations } from '../hooks/useQueries.ts'
 import { parseBulkImport } from '@shared/bulkFormat.ts'
@@ -18,6 +18,16 @@ export function BulkImportModal() {
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    setTab('spotify')
+    setText('')
+    setSpotifyUrl('')
+    setResult(null)
+    setError(null)
+    setBusy(false)
+  }, [open])
 
   const preview = useMemo(() => parseBulkImport(text), [text])
   const ready = preview.filter((p) => p.input)
