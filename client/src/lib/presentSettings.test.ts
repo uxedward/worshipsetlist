@@ -22,10 +22,8 @@ import {
   coarseFontSize,
   fittedFontSize,
   loadPresentSettings,
-  lyricPlateColor,
   lyricTextShadow,
   savePresentSettings,
-  screenVeil,
 } from './presentSettings.ts'
 
 describe('present settings', () => {
@@ -34,17 +32,24 @@ describe('present settings', () => {
   })
 
   it('clamps out-of-range values', () => {
-    expect(clampPresentSettings({ fontSize: 9, lineWidth: 200, overlay: -4, shadow: 140 })).toEqual({
+    expect(clampPresentSettings({ fontSize: 9, lineWidth: 200, shadow: 140 })).toEqual({
       fontSize: FONT_MIN,
       lineWidth: 94,
-      overlay: 0,
       shadow: 100,
     })
   })
 
   it('persists and reloads settings', () => {
-    savePresentSettings({ fontSize: 40, lineWidth: 72, overlay: 80, shadow: 20 })
-    expect(loadPresentSettings()).toEqual({ fontSize: 40, lineWidth: 72, overlay: 80, shadow: 20 })
+    savePresentSettings({ fontSize: 40, lineWidth: 72, shadow: 20 })
+    expect(loadPresentSettings()).toEqual({ fontSize: 40, lineWidth: 72, shadow: 20 })
+  })
+
+  it('drops a stored overlay value from older settings', () => {
+    memory.set(
+      'setflow.presentSettings',
+      JSON.stringify({ fontSize: 40, lineWidth: 72, overlay: 80, shadow: 20 }),
+    )
+    expect(loadPresentSettings()).toEqual({ fontSize: 40, lineWidth: 72, shadow: 20 })
   })
 
   it('returns defaults when storage is empty or corrupt', () => {
@@ -65,12 +70,10 @@ describe('present settings', () => {
     expect(coarseFontSize(68)).toBe('large')
   })
 
-  it('builds overlay and shadow styles from slider values', () => {
+  it('builds a dark stacked text shadow from the slider', () => {
     expect(lyricTextShadow(0)).toBe('none')
-    expect(lyricTextShadow(60)).toContain('rgba(0,0,0')
-    expect(lyricPlateColor(0)).toBe('rgba(6,3,2,0.000)')
-    expect(lyricPlateColor(100)).toBe('rgba(6,3,2,0.840)')
-    expect(screenVeil(50, true)).toBe('transparent')
-    expect(screenVeil(50, false)).toContain('linear-gradient')
+    expect(lyricTextShadow(60)).toContain('rgba(0,0,0,0.928)')
+    expect(lyricTextShadow(60)).toContain('rgba(0,0,0,0.848)')
+    expect(lyricTextShadow(100).split(',').length).toBeGreaterThanOrEqual(3)
   })
 })

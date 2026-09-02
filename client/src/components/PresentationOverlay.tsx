@@ -20,9 +20,7 @@ import {
   PRESENT_FONT,
   coarseFontSize,
   fittedFontSize,
-  lyricPlateColor,
   lyricTextShadow,
-  screenVeil,
 } from '../lib/presentSettings.ts'
 
 export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
@@ -210,7 +208,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
         if (dx > 40) goSlide(slide - 1)
       }}
     >
-      <PresentBackdrop background={background} reduceMotion={reduceMotion} overlay={presentSettings.overlay} />
+      <PresentBackdrop background={background} reduceMotion={reduceMotion} />
       <div className="relative z-10 flex h-11 items-center justify-between px-4">
         <div className="w-[28%] truncate text-[13px]" style={{ color: 'rgba(255,255,255,0.6)' }}>
           {song.title} · {index + 1} of {songs.length} · {key}
@@ -297,14 +295,6 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
           style={{ width: `${presentSettings.lineWidth}%`, maxWidth: '96%' }}
         >
           <div
-            className="pointer-events-none absolute rounded-[28px]"
-            style={{
-              inset: '-1.4rem -1.8rem',
-              background: lyricPlateColor(presentSettings.overlay),
-            }}
-            aria-hidden
-          />
-          <div
             className="relative mb-6 text-[11px] uppercase"
             style={{ letterSpacing: '0.15em', color: 'rgba(255,255,255,0.35)' }}
           >
@@ -347,11 +337,9 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
         <PresentSettingsPanel
           fontSize={presentSettings.fontSize}
           lineWidth={presentSettings.lineWidth}
-          overlay={presentSettings.overlay}
           shadow={presentSettings.shadow}
           onFontSize={applyFontSize}
           onLineWidth={(lineWidth) => setPresentSettings({ lineWidth })}
-          onOverlay={(overlay) => setPresentSettings({ overlay })}
           onShadow={(shadow) => setPresentSettings({ shadow })}
         />
       ) : null}
@@ -407,11 +395,9 @@ const DUSK_GRADIENT =
 function PresentBackdrop({
   background,
   reduceMotion,
-  overlay,
 }: {
   background: PresentBackground
   reduceMotion: boolean
-  overlay: number
 }) {
   const showVideo = background.kind === 'video' && Boolean(background.src) && !reduceMotion
   return (
@@ -437,10 +423,6 @@ function PresentBackdrop({
       {background.kind === 'video' && reduceMotion && background.poster ? (
         <img src={background.poster} alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : null}
-      <div
-        className="absolute inset-0"
-        style={{ background: screenVeil(overlay, background.kind === 'gradient') }}
-      />
     </div>
   )
 }
@@ -448,20 +430,16 @@ function PresentBackdrop({
 function PresentSettingsPanel({
   fontSize,
   lineWidth,
-  overlay,
   shadow,
   onFontSize,
   onLineWidth,
-  onOverlay,
   onShadow,
 }: {
   fontSize: number
   lineWidth: number
-  overlay: number
   shadow: number
   onFontSize: (n: number) => void
   onLineWidth: (n: number) => void
-  onOverlay: (n: number) => void
   onShadow: (n: number) => void
 }) {
   return (
@@ -487,8 +465,6 @@ function PresentSettingsPanel({
         suffix="%"
         onChange={onLineWidth}
       />
-      <div className="mb-2 mt-3 text-[10px] font-semibold tracking-[0.14em] text-white/50">READABILITY</div>
-      <PresentSlider label="Dark overlay" value={overlay} min={0} max={100} onChange={onOverlay} />
       <PresentSlider label="Text shadow" value={shadow} min={0} max={100} onChange={onShadow} />
     </div>
   )

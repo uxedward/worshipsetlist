@@ -3,7 +3,6 @@ import type { PresentationFontSize } from '@shared/types.ts'
 export type PresentSettings = {
   fontSize: number
   lineWidth: number
-  overlay: number
   shadow: number
 }
 
@@ -13,13 +12,11 @@ export const FONT_DEFAULT = 52
 export const LINE_WIDTH_MIN = 58
 export const LINE_WIDTH_MAX = 94
 export const LINE_WIDTH_DEFAULT = 80
-export const OVERLAY_DEFAULT = 52
-export const SHADOW_DEFAULT = 62
+export const SHADOW_DEFAULT = 86
 
 export const DEFAULT_PRESENT_SETTINGS: PresentSettings = {
   fontSize: FONT_DEFAULT,
   lineWidth: LINE_WIDTH_DEFAULT,
-  overlay: OVERLAY_DEFAULT,
   shadow: SHADOW_DEFAULT,
 }
 
@@ -36,7 +33,6 @@ export function clampPresentSettings(partial: Partial<PresentSettings> | null | 
   return {
     fontSize: clamp(src.fontSize ?? FONT_DEFAULT, FONT_MIN, FONT_MAX),
     lineWidth: clamp(src.lineWidth ?? LINE_WIDTH_DEFAULT, LINE_WIDTH_MIN, LINE_WIDTH_MAX),
-    overlay: clamp(src.overlay ?? OVERLAY_DEFAULT, 0, 100),
     shadow: clamp(src.shadow ?? SHADOW_DEFAULT, 0, 100),
   }
 }
@@ -75,27 +71,19 @@ export function fittedFontSize(
   return Math.max(minSize, Math.floor(max * (containerWidth / longestLineWidth)))
 }
 
-export function lyricPlateColor(overlay: number): string {
-  const t = clamp(overlay, 0, 100) / 100
-  return `rgba(6,3,2,${(t * 0.84).toFixed(3)})`
-}
-
-export function screenVeil(overlay: number, isGradient: boolean): string {
-  if (isGradient) return 'transparent'
-  const t = clamp(overlay, 0, 100) / 100
-  const a0 = (0.1 + t * 0.42).toFixed(3)
-  const a1 = (0.2 + t * 0.46).toFixed(3)
-  const a2 = (0.3 + t * 0.52).toFixed(3)
-  return `linear-gradient(180deg, rgba(8,4,2,${a0}) 0%, rgba(8,4,2,${a1}) 45%, rgba(8,4,2,${a2}) 100%)`
-}
-
 export function lyricTextShadow(shadow: number): string {
   const t = clamp(shadow, 0, 100) / 100
   if (t <= 0) return 'none'
-  const y = (1 + t * 4).toFixed(1)
-  const blur = (8 + t * 36).toFixed(1)
-  const glow = (6 + t * 24).toFixed(1)
-  const a1 = (0.28 + t * 0.62).toFixed(3)
-  const a2 = (0.16 + t * 0.5).toFixed(3)
-  return `0 ${y}px ${blur}px rgba(0,0,0,${a1}), 0 0 ${glow}px rgba(0,0,0,${a2})`
+  const y = (2 + t * 6).toFixed(1)
+  const tight = (2 + t * 8).toFixed(1)
+  const blur = (12 + t * 32).toFixed(1)
+  const glow = (16 + t * 40).toFixed(1)
+  const aTight = (0.82 + t * 0.18).toFixed(3)
+  const aDrop = (0.62 + t * 0.38).toFixed(3)
+  const aGlow = (0.48 + t * 0.42).toFixed(3)
+  return [
+    `0 1px ${tight}px rgba(0,0,0,${aTight})`,
+    `0 ${y}px ${blur}px rgba(0,0,0,${aDrop})`,
+    `0 0 ${glow}px rgba(0,0,0,${aGlow})`,
+  ].join(', ')
 }
