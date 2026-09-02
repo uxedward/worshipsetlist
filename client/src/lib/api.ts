@@ -192,5 +192,10 @@ export const endpoints = {
       method: 'POST',
       json: { text },
     }),
+  spotifyLookup: (url: string) =>
+    api<{ kind: string; name: string; tracks: { title: string; artist: string; durationSeconds: number | null }[] }>(
+      '/api/songs/spotify-lookup',
+      { method: 'POST', json: { url } },
+    ),
   exportSongs: () => api<string>('/api/songs/export'),
 }

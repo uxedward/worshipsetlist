@@ -17,9 +17,12 @@ import {
   rememberDeletedSong,
   rememberSetlist,
   rememberSong,
+  rememberSongs,
+  songFromInput,
   removePersistedSetlistSong,
   reorderPersistedSetlist,
 } from '../lib/persist.ts'
+import { sameSongIdentity, songInputFromSpotifyTrack } from '@shared/spotifyImport.ts'
 
 export function usePreferences() {
   return useQuery({
@@ -280,31 +283,7 @@ export function useMutations() {
         rememberSong(created)
         return created
       } catch {
-        const local: Song = {
-          id: `local-${crypto.randomUUID()}`,
-          title: body.title,
-          artist: body.artist,
-          album: body.album ?? null,
-          key: body.key,
-          bpm: body.bpm,
-          timeSignature: body.timeSignature ?? '4/4',
-          tag: body.tag,
-          durationSeconds: body.durationSeconds ?? null,
-          createdAt: new Date().toISOString(),
-          sections: body.sections.map((s, i) => ({
-            id: `local-sec-${i}`,
-            songId: '',
-            label: s.label,
-            order: s.order,
-            lines: s.lines.map((l, j) => ({
-              id: `local-line-${i}-${j}`,
-              sectionId: `local-sec-${i}`,
-              chords: l.chords,
-              lyric: l.lyric,
-              order: l.order,
-            })),
-          })),
-        }
+        const local = songFromInput(body)
         rememberSong(local)
         return local
       }
@@ -334,6 +313,52 @@ export function useMutations() {
         return await endpoints.bulkImport(text)
       } catch {
         return { imported: 0, skipped: 0, message: 'Import needs a writable database.' }
+      }
+    }, invalidate),
+    spotifyImport: useTrackedMutation(async (url: string) => {
+      const lookup = await endpoints.spotifyLookup(url)
+      let server: Song[] = []
+      try {
+        server = await endpoints.songs('')
+      } catch {
+        for (const [, songs] of qc.getQueriesData<Song[]>({ queryKey: ['songs'] })) {
+          if (songs) server.push(...songs)
+        }
+      }
+      const existing = overlaySongs(server)
+      const created: Song[] = []
+      let skipped = 0
+      let remote = true
+      for (const track of lookup.tracks) {
+        if (existing.some((song) => sameSongIdentity(song, track)) || created.some((song) => sameSongIdentity(song, track))) {
+          skipped++
+          continue
+        }
+        const input = songInputFromSpotifyTrack(track)
+        if (remote) {
+          try {
+            const song = (await endpoints.createSong(input)) as Song
+            rememberSong(song)
+            created.push(song)
+            existing.push(song)
+            continue
+          } catch {
+            remote = false
+          }
+        }
+        const local = songFromInput(input)
+        created.push(local)
+        existing.push(local)
+      }
+      rememberSongs(created.filter((song) => song.id.startsWith('local-')))
+      return {
+        imported: created.length,
+        skipped,
+        name: lookup.name,
+        message:
+          skipped > 0
+            ? `${created.length} imported from ${lookup.name}, ${skipped} already in the library`
+            : `${created.length} imported from ${lookup.name}`,
       }
     }, invalidate),
   }

@@ -52,6 +52,21 @@ songsRouter.post('/bulk-import', async (req, res) => {
   })
 })
 
+songsRouter.post('/spotify-lookup', async (req, res) => {
+  const url = typeof req.body?.url === 'string' ? req.body.url : ''
+  try {
+    const { lookupSpotify } = await import('../spotifyLookup.js')
+    const lookup = await lookupSpotify(url)
+    res.json(lookup)
+  } catch (err) {
+    const statusRaw = err && typeof err === 'object' && 'status' in err ? Number((err as { status: unknown }).status) : 500
+    const status = Number.isFinite(statusRaw) && statusRaw >= 400 ? statusRaw : 500
+    res.status(status).json({
+      error: err instanceof Error ? err.message : 'Could not look up that Spotify link.',
+    })
+  }
+})
+
 songsRouter.get('/', async (req, res) => {
   const artist = str(req.query.artist)
   const tag = str(req.query.tag)

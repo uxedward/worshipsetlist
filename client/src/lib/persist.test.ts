@@ -22,6 +22,7 @@ import {
   rememberDeletedSetlist,
   rememberSetlist,
   rememberSong,
+  rememberSongs,
 } from './persist.ts'
 import type { Setlist, SetlistSong, Song } from '@shared/types.ts'
 
@@ -106,6 +107,12 @@ describe('persist overlays', () => {
     rememberSong(song('new', 'Original'))
     const songs = overlaySongs([song('seed', 'Oceans')])
     expect(songs.map((s) => s.title).sort()).toEqual(['Oceans', 'Original'])
+  })
+
+  it('imports a batch of songs into the library overlay', () => {
+    rememberSongs([song('a', 'Oceans'), song('b', 'Jireh')])
+    const songs = overlaySongs([song('seed', 'Abba')])
+    expect(songs.map((s) => s.title).sort()).toEqual(['Abba', 'Jireh', 'Oceans'])
   })
 
   it('saves renamed setlists', () => {
