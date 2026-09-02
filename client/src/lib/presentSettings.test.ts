@@ -72,8 +72,10 @@ describe('present settings', () => {
 
   it('builds a dark stacked text shadow from the slider', () => {
     expect(lyricTextShadow(0)).toBe('none')
-    expect(lyricTextShadow(60)).toContain('rgba(0,0,0,0.928)')
-    expect(lyricTextShadow(60)).toContain('rgba(0,0,0,0.848)')
-    expect(lyricTextShadow(100).split(',').length).toBeGreaterThanOrEqual(3)
+    const mid = lyricTextShadow(60)
+    expect(mid).toContain('rgba(0,0,0,0.968)')
+    expect(mid).toContain('rgba(0,0,0,0.920)')
+    expect(mid.split(',').length).toBeGreaterThanOrEqual(4)
+    expect(lyricTextShadow(100)).toContain('rgba(0,0,0,1.000)')
   })
 })

@@ -74,15 +74,18 @@ export function fittedFontSize(
 export function lyricTextShadow(shadow: number): string {
   const t = clamp(shadow, 0, 100) / 100
   if (t <= 0) return 'none'
-  const y = (2 + t * 6).toFixed(1)
-  const tight = (2 + t * 8).toFixed(1)
-  const blur = (12 + t * 32).toFixed(1)
-  const glow = (16 + t * 40).toFixed(1)
-  const aTight = (0.82 + t * 0.18).toFixed(3)
-  const aDrop = (0.62 + t * 0.38).toFixed(3)
-  const aGlow = (0.48 + t * 0.42).toFixed(3)
+  const outline = (1 + t * 1.5).toFixed(1)
+  const y = (2 + t * 3).toFixed(1)
+  const blur = (3 + t * 10).toFixed(1)
+  const glow = (4 + t * 12).toFixed(1)
+  const aEdge = (0.92 + t * 0.08).toFixed(3)
+  const aDrop = (0.8 + t * 0.2).toFixed(3)
+  const aGlow = (0.7 + t * 0.25).toFixed(3)
   return [
-    `0 1px ${tight}px rgba(0,0,0,${aTight})`,
+    `-${outline}px 0 0 rgba(0,0,0,${aEdge})`,
+    `${outline}px 0 0 rgba(0,0,0,${aEdge})`,
+    `0 ${outline}px 0 rgba(0,0,0,${aEdge})`,
+    `0 -${outline}px 0 rgba(0,0,0,${aEdge})`,
     `0 ${y}px ${blur}px rgba(0,0,0,${aDrop})`,
     `0 0 ${glow}px rgba(0,0,0,${aGlow})`,
   ].join(', ')
