@@ -36,33 +36,9 @@ app.use((req, _res, next) => {
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 
-app.use(async (req, res, next) => {
+app.use(async (_req, _res, next) => {
   await prepareDatabase()
-  const mutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
-  if (!mutating || databaseBackend !== 'github') {
-    next()
-    return
-  }
-  await new Promise<void>((resolve, reject) => {
-    const originalEnd = res.end.bind(res)
-    let ended = false
-    res.end = ((chunk?: unknown, encoding?: unknown, cb?: unknown) => {
-      if (ended) return originalEnd(chunk as never, encoding as never, cb as never)
-      ended = true
-      const run =
-        res.statusCode >= 400
-          ? Promise.resolve()
-          : persistGithubWrites().catch((err) => {
-              console.error('Could not save songs to GitHub', err)
-            })
-      void run.then(() => {
-        originalEnd(chunk as never, encoding as never, cb as never)
-        resolve()
-      }, reject)
-      return res
-    }) as typeof res.end
-    next()
-  })
+  next()
 })
 
 app.get('/api/health', async (_req, res) => {
@@ -81,12 +57,6 @@ app.get('/api/health', async (_req, res) => {
 app.use('/api/songs', songsRouter)
 app.use('/api/setlists', setlistsRouter)
 app.use('/api/preferences', preferencesRouter)
-
-async function persistGithubWrites() {
-  if (databaseBackend !== 'github') return
-  const { persistGithubWrites: flush } = await import('./cloneLibrary.js')
-  await flush()
-}
 
 function vercelOriginalUrl(req: IncomingMessage) {
   const header =

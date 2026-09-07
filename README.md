@@ -6,7 +6,7 @@ Worship setlist builder — charts, transpose, presentation mode.
 
 - React + Vite + TypeScript
 - Tailwind CSS
-- Express + Prisma + **SQLite** (local file, GitHub-backed file, or Turso)
+- Express + Prisma + **Postgres** (hosted Prisma Postgres in production)
 
 ## Setup
 
@@ -21,33 +21,16 @@ npm run dev
 App: http://localhost:5173  
 API: http://localhost:3001
 
-The song library is stored in SQLite. Locally that is `prisma/setflow.db`. On Vercel the bundled file is copied into `/tmp` on each serverless start, so new songs vanish unless a durable backend is configured.
+Production songs are stored in a hosted Postgres database, so they survive Vercel deploys. The first request copies the bundled library into that database if it is empty. Seed files only fill an **empty** library.
 
-The seed files `prisma/playlistSongs.ts` + `prisma/playlistMore.ts` only fill an **empty** library. Existing songs and setlists are left alone.
+**Keep the production database:** claim it so it is not auto-deleted after 24 hours:  
+https://create-db.prisma.io/claim?projectID=proj_bz9ukysjihfodq1v7dkyaw5t
 
 Import more titles from **Song Library → Spotify / Import** by pasting a Spotify playlist, album, or song link. Spotify does not provide lyrics, so imports use an “Add lyrics” placeholder you can replace in Edit. Playlist imports include the first 50 tracks.
 
 ## Vercel
 
-The project is set up for Vercel (`vercel.json` + `api/index.ts`). Without a durable backend, the bundled SQLite file is copied into `/tmp` on each serverless start — that copy is temporary, so songs added in production would disappear.
-
-`GET /api/health` reports `{ durable, backend }`. `backend` is `github`, `turso`, or `file`. Songs stay saved when `durable` is `true`.
-
-### GitHub (no extra database account)
-
-1. Create a fine-grained GitHub PAT with **Contents: Read and write** on `uxedward/worshipsetlist`.
-2. In Vercel → Settings → Environment Variables, add `GITHUB_DATABASE_TOKEN` (Production and Preview).
-3. Redeploy.
-
-The API stores `data/setflow.db` on the `setflow-data` branch (Vercel does not deploy that branch). The first request uploads the seeded library if the file is missing. After that, New Song, Edit, Spotify import, and setlist changes are written back to GitHub.
-
-### Turso
-
-1. Create a free [Turso](https://turso.tech) database.
-2. In Vercel, add `TURSO_DATABASE_URL` (`libsql://…`) and `TURSO_AUTH_TOKEN`.
-3. Redeploy.
-
-The first request copies the seeded library into Turso if that database is empty. After that, writes go to Turso. If both GitHub and Turso are configured, Turso is used.
+`GET /api/health` should report `{ "ok": true, "durable": true, "backend": "postgres" }`. New Song, Edit, Spotify import, and setlist changes save in Postgres.
 
 ## Scripts
 

@@ -10,7 +10,7 @@
     "dev": "concurrently -n server,client -c cyan,magenta \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "vite --config client/vite.config.ts",
     "dev:server": "tsx watch server/listen.ts",
-    "build": "DATABASE_URL=\"file:./setflow.db\" prisma generate && vite build --config client/vite.config.ts",
+    "build": "DATABASE_URL=\"postgresql://localhost:5432/setflow\" prisma generate && vite build --config client/vite.config.ts",
     "start": "NODE_ENV=production tsx server/listen.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -18,7 +18,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:songs": "tsx prisma/upsertSongs.ts",
     "db:reset": "prisma migrate reset --force",
-    "postinstall": "DATABASE_URL=\"file:./setflow.db\" prisma generate"
+    "postinstall": "DATABASE_URL=\"postgresql://localhost:5432/setflow\" prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
