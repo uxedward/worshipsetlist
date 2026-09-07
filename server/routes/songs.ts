@@ -1,7 +1,8 @@
 import { Router } from 'express'
-import { prisma } from '../db.js'
 import { parseBulkImport, serializeExport } from '../../shared/bulkFormat.js'
 import type { SongInput } from '../../shared/types.js'
+import { sameSongIdentity } from '../../shared/spotifyImport.js'
+import { durableDatabase, prisma } from '../db.js'
 import { songWithChart } from '../songInclude.js'
 
 export const songsRouter = Router()
@@ -65,6 +66,27 @@ songsRouter.post('/spotify-lookup', async (req, res) => {
       error: err instanceof Error ? err.message : 'Could not look up that Spotify link.',
     })
   }
+})
+
+songsRouter.post('/sync-local', async (req, res) => {
+  const songs = Array.isArray(req.body?.songs) ? (req.body.songs as SongInput[]) : []
+  const existing = await prisma.song.findMany({ select: { title: true, artist: true } })
+  let imported = 0
+  let skipped = 0
+  for (const input of songs) {
+    if (validateSong(input)) {
+      skipped++
+      continue
+    }
+    if (existing.some((song) => sameSongIdentity(song, input))) {
+      skipped++
+      continue
+    }
+    const created = await createSong(input)
+    existing.push({ title: created.title, artist: created.artist })
+    imported++
+  }
+  res.json({ imported, skipped, durable: durableDatabase })
 })
 
 songsRouter.get('/', async (req, res) => {

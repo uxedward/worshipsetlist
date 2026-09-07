@@ -1,7 +1,9 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaLibSQL } from '@prisma/adapter-libsql'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { remoteSqliteFromEnv } from '../shared/remoteDb.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -25,7 +27,7 @@ export function findBundledDb() {
   ])
 }
 
-function databaseUrl() {
+function fileDatabaseUrl() {
   const bundled = findBundledDb()
   if (process.env.VERCEL) {
     const dest = '/tmp/setflow.db'
@@ -40,9 +42,27 @@ function databaseUrl() {
   return process.env.DATABASE_URL || 'file:./setflow.db'
 }
 
-const url = databaseUrl()
-process.env.DATABASE_URL = url
+const remote = remoteSqliteFromEnv()
+export const durableDatabase = Boolean(remote)
 
-export const prisma = new PrismaClient({
-  datasources: { db: { url } },
-})
+function createPrisma(): PrismaClient {
+  if (remote) {
+    const adapter = new PrismaLibSQL({
+      url: remote.url,
+      authToken: remote.authToken,
+    })
+    return new PrismaClient({ adapter })
+  }
+  const url = fileDatabaseUrl()
+  process.env.DATABASE_URL = url
+  if (process.env.VERCEL) {
+    console.warn(
+      'Setflow is using an ephemeral /tmp SQLite file. Add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN so songs stay saved.',
+    )
+  }
+  return new PrismaClient({
+    datasources: { db: { url } },
+  })
+}
+
+export const prisma = createPrisma()

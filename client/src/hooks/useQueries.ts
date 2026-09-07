@@ -8,6 +8,8 @@ import { useAppStore } from '../store/useAppStore.ts'
 import type { Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
 import {
   appendSetlistSong,
+  extraSongs,
+  forgetExtraSongs,
   overlaySetlist,
   overlaySetlists,
   overlaySong,
@@ -19,6 +21,7 @@ import {
   rememberSong,
   rememberSongs,
   songFromInput,
+  songToInput,
   removePersistedSetlistSong,
   reorderPersistedSetlist,
 } from '../lib/persist.ts'
@@ -129,7 +132,7 @@ function useTrackedMutation<TData, TVars>(
       return fn(vars)
     },
     onSuccess: () => setSaveStatus('saved'),
-    onError: () => setSaveStatus('saved'),
+    onError: () => setSaveStatus('failed'),
     onSettled,
   })
 }
@@ -282,10 +285,9 @@ export function useMutations() {
         const created = (await endpoints.createSong(body)) as Song
         rememberSong(created)
         return created
-      } catch {
-        const local = songFromInput(body)
-        rememberSong(local)
-        return local
+      } catch (err) {
+        rememberSong(songFromInput(body))
+        throw err
       }
     }, invalidate),
     patchSong: useTrackedMutation(async (v: { id: string; body: SongInput }) => {
@@ -293,11 +295,11 @@ export function useMutations() {
         const updated = (await endpoints.patchSong(v.id, v.body)) as Song
         rememberSong(updated)
         return updated
-      } catch {
+      } catch (err) {
         const current = findSongInCache(qc, v.id)
         const local = { ...(current ?? { id: v.id }), ...v.body } as Song
         rememberSong(local)
-        return local
+        throw err
       }
     }, invalidate),
     deleteSong: useTrackedMutation(async (id: string) => {
@@ -309,11 +311,7 @@ export function useMutations() {
       }
     }, invalidate),
     bulkImport: useTrackedMutation(async (text: string) => {
-      try {
-        return await endpoints.bulkImport(text)
-      } catch {
-        return { imported: 0, skipped: 0, message: 'Import needs a writable database.' }
-      }
+      return await endpoints.bulkImport(text)
     }, invalidate),
     spotifyImport: useTrackedMutation(async (url: string) => {
       const lookup = await endpoints.spotifyLookup(url)
@@ -375,6 +373,15 @@ export function optimisticSetlistSongs(
   })
 }
 
+export async function flushLocalSongsToDatabase() {
+  const pending = extraSongs()
+  if (pending.length === 0) return
+  const res = await endpoints.syncLocalSongs(pending.map(songToInput))
+  if (res.durable || res.imported > 0) {
+    forgetExtraSongs(pending.map((song) => song.id))
+  }
+}
+
 export function useRetrySave() {
   const setSaveStatus = useAppStore((s) => s.setSaveStatus)
   const qc = useQueryClient()
@@ -382,15 +389,16 @@ export function useRetrySave() {
     setSaveStatus('saving')
     const ok = await pingHealth()
     if (!ok) {
-      setSaveStatus('saved')
+      setSaveStatus('failed')
       return
     }
     try {
       await flushQueue()
+      await flushLocalSongsToDatabase()
       setSaveStatus('saved')
       await qc.invalidateQueries()
     } catch {
-      setSaveStatus('saved')
+      setSaveStatus('failed')
     }
   }
 }

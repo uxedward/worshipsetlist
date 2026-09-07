@@ -173,6 +173,40 @@ export function overlaySong(id: string, server: Song | null): Song | null {
   return state.extraSongs[id] ?? server
 }
 
+export function songToInput(song: Song): SongInput {
+  return {
+    title: song.title,
+    artist: song.artist,
+    album: song.album ?? null,
+    key: song.key,
+    bpm: song.bpm,
+    timeSignature: song.timeSignature || '4/4',
+    tag: song.tag,
+    durationSeconds: song.durationSeconds ?? null,
+    sections: (song.sections ?? []).map((s) => ({
+      label: s.label,
+      order: s.order,
+      lines: (s.lines ?? []).map((l) => ({
+        chords: l.chords ?? '',
+        lyric: l.lyric,
+        order: l.order,
+      })),
+    })),
+  }
+}
+
+export function extraSongs(): Song[] {
+  return Object.values(loadPersist().extraSongs)
+}
+
+export function forgetExtraSongs(ids: string[]) {
+  if (ids.length === 0) return
+  const drop = new Set(ids)
+  write((state) => {
+    for (const id of drop) delete state.extraSongs[id]
+  })
+}
+
 export function rememberSongs(songs: Song[]) {
   if (songs.length === 0) return
   write((state) => {

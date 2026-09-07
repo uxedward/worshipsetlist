@@ -4,31 +4,27 @@ import type { IncomingMessage } from 'node:http'
 import { songsRouter } from './routes/songs.js'
 import { setlistsRouter } from './routes/setlists.js'
 import { preferencesRouter } from './routes/preferences.js'
-import { prisma } from './db.js'
+import { durableDatabase, prisma } from './db.js'
 
 export const app = express()
 
-let seeded = false
-let seeding: Promise<void> | null = null
+let prepared = false
+let preparing: Promise<void> | null = null
 
-async function ensureEmptyDefaultSetlists() {
-  if (seeded) return
-  if (!process.env.VERCEL) {
-    seeded = true
-    return
-  }
-  if (!seeding) {
-    seeding = prisma.setlistSong
-      .deleteMany({ where: { setlist: { name: 'Sunday AM' } } })
+async function prepareDatabase() {
+  if (prepared) return
+  if (!preparing) {
+    preparing = import('./cloneLibrary.js')
+      .then(({ ensurePersistentDatabase }) => ensurePersistentDatabase())
       .then(() => {
-        seeded = true
+        prepared = true
       })
       .catch((err) => {
-        seeding = null
-        console.error('Could not reset Sunday AM setlist', err)
+        preparing = null
+        console.error('Could not prepare the song database', err)
       })
   }
-  await seeding
+  await preparing
 }
 
 app.use((req, _res, next) => {
@@ -38,7 +34,7 @@ app.use((req, _res, next) => {
 })
 
 app.use((_req, _res, next) => {
-  void ensureEmptyDefaultSetlists().finally(() => next())
+  void prepareDatabase().finally(() => next())
 })
 
 app.use(cors())
@@ -48,7 +44,7 @@ app.get('/api/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`
     const songs = await prisma.song.count()
-    res.json({ ok: true, songs })
+    res.json({ ok: true, songs, durable: durableDatabase })
   } catch (err) {
     res.status(503).json({
       ok: false,

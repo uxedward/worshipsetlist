@@ -16,6 +16,8 @@ Object.defineProperty(globalThis, 'localStorage', {
 
 import {
   appendSetlistSong,
+  extraSongs,
+  forgetExtraSongs,
   overlaySetlist,
   overlaySetlists,
   overlaySongs,
@@ -23,6 +25,7 @@ import {
   rememberSetlist,
   rememberSong,
   rememberSongs,
+  songToInput,
 } from './persist.ts'
 import type { Setlist, SetlistSong, Song } from '@shared/types.ts'
 
@@ -146,5 +149,23 @@ describe('persist overlays', () => {
     const listed = overlaySetlists([{ ...setlist('a', 'Sunday AM'), _count: { songs: 0 } }])
     expect(listed[0]._count?.songs).toBe(0)
     expect(localStorage.getItem('setflow.persist.v1')).toBeNull()
+  })
+
+  it('converts overlay songs back into create payloads', () => {
+    const created = song('new', 'Original')
+    created.sections = [
+      {
+        id: 'sec',
+        songId: 'new',
+        label: 'Verse',
+        order: 0,
+        lines: [{ id: 'l', sectionId: 'sec', chords: 'G', lyric: 'Hello', order: 0 }],
+      },
+    ]
+    rememberSong(created)
+    expect(extraSongs().map((s) => s.title)).toEqual(['Original'])
+    expect(songToInput(created).sections[0].lines[0].lyric).toBe('Hello')
+    forgetExtraSongs(['new'])
+    expect(extraSongs()).toEqual([])
   })
 })

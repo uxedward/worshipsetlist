@@ -244,15 +244,7 @@ async function upsertOne(client: PrismaClient, song: SeedSong) {
   })
 
   if (existing) {
-    await client.$transaction(async (tx) => {
-      await tx.line.deleteMany({ where: { section: { songId: existing.id } } })
-      await tx.section.deleteMany({ where: { songId: existing.id } })
-      await tx.song.update({
-        where: { id: existing.id },
-        data: payload,
-      })
-    })
-    console.log(`Updated ${song.title}`)
+    console.log(`Kept ${song.title}`)
     return existing.id
   }
   const created = await client.song.create({ data: payload })
@@ -298,8 +290,6 @@ export async function ensureDemoData(client: PrismaClient = prisma) {
     })
   }
 
-  await client.setlist.deleteMany({ where: { name: 'Easter' } })
-
   const first = await client.setlist.findFirst({ orderBy: { createdAt: 'asc' } })
   if (first) {
     const prefs = await client.preference.findUnique({ where: { id: 1 } })
@@ -320,15 +310,7 @@ export async function ensureDemoData(client: PrismaClient = prisma) {
   })
   if (songCount === 0 || !hasPlaylist || !hasMore) {
     await upsertWorshipSongs(client)
-  } else {
-    for (const song of CORE_SONGS) {
-      await upsertOne(client, song)
-    }
   }
-
-  await client.setlistSong.deleteMany({
-    where: { setlist: { name: 'Sunday AM' } },
-  })
 }
 
 export async function upsertWorshipSongs(client: PrismaClient = prisma) {

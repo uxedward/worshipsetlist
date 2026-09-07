@@ -154,7 +154,7 @@ export async function pingHealth(): Promise<boolean> {
 }
 
 export const endpoints = {
-  health: () => api<{ ok: boolean }>('/api/health'),
+  health: () => api<{ ok: boolean; songs?: number; durable?: boolean }>('/api/health'),
   prefs: () => api<import('@shared/types.ts').Preference>('/api/preferences'),
   patchPrefs: (body: Record<string, unknown>) =>
     api('/api/preferences', { method: 'PATCH', json: body }),
@@ -198,4 +198,9 @@ export const endpoints = {
       { method: 'POST', json: { url } },
     ),
   exportSongs: () => api<string>('/api/songs/export'),
+  syncLocalSongs: (songs: unknown[]) =>
+    api<{ imported: number; skipped: number; durable: boolean }>('/api/songs/sync-local', {
+      method: 'POST',
+      json: { songs },
+    }),
 }
