@@ -154,7 +154,7 @@ export async function pingHealth(): Promise<boolean> {
 }
 
 export const endpoints = {
-  health: () => api<{ ok: boolean; songs?: number; durable?: boolean }>('/api/health'),
+  health: () => api<{ ok: boolean; songs?: number; durable?: boolean; backend?: string }>('/api/health'),
   prefs: () => api<import('@shared/types.ts').Preference>('/api/preferences'),
   patchPrefs: (body: Record<string, unknown>) =>
     api('/api/preferences', { method: 'PATCH', json: body }),

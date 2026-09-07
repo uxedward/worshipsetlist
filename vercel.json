@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "setflow-data": false
+    }
+  },
   "buildCommand": "DATABASE_URL=\"file:./setflow.db\" prisma generate && vite build --config client/vite.config.ts",
   "outputDirectory": "client/dist",
   "framework": null,

@@ -3,9 +3,12 @@ import { PrismaLibSQL } from '@prisma/adapter-libsql'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { githubSqliteFromEnv } from '../shared/githubDb.ts'
 import { remoteSqliteFromEnv } from '../shared/remoteDb.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
+
+export type DatabaseBackend = 'turso' | 'github' | 'file'
 
 function existingFile(candidates: string[]) {
   return candidates.find((file) => {
@@ -27,10 +30,21 @@ export function findBundledDb() {
   ])
 }
 
+export const vercelSqlitePath = '/tmp/setflow.db'
+
+export function githubRuntimePath() {
+  return process.env.VERCEL ? vercelSqlitePath : '/tmp/setflow-github.db'
+}
+
 function fileDatabaseUrl() {
   const bundled = findBundledDb()
+  if (githubSqliteFromEnv() && !remoteSqliteFromEnv()) {
+    const dest = githubRuntimePath()
+    if (bundled && !fs.existsSync(dest)) fs.copyFileSync(bundled, dest)
+    return `file:${dest}`
+  }
   if (process.env.VERCEL) {
-    const dest = '/tmp/setflow.db'
+    const dest = vercelSqlitePath
     if (bundled) {
       fs.copyFileSync(bundled, dest)
       return `file:${dest}`
@@ -43,7 +57,13 @@ function fileDatabaseUrl() {
 }
 
 const remote = remoteSqliteFromEnv()
-export const durableDatabase = Boolean(remote)
+const github = githubSqliteFromEnv()
+export const databaseBackend: DatabaseBackend = remote ? 'turso' : github ? 'github' : 'file'
+export const durableDatabase = databaseBackend !== 'file'
+
+function sqlitePathFromUrl(url: string) {
+  return url.startsWith('file:') ? url.slice('file:'.length) : null
+}
 
 function createPrisma(): PrismaClient {
   if (remote) {
@@ -55,9 +75,9 @@ function createPrisma(): PrismaClient {
   }
   const url = fileDatabaseUrl()
   process.env.DATABASE_URL = url
-  if (process.env.VERCEL) {
+  if (process.env.VERCEL && databaseBackend === 'file') {
     console.warn(
-      'Setflow is using an ephemeral /tmp SQLite file. Add TURSO_DATABASE_URL and TURSO_AUTH_TOKEN so songs stay saved.',
+      'Setflow is using an ephemeral /tmp SQLite file. Add GITHUB_DATABASE_TOKEN or TURSO_DATABASE_URL so songs stay saved.',
     )
   }
   return new PrismaClient({
@@ -65,4 +85,11 @@ function createPrisma(): PrismaClient {
   })
 }
 
-export const prisma = createPrisma()
+export let prisma = createPrisma()
+export let sqliteFilePath = remote ? null : sqlitePathFromUrl(process.env.DATABASE_URL || fileDatabaseUrl())
+
+export function recreateFilePrisma() {
+  prisma = createPrisma()
+  sqliteFilePath = sqlitePathFromUrl(process.env.DATABASE_URL || fileDatabaseUrl())
+  return prisma
+}

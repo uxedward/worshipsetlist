@@ -1,5 +1,15 @@
 import { PrismaClient } from '@prisma/client'
-import { durableDatabase, findBundledDb, prisma } from './db.ts'
+import fs from 'node:fs'
+import {
+  databaseBackend,
+  durableDatabase,
+  findBundledDb,
+  prisma,
+  recreateFilePrisma,
+  githubRuntimePath,
+  sqliteFilePath,
+} from './db.ts'
+import { pullGithubDatabase, pushGithubDatabase } from './githubStore.ts'
 
 let ready: Promise<void> | null = null
 
@@ -11,7 +21,18 @@ export async function ensurePersistentDatabase() {
   await ready
 }
 
+export async function persistGithubWrites() {
+  const { prisma: db, sqliteFilePath: filePath, databaseBackend: backend } = await import('./db.ts')
+  if (backend !== 'github' || !filePath) return
+  await db.$queryRaw`PRAGMA wal_checkpoint(TRUNCATE)`
+  await pushGithubDatabase(filePath)
+}
+
 async function prepare() {
+  if (databaseBackend === 'github') {
+    await restoreGithubDatabase()
+    return
+  }
   if (!durableDatabase) return
   const songs = await prisma.song.count()
   if (songs > 0) return
@@ -26,6 +47,24 @@ async function prepare() {
   } finally {
     await local.$disconnect()
   }
+}
+
+async function restoreGithubDatabase() {
+  const bundled = findBundledDb()
+  const dest = sqliteFilePath || githubRuntimePath()
+  if (!dest) throw new Error('No SQLite file path available for the GitHub database')
+  await prisma.$disconnect()
+  for (const extra of [`${dest}-wal`, `${dest}-shm`]) {
+    try {
+      fs.unlinkSync(extra)
+    } catch {
+      // no WAL sidecar
+    }
+  }
+  const pulled = await pullGithubDatabase(dest)
+  if (!pulled && bundled && bundled !== dest) fs.copyFileSync(bundled, dest)
+  recreateFilePrisma()
+  if (!pulled) await pushGithubDatabase(dest)
 }
 
 async function cloneLibrary(from: PrismaClient, to: PrismaClient) {
