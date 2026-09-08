@@ -1,4 +1,5 @@
 import type { Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
+import { displaySongMeta } from '@shared/bulkFormat.ts'
 
 const KEY = 'setflow.persist.v2'
 const LEGACY_KEYS = ['setflow.persist.v1']
@@ -115,12 +116,18 @@ export function rememberDeletedSong(id: string) {
   })
 }
 
+function repairSong(song: Song): Song {
+  const meta = displaySongMeta(song)
+  if (meta.key === song.key && meta.bpm === song.bpm && meta.tag === song.tag) return song
+  return { ...song, ...meta }
+}
+
 export function applyEdits(server: Setlist, edit?: SetlistEdit): SetlistSong[] {
   const base = (server.songs ?? []).filter((row) => !edit?.removedSongIds.includes(row.songId))
   for (const row of edit?.added ?? []) {
     if (!base.some((s) => s.songId === row.songId || s.id === row.id)) base.push(row)
   }
-  return base
+  return base.map((row) => ({ ...row, song: repairSong(row.song) }))
 }
 
 export function overlaySetlist(server: Setlist): Setlist {
@@ -164,13 +171,14 @@ export function overlaySongs(server: Song[]): Song[] {
   const byId = new Map(server.map((s) => [s.id, s]))
   for (const song of Object.values(state.extraSongs)) byId.set(song.id, song)
   for (const id of state.deletedSongIds) byId.delete(id)
-  return Array.from(byId.values())
+  return Array.from(byId.values()).map(repairSong)
 }
 
 export function overlaySong(id: string, server: Song | null): Song | null {
   const state = loadPersist()
   if (state.deletedSongIds.includes(id)) return null
-  return state.extraSongs[id] ?? server
+  const song = state.extraSongs[id] ?? server
+  return song ? repairSong(song) : null
 }
 
 export function songToInput(song: Song): SongInput {

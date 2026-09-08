@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { cn } from '../lib/cn.ts'
+import { displayKey } from '@shared/bulkFormat.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useRetrySave } from '../hooks/useQueries.ts'
 import { Moon, Sun, X } from 'lucide-react'
@@ -7,19 +8,23 @@ import { Moon, Sun, X } from 'lucide-react'
 const COVER_COUNT = 5
 
 export function KeyBadge({ value, size = 'md' }: { value: string; size?: 'sm' | 'md' }) {
+  const label = displayKey(value)
   const dim = size === 'sm' ? 28 : 34
+  const wide = label.length > 3
   return (
     <span
-      className="inline-flex items-center justify-center rounded-full font-semibold"
+      className="inline-flex shrink-0 items-center justify-center overflow-hidden whitespace-nowrap rounded-full font-semibold"
       style={{
-        width: dim,
+        minWidth: dim,
+        width: wide ? 'auto' : dim,
         height: dim,
+        padding: wide ? '0 8px' : 0,
         fontSize: size === 'sm' ? 10 : 11,
         background: 'var(--accent-soft)',
         color: 'var(--accent)',
       }}
     >
-      {value}
+      {label}
     </span>
   )
 }
@@ -203,12 +208,15 @@ export function SaveStatusDot() {
 export function OfflineBanner() {
   const offline = useAppStore((s) => s.offline)
   if (!offline) return null
+  const noNetwork = typeof navigator !== 'undefined' && navigator.onLine === false
   return (
     <div
       className="z-40 px-4 py-2 text-center text-[13px]"
       style={{ background: 'var(--warn)', color: '#1c1612' }}
     >
-      You’re offline — setlist edits stay on this device
+      {noNetwork
+        ? 'You’re offline — setlist edits stay on this device'
+        : 'Can’t reach the Setflow API — edits stay on this device'}
     </div>
   )
 }

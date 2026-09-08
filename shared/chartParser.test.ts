@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseChart, chartToText, isChordLine, hasValidChart } from './chartParser.ts'
-import { parseBulkImport, serializeExport, parseBulkBlock } from './bulkFormat.ts'
+import { parseBulkImport, serializeExport, parseBulkBlock, displaySongMeta, displayKey } from './bulkFormat.ts'
 import type { Song } from './types.ts'
 
 describe('isChordLine', () => {
@@ -228,5 +228,27 @@ We sing
     const result = parseBulkBlock('Title: Only Title\nKey: C')
     expect(result.skipReason).toMatch(/artist/)
     expect(result.input).toBeNull()
+  })
+
+  it('unpacks a packed Key | BPM | Tag line', () => {
+    const result = parseBulkBlock(`Title: Oceans (Where Feet May Fail)
+Artist: Hillsong United
+Key: Bm | BPM: 71 | Tag: Worship
+
+[Intro]
+Bm   A/C#   D   A   G
+`)
+    expect(result.input?.key).toBe('Bm')
+    expect(result.input?.bpm).toBe(71)
+    expect(result.input?.tag).toBe('Worship')
+  })
+
+  it('displaySongMeta repairs songs already saved with a packed key', () => {
+    expect(displayKey('Bm | BPM: 71 | Tag: Worship')).toBe('Bm')
+    expect(displaySongMeta({ key: 'Bm | BPM: 71 | Tag: Worship', bpm: 80, tag: 'Worship' })).toEqual({
+      key: 'Bm',
+      bpm: 71,
+      tag: 'Worship',
+    })
   })
 })

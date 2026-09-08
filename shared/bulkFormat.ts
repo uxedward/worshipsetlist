@@ -41,6 +41,52 @@ function parseMetaLine(line: string): [string, string] | null {
   return [mapped, line.slice(idx + 1).trim()]
 }
 
+function applyMetaField(meta: BulkBlockMeta, k: string, v: string) {
+  if (k === 'bpm') meta.bpm = Number(v) || undefined
+  else if (k === 'duration') meta.durationSeconds = parseDuration(v)
+  else if (k === 'title') meta.title = v
+  else if (k === 'artist') meta.artist = v
+  else if (k === 'album') meta.album = v
+  else if (k === 'key') meta.key = v
+  else if (k === 'tag') meta.tag = v
+  else if (k === 'timeSignature') meta.timeSignature = v
+}
+
+const PACKED_META = /[|]|(?:BPM|Tag|Time Signature)\s*:/i
+
+/** Split values like "Bm | BPM: 71 | Tag: Worship" into separate fields. */
+export function absorbPackedMeta(meta: BulkBlockMeta, raw: string) {
+  const parts = raw.split('|').map((part) => part.trim()).filter(Boolean)
+  const leftover: string[] = []
+  for (const part of parts) {
+    const parsed = parseMetaLine(part)
+    if (parsed) applyMetaField(meta, parsed[0], parsed[1])
+    else leftover.push(part)
+  }
+  if (leftover.length) meta.key = leftover.join(' | ')
+}
+
+export function displaySongMeta(song: { key: string; bpm: number; tag: string }): {
+  key: string
+  bpm: number
+  tag: string
+} {
+  if (!PACKED_META.test(song.key)) {
+    return { key: song.key, bpm: song.bpm, tag: song.tag }
+  }
+  const meta: BulkBlockMeta = { bpm: song.bpm, tag: song.tag }
+  absorbPackedMeta(meta, song.key)
+  return {
+    key: meta.key || song.key.split('|')[0].trim(),
+    bpm: meta.bpm && meta.bpm >= 40 && meta.bpm <= 200 ? meta.bpm : song.bpm,
+    tag: meta.tag || song.tag,
+  }
+}
+
+export function displayKey(value: string): string {
+  return displaySongMeta({ key: value, bpm: 80, tag: 'Worship' }).key
+}
+
 export function parseBulkBlock(block: string): BulkSongPreview {
   const lines = block.replace(/\r\n/g, '\n').split('\n')
   const meta: BulkBlockMeta = {}
@@ -57,14 +103,8 @@ export function parseBulkBlock(block: string): BulkSongPreview {
     const parsed = parseMetaLine(trimmed)
     if (parsed) {
       const [k, v] = parsed
-      if (k === 'bpm') meta.bpm = Number(v) || undefined
-      else if (k === 'duration') meta.durationSeconds = parseDuration(v)
-      else if (k === 'title') meta.title = v
-      else if (k === 'artist') meta.artist = v
-      else if (k === 'album') meta.album = v
-      else if (k === 'key') meta.key = v
-      else if (k === 'tag') meta.tag = v
-      else if (k === 'timeSignature') meta.timeSignature = v
+      if (k === 'key' && PACKED_META.test(v)) absorbPackedMeta(meta, v)
+      else applyMetaField(meta, k, v)
       chartStart = i + 1
     } else {
       chartStart = i

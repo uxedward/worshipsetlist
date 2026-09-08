@@ -168,4 +168,15 @@ describe('persist overlays', () => {
     forgetExtraSongs(['new'])
     expect(extraSongs()).toEqual([])
   })
+
+  it('repairs songs whose key still contains BPM and Tag', () => {
+    const packed = song('oceans', 'Oceans (Where Feet May Fail)')
+    packed.artist = 'Hillsong United'
+    packed.key = 'Bm | BPM: 71 | Tag: Worship'
+    packed.bpm = 80
+    const [repaired] = overlaySongs([packed])
+    expect(repaired.key).toBe('Bm')
+    expect(repaired.bpm).toBe(71)
+    expect(repaired.tag).toBe('Worship')
+  })
 })

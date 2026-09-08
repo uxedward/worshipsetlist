@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { endpoints, flushQueue, onConnectionChange, pingHealth, syncBrowserConnection } from '../lib/api.ts'
+import { endpoints, flushQueue, onConnectionChange, pingHealth } from '../lib/api.ts'
 import { flushLocalSongsToDatabase } from './useQueries.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 
@@ -9,10 +9,10 @@ export function useOfflineSync() {
 
   useEffect(() => {
     const apply = () => {
-      const online = syncBrowserConnection()
-      setOffline(!online)
-      if (!online) return
       void (async () => {
+        const reachable = await pingHealth()
+        setOffline(!reachable)
+        if (!reachable) return
         try {
           const health = await endpoints.health()
           if (health.durable) await flushLocalSongsToDatabase()

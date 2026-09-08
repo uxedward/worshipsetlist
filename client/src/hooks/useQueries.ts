@@ -353,6 +353,7 @@ export function useMutations() {
         imported: created.length,
         skipped,
         name: lookup.name,
+        titles: created.map((song) => song.title),
         message:
           skipped > 0
             ? `${created.length} imported from ${lookup.name}, ${skipped} already in the library`

@@ -20,19 +20,10 @@ export function onConnectionChange(cb: ConnListener): () => void {
   return () => connListeners.delete(cb)
 }
 
-function browserOffline(): boolean {
-  return typeof navigator !== 'undefined' && navigator.onLine === false
-}
-
 function setOnline(next: boolean) {
   if (online === next) return
   online = next
   connListeners.forEach((cb) => cb(next))
-}
-
-export function syncBrowserConnection(): boolean {
-  setOnline(!browserOffline())
-  return online
 }
 
 export type QueuedRequest = {
@@ -122,7 +113,7 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
     return JSON.parse(text) as T
   } catch (err) {
     if (err instanceof ApiError) throw err
-    if (browserOffline()) setOnline(false)
+    void pingHealth()
     const method = (rest.method || 'GET').toUpperCase()
     if (queueOnFail && !skipQueue && (method === 'GET' || method === 'HEAD')) {
       enqueue({
@@ -136,20 +127,14 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
 }
 
 export async function pingHealth(): Promise<boolean> {
-  if (browserOffline()) {
+  try {
+    const res = await fetch('/api/health', { cache: 'no-store' })
+    const ok = res.ok
+    setOnline(ok)
+    return ok
+  } catch {
     setOnline(false)
     return false
-  }
-  try {
-    await fetch('/api/health', { cache: 'no-store' })
-    setOnline(true)
-    return true
-  } catch {
-    if (browserOffline()) {
-      setOnline(false)
-      return false
-    }
-    return true
   }
 }
 

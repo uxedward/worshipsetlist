@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Check, Pencil, Plus, Search } from 'lucide-react'
 import { TAGS } from '@shared/types.ts'
+import { displaySongMeta } from '@shared/bulkFormat.ts'
 import type { Setlist, SetlistSong, Song } from '@shared/types.ts'
 import { cn } from '../lib/cn.ts'
 import { useAppStore } from '../store/useAppStore.ts'
@@ -264,18 +265,28 @@ function LibraryRow({
   onAdd: () => void
   onEdit: () => void
 }) {
+  const meta = displaySongMeta(song)
   return (
     <div
       className={cn('flex h-14 items-center gap-3 rounded-[8px] px-2', added && 'opacity-55')}
     >
-      <KeyBadge value={song.key} size="sm" />
       <div className="min-w-0 flex-1">
         <div className="truncate text-[14px]">{song.title}</div>
         <div className="truncate text-[11px]" style={{ color: 'var(--text-dim)' }}>
-          {song.artist} · {song.bpm} · {song.tag}
+          {song.artist}
         </div>
       </div>
-      <button type="button" onClick={onEdit} style={{ color: 'var(--text-dim)' }} title="Edit">
+      <KeyBadge value={meta.key} size="sm" />
+      <span className="hidden w-10 shrink-0 text-center text-[12px] sm:inline" style={{ color: 'var(--text-dim)' }}>
+        {meta.bpm}
+      </span>
+      <span
+        className="hidden max-w-[88px] shrink-0 truncate rounded-[20px] px-2 py-0.5 text-[10px] sm:inline"
+        style={{ background: 'var(--card)', color: 'var(--text-dim)' }}
+      >
+        {meta.tag}
+      </span>
+      <button type="button" className="shrink-0" onClick={onEdit} style={{ color: 'var(--text-dim)' }} title="Edit">
         <Pencil size={14} />
       </button>
       <button
@@ -285,7 +296,7 @@ function LibraryRow({
           onAdd()
         }}
         disabled={added}
-        className="flex h-8 items-center gap-1 rounded-[8px] px-2 text-[12px]"
+        className="flex h-8 shrink-0 items-center gap-1 rounded-[8px] px-2 text-[12px]"
         style={{
           background: added ? 'transparent' : 'var(--accent)',
           color: added ? 'var(--text-dim)' : '#fff',
