@@ -27,6 +27,7 @@ import {
   reorderPersistedSetlists,
 } from '../lib/persist.ts'
 import { songsListQueryKey } from '../lib/queryKeys.ts'
+import { sameSongIdentity, songInputFromSpotifyTrack } from '@shared/spotifyImport.ts'
 
 export function useBootstrap() {
   const qc = useQueryClient()
