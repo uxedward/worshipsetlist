@@ -205,6 +205,24 @@ describe('persist overlays', () => {
     expect(repaired.tag).toBe('Worship')
   })
 
+  it('detects the real key when an imported song was saved as C', () => {
+    const oceans = song('oceans', 'Oceans')
+    oceans.key = 'C'
+    oceans.sections = [
+      {
+        id: 'sec',
+        songId: 'oceans',
+        label: 'Verse',
+        order: 0,
+        lines: [
+          { id: 'l', sectionId: 'sec', chords: 'Bm A D G Bm', lyric: 'You call me out', order: 0 },
+        ],
+      },
+    ]
+    const [repaired] = overlaySongs([oceans])
+    expect(repaired.key).toBe('Bm')
+  })
+
   it('lists setlists whose songs omit the nested song payload', () => {
     const listed = overlaySetlists([
       {

@@ -316,6 +316,20 @@ We sing
     expect(result.input).toBeNull()
   })
 
+  it('detects the key from chords when Key is omitted', () => {
+    const result = parseBulkBlock(`Title: Oceans
+Artist: Hillsong United
+
+[Intro]
+Bm   A/C#   D   A   G
+[Chorus]
+G              D             A
+And I will call upon Your name
+A              Bm
+For I am Yours`)
+    expect(result.input?.key).toBe('Bm')
+  })
+
   it('unpacks a packed Key | BPM | Tag line', () => {
     const result = parseBulkBlock(`Title: Oceans (Where Feet May Fail)
 Artist: Hillsong United

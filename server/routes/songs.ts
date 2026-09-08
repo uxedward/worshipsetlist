@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { parseBulkImport, serializeExport } from '../../shared/bulkFormat.js'
 import type { SongInput } from '../../shared/types.js'
+import { resolveSongKey } from '../../shared/detectKey.js'
 import { sameSongIdentity } from '../../shared/spotifyImport.js'
 import { durableDatabase, prisma } from '../db.js'
 import { songWithChart } from '../songInclude.js'
@@ -165,7 +166,7 @@ songsRouter.patch('/:id', async (req, res) => {
         title: input.title.trim(),
         artist: input.artist.trim(),
         album: input.album?.trim() || null,
-        key: input.key,
+        key: resolveSongKey(input.key, input.sections),
         bpm: input.bpm,
         timeSignature: input.timeSignature || '4/4',
         tag: input.tag,
@@ -224,7 +225,7 @@ async function createSong(input: SongInput) {
       title: input.title.trim(),
       artist: input.artist.trim(),
       album: input.album?.trim() || null,
-      key: input.key,
+      key: resolveSongKey(input.key, input.sections),
       bpm: input.bpm,
       timeSignature: input.timeSignature || '4/4',
       tag: input.tag,

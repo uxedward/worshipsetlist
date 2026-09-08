@@ -3,6 +3,7 @@ import { Clipboard, X } from 'lucide-react'
 import { BPM_MAX, BPM_MIN, KEYS, TAGS, TIME_SIGNATURES } from '@shared/types.ts'
 import type { SongInput } from '@shared/types.ts'
 import { parseChart, chartToText, hasValidChart } from '@shared/chartParser.ts'
+import { detectKeyFromSections, resolveSongKey } from '@shared/detectKey.ts'
 import { parseDuration, formatDuration } from '@shared/duration.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSong } from '../hooks/useQueries.ts'
@@ -42,6 +43,7 @@ export function SongEditor() {
   const [baseline, setBaseline] = useState(emptyForm)
   const [previewText, setPreviewText] = useState('')
   const [tried, setTried] = useState(false)
+  const [keyLocked, setKeyLocked] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -62,7 +64,7 @@ export function SongEditor() {
         title: existing.title,
         artist: existing.artist,
         album: existing.album ?? '',
-        key: existing.key,
+        key: resolveSongKey(existing.key, existing.sections, chart),
         bpm: String(existing.bpm),
         timeSignature: existing.timeSignature,
         tag: existing.tag,
@@ -73,11 +75,13 @@ export function SongEditor() {
       setBaseline(next)
       setPreviewText(chart)
       setTried(false)
+      setKeyLocked(Boolean(existing.key && existing.key !== 'C'))
     } else if (!songId) {
       setForm(emptyForm)
       setBaseline(emptyForm)
       setPreviewText('')
       setTried(false)
+      setKeyLocked(false)
     }
   }, [open, songId, existing])
 
@@ -86,6 +90,12 @@ export function SongEditor() {
   }, 300)
 
   const parsed = useMemo(() => parseChart(previewText), [previewText])
+  const detectedKey = useMemo(() => detectKeyFromSections(parsed.sections), [parsed.sections])
+
+  useEffect(() => {
+    if (!open || keyLocked || !detectedKey) return
+    setForm((f) => (f.key === detectedKey ? f : { ...f, key: detectedKey }))
+  }, [detectedKey, keyLocked, open])
   const bpmNum = Number(form.bpm)
   const durationSeconds = form.duration.trim() ? parseDuration(form.duration) : null
 
@@ -208,7 +218,10 @@ export function SongEditor() {
               className={inputClass}
               style={inputStyle}
               value={form.key}
-              onChange={(e) => setForm({ ...form, key: e.target.value })}
+              onChange={(e) => {
+                setKeyLocked(true)
+                setForm({ ...form, key: e.target.value })
+              }}
             >
               {KEYS.map((k) => (
                 <option key={k} value={k}>
@@ -216,6 +229,26 @@ export function SongEditor() {
                 </option>
               ))}
             </select>
+            {detectedKey ? (
+              <p className="mt-1 text-[11px]" style={{ color: 'var(--text-dim)' }}>
+                Detected {detectedKey} from the chord chart
+                {detectedKey !== form.key ? (
+                  <>
+                    {' · '}
+                    <button
+                      type="button"
+                      className="underline"
+                      onClick={() => {
+                        setKeyLocked(true)
+                        setForm((f) => ({ ...f, key: detectedKey }))
+                      }}
+                    >
+                      Use {detectedKey}
+                    </button>
+                  </>
+                ) : null}
+              </p>
+            ) : null}
           </Field>
           <Field label="BPM" error={(dirty || tried) ? errors.bpm : ''}>
             <input

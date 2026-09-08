@@ -1,5 +1,6 @@
 import type { Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
 import { displaySongMeta } from '@shared/bulkFormat.ts'
+import { resolveSongKey } from '@shared/detectKey.ts'
 
 const KEY = 'setflow.persist.v2'
 const LEGACY_KEYS = ['setflow.persist.v1']
@@ -121,8 +122,9 @@ export function rememberDeletedSong(id: string) {
 
 function repairSong(song: Song): Song {
   const meta = displaySongMeta(song)
-  if (meta.key === song.key && meta.bpm === song.bpm && meta.tag === song.tag) return song
-  return { ...song, ...meta }
+  const key = resolveSongKey(meta.key, song.sections)
+  if (key === song.key && meta.bpm === song.bpm && meta.tag === song.tag) return song
+  return { ...song, ...meta, key }
 }
 
 export function applyEdits(server: Setlist, edit?: SetlistEdit): SetlistSong[] {

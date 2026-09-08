@@ -1,5 +1,6 @@
 import { parseChart, chartToText } from './chartParser.js'
 import { parseDuration, formatDuration } from './duration.js'
+import { resolveSongKey } from './detectKey.js'
 import type { Song, SongInput } from './types.js'
 
 export interface BulkBlockMeta {
@@ -128,7 +129,7 @@ export function parseBulkBlock(block: string): BulkSongPreview {
     title: meta.title,
     artist: meta.artist,
     album: meta.album ?? null,
-    key: meta.key || 'C',
+    key: resolveSongKey(meta.key, sections, chartText),
     bpm: meta.bpm && meta.bpm >= 40 && meta.bpm <= 200 ? meta.bpm : 80,
     timeSignature: meta.timeSignature || '4/4',
     tag: meta.tag || 'Worship',
