@@ -9,7 +9,11 @@ export class ApiError extends Error {
 type ConnListener = (online: boolean) => void
 const connListeners = new Set<ConnListener>()
 
+/** One missed /api/health ping is not enough to show the offline banner. */
+export const HEALTH_FAILS_BEFORE_OFFLINE = 2
+
 let online = true
+let healthFailStreak = 0
 
 export function isOnline(): boolean {
   return online
@@ -21,9 +25,25 @@ export function onConnectionChange(cb: ConnListener): () => void {
 }
 
 function setOnline(next: boolean) {
+  if (next) healthFailStreak = 0
   if (online === next) return
   online = next
   connListeners.forEach((cb) => cb(next))
+}
+
+function noteHealthResult(ok: boolean): boolean {
+  if (ok) {
+    setOnline(true)
+    return true
+  }
+  healthFailStreak += 1
+  if (healthFailStreak >= HEALTH_FAILS_BEFORE_OFFLINE) setOnline(false)
+  return false
+}
+
+export function resetConnectionStateForTests() {
+  online = true
+  healthFailStreak = 0
 }
 
 export type QueuedRequest = {
@@ -129,12 +149,14 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
 export async function pingHealth(): Promise<boolean> {
   try {
     const res = await fetch('/api/health', { cache: 'no-store' })
-    const ok = res.ok
-    setOnline(ok)
-    return ok
+    return noteHealthResult(res.ok)
   } catch {
-    setOnline(false)
-    return false
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      healthFailStreak = HEALTH_FAILS_BEFORE_OFFLINE
+      setOnline(false)
+      return false
+    }
+    return noteHealthResult(false)
   }
 }
 

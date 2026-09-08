@@ -45,8 +45,7 @@ app.use(async (_req, _res, next) => {
 app.get('/api/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`
-    const songs = await prisma.song.count()
-    res.json({ ok: true, songs, durable: durableDatabase, backend: databaseBackend })
+    res.json({ ok: true, durable: durableDatabase, backend: databaseBackend })
   } catch (err) {
     res.status(503).json({
       ok: false,
