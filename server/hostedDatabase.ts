@@ -10,3 +10,20 @@ export function resolveDatabaseUrl(env: Record<string, string | undefined> = pro
   if (url.startsWith("postgres://") || url.startsWith("postgresql://")) return url
   return hostedPostgresUrl()
 }
+
+/** Keep Prisma from opening a 10-connection pool per Vercel invocation. */
+export function applyPrismaPoolParams(
+  url: string,
+  env: Record<string, string | undefined> = process.env,
+) {
+  const limit = env.VERCEL ? '1' : '3'
+  try {
+    const parsed = new URL(url)
+    parsed.searchParams.set('connection_limit', limit)
+    if (!parsed.searchParams.has('pool_timeout')) parsed.searchParams.set('pool_timeout', '10')
+    return parsed.toString()
+  } catch {
+    const extra = `connection_limit=${limit}&pool_timeout=10`
+    return url.includes('?') ? `${url}&${extra}` : `${url}?${extra}`
+  }
+}

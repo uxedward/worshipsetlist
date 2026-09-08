@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { resolveDatabaseUrl } from './hostedDatabase.ts'
+import { applyPrismaPoolParams, resolveDatabaseUrl } from './hostedDatabase.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -25,16 +25,21 @@ export function findBundledDb() {
   })
 }
 
-const url = resolveDatabaseUrl()
+const url = applyPrismaPoolParams(resolveDatabaseUrl())
 process.env.DATABASE_URL = url
 
 export const databaseBackend: DatabaseBackend = 'postgres'
 export const durableDatabase = true
 export const sqliteFilePath: string | null = null
 
-export const prisma = new PrismaClient({
-  datasources: { db: { url } },
-})
+const globalForPrisma = globalThis as unknown as { setflowPrisma?: PrismaClient }
+
+export const prisma =
+  globalForPrisma.setflowPrisma ??
+  new PrismaClient({
+    datasources: { db: { url } },
+  })
+globalForPrisma.setflowPrisma = prisma
 
 export function recreateFilePrisma() {
   return prisma

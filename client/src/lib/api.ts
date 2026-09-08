@@ -140,6 +140,13 @@ export async function pingHealth(): Promise<boolean> {
 
 export const endpoints = {
   health: () => api<{ ok: boolean; songs?: number; durable?: boolean; backend?: string }>('/api/health'),
+  bootstrap: () =>
+    api<{
+      preferences: import('@shared/types.ts').Preference
+      setlists: import('@shared/types.ts').Setlist[]
+      songs: import('@shared/types.ts').Song[]
+      activeSetlist: import('@shared/types.ts').Setlist | null
+    }>('/api/bootstrap'),
   prefs: () => api<import('@shared/types.ts').Preference>('/api/preferences'),
   patchPrefs: (body: Record<string, unknown>) =>
     api('/api/preferences', { method: 'PATCH', json: body }),

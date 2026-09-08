@@ -5,6 +5,7 @@ import { songsRouter } from './routes/songs.js'
 import { setlistsRouter } from './routes/setlists.js'
 import { preferencesRouter } from './routes/preferences.js'
 import { databaseBackend, durableDatabase, prisma } from './db.js'
+import { loadBootstrap } from './bootstrap.js'
 
 export const app = express()
 
@@ -54,9 +55,31 @@ app.get('/api/health', async (_req, res) => {
   }
 })
 
+app.get('/api/bootstrap', async (_req, res) => {
+  try {
+    res.json(await loadBootstrap())
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    const busy = /too many connections/i.test(message)
+    res.status(busy ? 503 : 500).json({
+      error: busy ? 'The database is busy. Retry in a moment.' : message,
+    })
+  }
+})
+
 app.use('/api/songs', songsRouter)
 app.use('/api/setlists', setlistsRouter)
 app.use('/api/preferences', preferencesRouter)
+
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const message = err instanceof Error ? err.message : String(err)
+  const busy = /too many connections/i.test(message)
+  if (!res.headersSent) {
+    res.status(busy ? 503 : 500).json({
+      error: busy ? 'The database is busy. Retry in a moment.' : message,
+    })
+  }
+})
 
 function vercelOriginalUrl(req: IncomingMessage) {
   const header =

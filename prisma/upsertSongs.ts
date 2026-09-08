@@ -3,7 +3,11 @@ import { parseChart } from '../shared/chartParser.ts'
 import { PLAYLIST_SONGS, type SeedSong } from './playlistSongs.ts'
 import { MORE_PLAYLIST_SONGS } from './playlistMore.ts'
 
-const prisma = new PrismaClient()
+let defaultClient: PrismaClient | null = null
+function fallbackClient() {
+  if (!defaultClient) defaultClient = new PrismaClient()
+  return defaultClient
+}
 
 const OCEANS_CHART = `[Intro]
 Bm   A/C#   D   A   G
@@ -261,7 +265,7 @@ function nextSunday(): Date {
   return d
 }
 
-export async function ensureDemoData(client: PrismaClient = prisma) {
+export async function ensureDemoData(client: PrismaClient = fallbackClient()) {
   await client.preference.upsert({
     where: { id: 1 },
     create: {
@@ -302,7 +306,7 @@ export async function ensureDemoData(client: PrismaClient = prisma) {
   }
 }
 
-export async function upsertWorshipSongs(client: PrismaClient = prisma) {
+export async function upsertWorshipSongs(client: PrismaClient = fallbackClient()) {
   for (const song of SONGS) {
     await upsertOne(client, song)
   }
@@ -310,11 +314,12 @@ export async function upsertWorshipSongs(client: PrismaClient = prisma) {
 
 const isMain = process.argv[1]?.includes('upsertSongs')
 if (isMain) {
-  upsertWorshipSongs()
-    .then(() => prisma.$disconnect())
+  const client = fallbackClient()
+  upsertWorshipSongs(client)
+    .then(() => client.$disconnect())
     .catch(async (e) => {
       console.error(e)
-      await prisma.$disconnect()
+      await client.$disconnect()
       process.exit(1)
     })
 }

@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { useAppStore } from './store/useAppStore.ts'
-import { useMutations, usePreferences, useSetlist, useSetlists, useSongs } from './hooks/useQueries.ts'
+import { useMutations, usePreferences, useSetlist, useSetlists, useSongs, useBootstrap } from './hooks/useQueries.ts'
 import { useOfflineSync } from './hooks/useOfflineSync.ts'
 import { AppShell } from './components/AppShell.tsx'
 import { SongEditor } from './components/SongEditor.tsx'
@@ -15,7 +15,8 @@ import { ConfirmDialog, OfflineBanner } from './components/ui.tsx'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: 3,
+      retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
       refetchOnWindowFocus: false,
       staleTime: 10_000,
     },
@@ -32,9 +33,11 @@ export default function App() {
 
 function AppInner() {
   useOfflineSync()
-  const prefs = usePreferences()
-  const setlists = useSetlists()
-  const songsQuery = useSongs({})
+  const boot = useBootstrap()
+  const ready = boot.isSuccess
+  const prefs = usePreferences(ready)
+  const setlists = useSetlists(ready)
+  const songsQuery = useSongs({}, ready)
   const activeSetlistId = useAppStore((s) => s.activeSetlistId)
   const setActiveSetlistId = useAppStore((s) => s.setActiveSetlistId)
   const setTheme = useAppStore((s) => s.setTheme)
@@ -78,8 +81,8 @@ function AppInner() {
     }
   }, [activeSetlistId, patchPrefs, prefs.data])
 
-  const setlistQuery = useSetlist(activeSetlistId)
-  const setlist = setlistQuery.data
+  const setlistQuery = useSetlist(ready ? activeSetlistId : null)
+  const setlist = setlistQuery.data ?? boot.data?.activeSetlist ?? undefined
   const setlistSongs = setlist?.songs ?? []
 
   useEffect(() => {
@@ -103,8 +106,8 @@ function AppInner() {
     return () => window.clearInterval(iv)
   }, [playing, activeSsId, setlistSongs, setElapsed, setPlaying])
 
-  const loading = prefs.isLoading || setlists.isLoading
-  const loadError = prefs.isError || setlists.isError
+  const loading = boot.isPending
+  const loadError = boot.isError && !boot.data
 
   if (loading) {
     return (
@@ -126,17 +129,24 @@ function AppInner() {
   }
 
   if (loadError) {
+    const local =
+      typeof window !== 'undefined' &&
+      (window.location.port === '5173' || window.location.hostname === 'localhost')
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
         <p className="font-serif text-[22px]">Can’t reach the Setflow API</p>
         <p className="max-w-md text-center text-[13px]" style={{ color: 'var(--text-dim)' }}>
-          Start the app with `npm run dev` so the client (port 5173) and API (port 3001) are both running, then refresh.
+          {local
+            ? 'Start the app with `npm run dev` so the client (port 5173) and API (port 3001) are both running, then retry.'
+            : 'Setflow could not load your library. This is usually a brief connection issue — wait a moment and retry.'}
         </p>
         <button
           type="button"
           className="rounded-[8px] px-4 py-2 text-[13px]"
           style={{ background: 'var(--accent)', color: '#fff' }}
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            void boot.refetch()
+          }}
         >
           Retry
         </button>
@@ -148,15 +158,15 @@ function AppInner() {
     <div className="flex h-full flex-col" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
       <OfflineBanner />
       <AppShell
-        setlists={setlists.data ?? []}
+        setlists={setlists.data ?? boot.data?.setlists ?? []}
         setlist={setlist}
         songs={setlistSongs}
-        songCount={songsQuery.data?.length ?? 0}
+        songCount={songsQuery.data?.length ?? boot.data?.songs.length ?? 0}
       />
       <SongEditor />
       <AddSongPicker />
       <PresentationOverlay songs={setlistSongs} />
-      <SetlistEditModal setlists={setlists.data ?? []} />
+      <SetlistEditModal setlists={setlists.data ?? boot.data?.setlists ?? []} />
       <BulkImportModal />
       <ExportModal setlistName={setlist?.name ?? 'Setlist'} songs={setlistSongs} />
       <SetlistContextMenu />

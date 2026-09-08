@@ -5,7 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { endpoints, flushQueue, pingHealth } from '../lib/api.ts'
 import { useAppStore } from '../store/useAppStore.ts'
-import type { Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
+import type { Preference, Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
 import {
   appendSetlistSong,
   extraSongs,
@@ -27,17 +27,65 @@ import {
 } from '../lib/persist.ts'
 import { sameSongIdentity, songInputFromSpotifyTrack } from '@shared/spotifyImport.ts'
 
-export function usePreferences() {
+export function useBootstrap() {
+  const qc = useQueryClient()
   return useQuery({
-    queryKey: ['preferences'],
-    queryFn: endpoints.prefs,
+    queryKey: ['bootstrap'],
+    queryFn: async () => {
+      const seed = (payload: {
+        preferences: Preference
+        setlists: Setlist[]
+        songs: Song[]
+        activeSetlist: Setlist | null
+      }) => {
+        qc.setQueryData(['preferences'], payload.preferences)
+        qc.setQueryData(['setlists'], payload.setlists)
+        qc.setQueryData(['songs', {}], payload.songs)
+        if (payload.activeSetlist) {
+          qc.setQueryData(['setlist', payload.activeSetlist.id], payload.activeSetlist)
+        }
+      }
+      try {
+        const data = await endpoints.bootstrap()
+        const setlists = overlaySetlists(data.setlists)
+        const songs = overlaySongs(data.songs)
+        const activeSetlist = data.activeSetlist ? overlaySetlist(data.activeSetlist) : null
+        const payload = { preferences: data.preferences, setlists, songs, activeSetlist }
+        seed(payload)
+        return payload
+      } catch (err) {
+        const setlists = overlaySetlists([])
+        const songs = overlaySongs([])
+        if (setlists.length === 0 && songs.length === 0) throw err
+        const preferences: Preference = {
+          id: 1,
+          theme: 'dark',
+          presentationFontSize: 'medium',
+          lastSetlistId: setlists[0]?.id ?? null,
+        }
+        const activeSetlist =
+          setlists.find((s) => s.id === preferences.lastSetlistId) ?? setlists[0] ?? null
+        const payload = { preferences, setlists, songs, activeSetlist }
+        seed(payload)
+        return payload
+      }
+    },
   })
 }
 
-export function useSetlists() {
+export function usePreferences(enabled = true) {
+  return useQuery({
+    queryKey: ['preferences'],
+    queryFn: endpoints.prefs,
+    enabled,
+  })
+}
+
+export function useSetlists(enabled = true) {
   return useQuery({
     queryKey: ['setlists'],
     queryFn: async () => overlaySetlists(await endpoints.setlists()),
+    enabled,
   })
 }
 
@@ -49,7 +97,10 @@ export function useSetlist(id: string | null) {
   })
 }
 
-export function useSongs(params: { search?: string; artist?: string; tag?: string; sort?: string }) {
+export function useSongs(
+  params: { search?: string; artist?: string; tag?: string; sort?: string },
+  enabled = true,
+) {
   const q = new URLSearchParams()
   if (params.search) q.set('search', params.search)
   if (params.artist) q.set('artist', params.artist)
@@ -59,6 +110,7 @@ export function useSongs(params: { search?: string; artist?: string; tag?: strin
   return useQuery({
     queryKey: ['songs', params],
     queryFn: async () => overlaySongs(await endpoints.songs(qs)),
+    enabled,
   })
 }
 

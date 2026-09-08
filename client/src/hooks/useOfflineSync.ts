@@ -10,30 +10,31 @@ export function useOfflineSync() {
   useEffect(() => {
     const apply = () => {
       void (async () => {
-        const reachable = await pingHealth()
-        setOffline(!reachable)
-        if (!reachable) return
         try {
           const health = await endpoints.health()
+          setOffline(false)
           if (health.durable) await flushLocalSongsToDatabase()
           await flushQueue()
           setSaveStatus('saved')
         } catch {
-          setSaveStatus('failed')
+          const reachable = await pingHealth()
+          setOffline(!reachable)
+          if (!reachable) setSaveStatus('failed')
         }
       })()
     }
 
-    apply()
-    window.addEventListener('online', apply)
-    window.addEventListener('offline', apply)
     const unsub = onConnectionChange((online) => setOffline(!online))
     const iv = window.setInterval(() => {
       void pingHealth()
     }, 30_000)
+    const later = window.setTimeout(apply, 4000)
+    window.addEventListener('online', apply)
+    window.addEventListener('offline', apply)
     return () => {
       unsub()
       window.clearInterval(iv)
+      window.clearTimeout(later)
       window.removeEventListener('online', apply)
       window.removeEventListener('offline', apply)
     }
