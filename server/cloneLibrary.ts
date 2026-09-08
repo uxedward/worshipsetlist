@@ -25,14 +25,24 @@ async function prepare() {
   await restoreLibraryIfEmpty()
 }
 
+export async function songTableExists() {
+  const rows = await prisma.$queryRaw<Array<{ present: boolean }>>`
+    SELECT EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'Song'
+    ) AS present
+  `
+  return Boolean(rows[0]?.present)
+}
+
 async function ensureSchema() {
+  if (await songTableExists()) return
   for (const statement of SCHEMA_STATEMENTS) {
     try {
       await prisma.$executeRawUnsafe(statement)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       if (/already exists|duplicate/i.test(message)) continue
-      if (statement.includes('ADD CONSTRAINT')) continue
       throw err
     }
   }

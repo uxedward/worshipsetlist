@@ -60,8 +60,4 @@ export const SCHEMA_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS "Line_sectionId_idx" ON "Line"("sectionId")`,
   `CREATE INDEX IF NOT EXISTS "SetlistSong_setlistId_idx" ON "SetlistSong"("setlistId")`,
   `CREATE INDEX IF NOT EXISTS "SetlistSong_songId_idx" ON "SetlistSong"("songId")`,
-  `DO $$ BEGIN ALTER TABLE "Section" ADD CONSTRAINT "Section_songId_fkey" FOREIGN KEY ("songId") REFERENCES "Song"("id") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN ALTER TABLE "Line" ADD CONSTRAINT "Line_sectionId_fkey" FOREIGN KEY ("sectionId") REFERENCES "Section"("id") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN ALTER TABLE "SetlistSong" ADD CONSTRAINT "SetlistSong_setlistId_fkey" FOREIGN KEY ("setlistId") REFERENCES "Setlist"("id") ON DELETE CASCADE ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
-  `DO $$ BEGIN ALTER TABLE "SetlistSong" ADD CONSTRAINT "SetlistSong_songId_fkey" FOREIGN KEY ("songId") REFERENCES "Song"("id") ON DELETE RESTRICT ON UPDATE CASCADE; EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
 ]

@@ -38,7 +38,13 @@ app.use((req, _res, next) => {
 app.use(cors())
 app.use(express.json({ limit: '10mb' }))
 
-app.use(async (_req, _res, next) => {
+function requestPath(req: { url?: string }) {
+  return (req.url || '').split('?')[0]
+}
+
+app.use(async (req, _res, next) => {
+  // Health must not wait on schema/restore — that blocked the app from loading.
+  if (requestPath(req) === '/api/health') return next()
   await prepareDatabase()
   next()
 })
