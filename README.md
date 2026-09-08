@@ -14,14 +14,13 @@ Worship setlist builder — charts, transpose, presentation mode.
 cp .env.example .env
 npm install
 npx prisma db push
-npx prisma db seed
 npm run dev
 ```
 
 App: http://localhost:5173  
 API: http://localhost:3001
 
-Production songs are stored in a hosted Postgres database, so they survive Vercel deploys. The first request copies the bundled library into that database if it is empty. Seed files only fill an **empty** library.
+The song library starts empty so you can add titles in the app. Production saves to hosted Postgres, so songs survive Vercel deploys. Default setlists (Sunday AM, Midweek) stay empty until you add songs.
 
 **Keep the production database:** claim it so it is not auto-deleted after 24 hours:  
 https://create-db.prisma.io/claim?projectID=proj_bz9ukysjihfodq1v7dkyaw5t
@@ -36,4 +35,4 @@ Import more titles from **Song Library → Spotify / Import** by pasting a Spoti
 
 - `npm run dev` — API + Vite together
 - `npm test` — chord parser, transpose, and presentation unit tests
-- `npm run db:migrate` / `npm run db:seed` / `npm run db:songs`
+- `npm run db:migrate` / `npm run db:songs` (optional playlist seed)

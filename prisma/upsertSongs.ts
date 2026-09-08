@@ -300,17 +300,6 @@ export async function ensureDemoData(client: PrismaClient = prisma) {
       })
     }
   }
-
-  const songCount = await client.song.count()
-  const hasPlaylist = await client.song.findFirst({
-    where: { title: { contains: 'Never Walk Alone' } },
-  })
-  const hasMore = await client.song.findFirst({
-    where: { title: { contains: 'Been So Good' } },
-  })
-  if (songCount === 0 || !hasPlaylist || !hasMore) {
-    await upsertWorshipSongs(client)
-  }
 }
 
 export async function upsertWorshipSongs(client: PrismaClient = prisma) {
