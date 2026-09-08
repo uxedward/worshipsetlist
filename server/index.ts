@@ -4,7 +4,7 @@ import type { IncomingMessage } from 'node:http'
 import { songsRouter } from './routes/songs.js'
 import { setlistsRouter } from './routes/setlists.js'
 import { preferencesRouter } from './routes/preferences.js'
-import { databaseBackend, durableDatabase, prisma } from './db.js'
+import { databaseBackend, durableDatabase, isPoolTimeout, prisma, releasePrisma } from './db.js'
 import { databaseVendor } from './hostedDatabase.js'
 import { loadBootstrap } from './bootstrap.js'
 
@@ -59,6 +59,7 @@ app.get('/api/health', async (_req, res) => {
       vendor: databaseVendor(process.env.DATABASE_URL || ''),
     })
   } catch (err) {
+    if (isPoolTimeout(err)) await releasePrisma()
     res.status(503).json({
       ok: false,
       error: err instanceof Error ? err.message : String(err),
@@ -71,7 +72,8 @@ app.get('/api/bootstrap', async (_req, res) => {
     res.json(await loadBootstrap())
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    const busy = /too many connections/i.test(message)
+    if (isPoolTimeout(err)) await releasePrisma()
+    const busy = /too many connections|timed out fetching a new connection/i.test(message)
     res.status(busy ? 503 : 500).json({
       error: busy ? 'The database is busy. Retry in a moment.' : message,
     })
@@ -84,7 +86,8 @@ app.use('/api/preferences', preferencesRouter)
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const message = err instanceof Error ? err.message : String(err)
-  const busy = /too many connections/i.test(message)
+  if (isPoolTimeout(err)) void releasePrisma()
+  const busy = /too many connections|timed out fetching a new connection/i.test(message)
   if (!res.headersSent) {
     res.status(busy ? 503 : 500).json({
       error: busy ? 'The database is busy. Retry in a moment.' : message,

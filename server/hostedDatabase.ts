@@ -70,10 +70,14 @@ export function applyPrismaPoolParams(
   env: Record<string, string | undefined> = process.env,
 ) {
   const limit = env.VERCEL ? '1' : '3'
+  const poolTimeout = env.VERCEL ? '20' : '10'
   try {
     const parsed = new URL(url)
     parsed.searchParams.set('connection_limit', limit)
-    if (!parsed.searchParams.has('pool_timeout')) parsed.searchParams.set('pool_timeout', '10')
+    parsed.searchParams.set('pool_timeout', poolTimeout)
+    if (env.VERCEL && !parsed.searchParams.has('connect_timeout')) {
+      parsed.searchParams.set('connect_timeout', '10')
+    }
     if (needsPgBouncer(parsed) && !parsed.searchParams.has('pgbouncer')) {
       parsed.searchParams.set('pgbouncer', 'true')
     }
@@ -82,7 +86,7 @@ export function applyPrismaPoolParams(
     }
     return parsed.toString()
   } catch {
-    const extra = `connection_limit=${limit}&pool_timeout=10`
+    const extra = `connection_limit=${limit}&pool_timeout=${poolTimeout}`
     return url.includes('?') ? `${url}&${extra}` : `${url}?${extra}`
   }
 }

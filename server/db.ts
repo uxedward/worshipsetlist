@@ -44,3 +44,13 @@ globalForPrisma.setflowPrisma = prisma
 export function recreateFilePrisma() {
   return prisma
 }
+
+export function isPoolTimeout(err: unknown) {
+  const message = err instanceof Error ? err.message : String(err)
+  return /timed out fetching a new connection from the connection pool/i.test(message)
+}
+
+/** Frozen Vercel isolates can leave Prisma stuck on a dead pool slot. */
+export async function releasePrisma() {
+  await prisma.$disconnect().catch(() => {})
+}

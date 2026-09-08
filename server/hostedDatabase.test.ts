@@ -45,6 +45,8 @@ describe('applyPrismaPoolParams', () => {
       VERCEL: '1',
     })
     expect(url).toContain('connection_limit=1')
+    expect(url).toContain('pool_timeout=20')
+    expect(url).toContain('connect_timeout=10')
     expect(url).toContain('sslmode=require')
   })
 
