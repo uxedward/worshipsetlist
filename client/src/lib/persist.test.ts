@@ -25,6 +25,7 @@ import {
   rememberSetlist,
   rememberSong,
   rememberSongs,
+  reorderPersistedSetlist,
   reorderPersistedSetlists,
   songToInput,
 } from './persist.ts'
@@ -124,6 +125,17 @@ describe('persist overlays', () => {
     rememberSetlist({ ...setlist('a', 'Sunday AM'), name: 'Sunday Gathering' })
     const listed = overlaySetlists([setlist('a', 'Sunday AM')])
     expect(listed[0].name).toBe('Sunday Gathering')
+  })
+
+  it('reorders songs inside a setlist overlay', () => {
+    const s1 = song('s1', 'Oceans')
+    const s2 = song('s2', 'Jireh')
+    const s3 = song('s3', 'Praise')
+    const sunday = setlist('a', 'Sunday AM', [row('a', s1, 0), row('a', s2, 1), row('a', s3, 2)])
+    overlaySetlist(sunday)
+    reorderPersistedSetlist('a', ['ss-s3', 'ss-s1', 'ss-s2'])
+    const next = overlaySetlist(sunday)
+    expect(next.songs?.map((s) => s.song.title)).toEqual(['Praise', 'Oceans', 'Jireh'])
   })
 
   it('reorders setlists in the sidebar overlay', () => {

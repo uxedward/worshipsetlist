@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Image as ImageIcon, Minus, Plus, Settings, X } from 'lucide-react'
 import type { SetlistSong } from '@shared/types.ts'
 import { soundingKey } from '@shared/transpose.ts'
-import { LYRICS_PER_SLIDE, firstSlideIndexForSection, slidesFromSections } from '@shared/presentationSlides.ts'
+import { LYRICS_PER_SLIDE, displaySections, firstSlideIndexForSection, slidesFromSections } from '@shared/presentationSlides.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSong } from '../hooks/useQueries.ts'
 import { useIsMobile } from '../hooks/useMediaQuery.ts'
@@ -53,7 +53,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const song = full ?? current?.song
 
   const sections = useMemo(
-    () => [...(song?.sections ?? [])].sort((a, b) => a.order - b.order),
+    () => displaySections(song?.sections, song?.id),
     [song],
   )
   const slides = useMemo(() => slidesFromSections(sections), [sections])

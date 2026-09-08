@@ -1,3 +1,6 @@
+import { structureSections } from './chartParser.ts'
+import type { Section } from './types.ts'
+
 export const LYRICS_PER_SLIDE = 4
 
 export interface LyricSlide {
@@ -27,4 +30,21 @@ export function slidesFromSections(
 export function firstSlideIndexForSection(slides: LyricSlide[], sectionIndex: number): number {
   const i = slides.findIndex((s) => s.sectionIndex === sectionIndex)
   return i < 0 ? 0 : i
+}
+
+export function displaySections(sections: Section[] | undefined, songId = ''): Section[] {
+  const sorted = [...(sections ?? [])].sort((a, b) => a.order - b.order)
+  return structureSections(sorted).map((section, i) => ({
+    id: `sec-${i}`,
+    songId: sorted[0]?.songId || songId,
+    label: section.label,
+    order: section.order,
+    lines: section.lines.map((line, j) => ({
+      id: `ln-${i}-${j}`,
+      sectionId: `sec-${i}`,
+      chords: line.chords,
+      lyric: line.lyric,
+      order: line.order,
+    })),
+  }))
 }

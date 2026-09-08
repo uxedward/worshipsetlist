@@ -2,6 +2,7 @@ import {
   DndContext,
   type DragEndEvent,
   PointerSensor,
+  TouchSensor,
   closestCenter,
   useSensor,
   useSensors,
@@ -14,7 +15,6 @@ import { formatDuration } from '@shared/duration.ts'
 import { keyJump, soundingKey, transposeKey, semitonesFromKeys } from '@shared/transpose.ts'
 import { TRANSPOSE_MAX, TRANSPOSE_MIN } from '@shared/types.ts'
 import type { Setlist } from '@shared/types.ts'
-import { cn } from '../lib/cn.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations } from '../hooks/useQueries.ts'
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback.ts'
@@ -34,11 +34,10 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
   const { removeSong, patchSetlistSong, reorder } = useMutations()
   const qc = useQueryClient()
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
-
-  const persistReorder = useDebouncedCallback((ids: string[]) => {
-    reorder.mutate({ setlistId, orderedIds: ids })
-  }, 800)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+  )
 
   const persistTranspose = useDebouncedCallback(
     (ssId: string, transposedKey: string | null) => {
@@ -52,11 +51,12 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
     if (!over || active.id === over.id) return
     const oldIndex = songs.findIndex((s) => s.id === active.id)
     const newIndex = songs.findIndex((s) => s.id === over.id)
-    const next = arrayMove(songs, oldIndex, newIndex)
+    if (oldIndex < 0 || newIndex < 0) return
+    const next = arrayMove(songs, oldIndex, newIndex).map((row, order) => ({ ...row, order }))
     qc.setQueryData<Setlist>(['setlist', setlistId], (prev) =>
       prev ? { ...prev, songs: next } : prev,
     )
-    persistReorder(next.map((s) => s.id))
+    reorder.mutate({ setlistId, orderedIds: next.map((s) => s.id) })
   }
 
   return (
@@ -64,11 +64,12 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
       <div
         className="grid px-3 pb-2 text-[10px] font-semibold tracking-[0.12em]"
         style={{
-          gridTemplateColumns: '40px 1fr 56px 48px 88px 48px 36px',
+          gridTemplateColumns: '24px 40px 1fr 56px 48px 88px 48px 36px',
           color: 'var(--text-faint)',
           minWidth: 560,
         }}
       >
+        <span />
         <span>#</span>
         <span>TITLE</span>
         <span>KEY</span>
@@ -172,20 +173,20 @@ function SortableRow({
     >
       <div
         className="grid items-center"
-        style={{ gridTemplateColumns: '40px 1fr 56px 48px 88px 48px 36px' }}
+        style={{ gridTemplateColumns: '24px 40px 1fr 56px 48px 88px 48px 36px' }}
       >
+        <button
+          type="button"
+          title="Drag to reorder"
+          className="flex h-8 w-5 shrink-0 touch-none items-center justify-center"
+          style={{ color: 'var(--text-faint)', cursor: 'grab' }}
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical size={14} />
+        </button>
         <div className="relative flex h-8 items-center">
-          <button
-            type="button"
-            className={cn(
-              'absolute -left-5 text-[var(--text-faint)] opacity-0 group-hover:opacity-100',
-            )}
-            {...attributes}
-            {...listeners}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical size={14} />
-          </button>
           {hover ? (
             <div
               className="flex items-center gap-0.5 text-[11px]"

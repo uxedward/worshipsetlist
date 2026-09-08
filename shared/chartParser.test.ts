@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseChart, chartToText, isChordLine, hasValidChart } from './chartParser.ts'
+import { parseChart, chartToText, isChordLine, hasValidChart, matchSectionHeader, structureSections } from './chartParser.ts'
 import { parseBulkImport, serializeExport, parseBulkBlock, displaySongMeta, displayKey } from './bulkFormat.ts'
 import type { Song } from './types.ts'
 
@@ -147,6 +147,92 @@ Sing it`
     expect(hasValidChart([])).toBe(false)
     expect(hasValidChart(parseChart('[V]\nG').sections)).toBe(false)
     expect(hasValidChart(parseChart('[V]\nG\nlyric').sections)).toBe(true)
+  })
+
+  it('detects unbracketed Verse / Reff / Bridge headers', () => {
+    const text = `Verse 1
+You call me out upon the waters
+The great unknown where feet may fail
+
+Reff
+Spirit lead me where my trust is without borders
+Let me walk upon the waters
+
+Bait 2
+In oceans deep my faith will stand
+
+Bridge
+Spirit lead me
+Where my trust is without borders`
+    const { sections } = parseChart(text)
+    expect(sections.map((s) => s.label)).toEqual(['Verse 1', 'Reff', 'Verse 2', 'Bridge'])
+    expect(sections[0].lines[0].lyric).toBe('You call me out upon the waters')
+    expect(sections[1].lines[0].lyric).toBe('Spirit lead me where my trust is without borders')
+    expect(sections[2].lines[0].lyric).toBe('In oceans deep my faith will stand')
+  })
+
+  it('detects Chorus: and (Intro) headers and leaves chord C alone', () => {
+    const text = `(Intro)
+G     D
+
+Chorus:
+This is the chorus line
+C
+And this lyric sits under C`
+    const { sections } = parseChart(text)
+    expect(sections.map((s) => s.label)).toEqual(['Intro', 'Chorus'])
+    expect(sections[1].lines[1]).toMatchObject({ chords: 'C', lyric: 'And this lyric sits under C' })
+  })
+
+  it('does not treat a lyric containing the word chorus as a header', () => {
+    const { sections } = parseChart(`[Verse]
+The chorus of angels sing
+Over the earth`)
+    expect(sections).toHaveLength(1)
+    expect(sections[0].lines[0].lyric).toBe('The chorus of angels sing')
+  })
+
+  it('labels repeated unlabeled stanzas as Reff', () => {
+    const text = `You call me out upon the waters
+The great unknown where feet may fail
+
+Spirit lead me where my trust is without borders
+Let me walk upon the waters
+
+In oceans deep my faith will stand
+I will call upon Your name
+
+Spirit lead me where my trust is without borders
+Let me walk upon the waters`
+    const { sections } = parseChart(text)
+    expect(sections.map((s) => s.label)).toEqual(['Verse 1', 'Reff', 'Verse 2', 'Reff'])
+    expect(sections[1].lines.map((l) => l.lyric)).toEqual(sections[3].lines.map((l) => l.lyric))
+  })
+
+  it('re-splits a saved one-section paste for present mode', () => {
+    const blob = [
+      {
+        label: 'Verse',
+        lines: [
+          { chords: '', lyric: 'Verse 1' },
+          { chords: '', lyric: 'You call me out upon the waters' },
+          { chords: '', lyric: 'Reff' },
+          { chords: '', lyric: 'Spirit lead me where my trust is without borders' },
+        ],
+      },
+    ]
+    expect(structureSections(blob).map((s) => s.label)).toEqual(['Verse 1', 'Reff'])
+  })
+})
+
+describe('matchSectionHeader', () => {
+  it('recognizes common worship labels', () => {
+    expect(matchSectionHeader('[Verse 1]')).toBe('Verse 1')
+    expect(matchSectionHeader('Reff:')).toBe('Reff')
+    expect(matchSectionHeader('Bait 2')).toBe('Verse 2')
+    expect(matchSectionHeader('V1')).toBe('Verse 1')
+    expect(matchSectionHeader('C')).toBeNull()
+    expect(matchSectionHeader('[C]')).toBe('Chorus')
   })
 })
 

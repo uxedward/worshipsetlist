@@ -13,6 +13,7 @@ import { MobileNav } from './MobileNav.tsx'
 import { Minus, Play, Plus } from 'lucide-react'
 import { Btn, KeyBadge, Pill } from './ui.tsx'
 import { ChordChart } from './ChordChart.tsx'
+import { displaySections } from '@shared/presentationSlides.ts'
 import { preferFlatsForKey, semitonesFromKeys, transposeKey } from '@shared/transpose.ts'
 import { useMutations, useSong } from '../hooks/useQueries.ts'
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback.ts'
@@ -150,7 +151,7 @@ function MobileSongView({ songs }: { songs: SetlistSong[] }) {
 
   const key = soundingKey(song.key, current.transposedKey)
   const offset = current.transposedKey ? semitonesFromKeys(song.key, current.transposedKey) : 0
-  const sections = [...(song.sections ?? [])].sort((a, b) => a.order - b.order)
+  const sections = displaySections(song.sections, song.id)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">

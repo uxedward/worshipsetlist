@@ -7,6 +7,7 @@ const LEGACY_KEYS = ['setflow.persist.v1']
 export type SetlistEdit = {
   added: SetlistSong[]
   removedSongIds: string[]
+  songOrder?: string[]
   meta?: Partial<Pick<Setlist, 'name' | 'description' | 'serviceName' | 'date' | 'colorIndex'>>
 }
 
@@ -129,7 +130,17 @@ export function applyEdits(server: Setlist, edit?: SetlistEdit): SetlistSong[] {
   for (const row of edit?.added ?? []) {
     if (!base.some((s) => s.songId === row.songId || s.id === row.id)) base.push(row)
   }
-  return base.map((row) => (row.song ? { ...row, song: repairSong(row.song) } : row))
+  const repaired = base.map((row) => (row.song ? { ...row, song: repairSong(row.song) } : row))
+  const order = edit?.songOrder
+  if (!order?.length) return repaired
+  return [...repaired].sort((a, b) => {
+    const ai = order.indexOf(a.id)
+    const bi = order.indexOf(b.id)
+    const av = ai === -1 ? Number.MAX_SAFE_INTEGER : ai
+    const bv = bi === -1 ? Number.MAX_SAFE_INTEGER : bi
+    if (av !== bv) return av - bv
+    return a.order - b.order
+  })
 }
 
 export function overlaySetlist(server: Setlist): Setlist {
@@ -300,11 +311,11 @@ export function patchPersistedSetlistSong(
 export function reorderPersistedSetlist(setlistId: string, orderedIds: string[]) {
   write((state) => {
     const edit = editFor(state, setlistId)
-    const byId = new Map(edit.added.map((row) => [row.id, row]))
-    edit.added = orderedIds.map((id, order) => {
-      const row = byId.get(id)
-      return row ? { ...row, order } : null
-    }).filter((row): row is SetlistSong => Boolean(row))
+    edit.songOrder = orderedIds
+    edit.added = edit.added.map((row) => {
+      const index = orderedIds.indexOf(row.id)
+      return index === -1 ? row : { ...row, order: index }
+    })
   })
 }
 

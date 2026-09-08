@@ -10,11 +10,13 @@ import { useDebouncedCallback } from '../hooks/useDebouncedCallback.ts'
 import { Btn, Field, inputClass, inputStyle } from './ui.tsx'
 import { ChordChart } from './ChordChart.tsx'
 
-const PLACEHOLDER = `[Verse 1]
+const PLACEHOLDER = `Verse 1
 G              D
 Your lyric line here
+
+Reff
 Em             C
-Next lyric line`
+The chorus or reff comes next`
 
 const emptyForm = {
   title: '',
@@ -294,7 +296,8 @@ export function SongEditor() {
             }}
           />
           <p className="mt-2 text-[11px]" style={{ color: 'var(--text-dim)' }}>
-            Use [Section Name] for headers. Chord names go on the line above the lyrics they apply to.
+            Paste the whole song — Verse, Reff, Chorus, and Bridge lines are detected even without [brackets].
+            Chord names go on the line above the lyrics they apply to.
           </p>
 
           <div className="mt-4 min-h-[180px] flex-1 overflow-y-auto rounded-[12px] p-4" style={{ background: 'var(--card)' }}>

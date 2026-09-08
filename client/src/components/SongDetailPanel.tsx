@@ -9,6 +9,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import type { Setlist } from '@shared/types.ts'
 import { Btn, KeyBadge, Pill } from './ui.tsx'
 import { ChordChart } from './ChordChart.tsx'
+import { displaySections } from '@shared/presentationSlides.ts'
 import { cn } from '../lib/cn.ts'
 
 export function SongDetailPanel({
@@ -49,7 +50,7 @@ export function SongDetailPanel({
 
   const key = setlistSong ? soundingKey(song.key, setlistSong.transposedKey) : song.key
   const offset = setlistSong?.transposedKey ? semitonesFromKeys(song.key, setlistSong.transposedKey) : 0
-  const sections = [...(song.sections ?? [])].sort((a, b) => a.order - b.order)
+  const sections = displaySections(song.sections, song.id)
 
   const shift = (delta: number) => {
     if (!setlistSong || !setlistId) return

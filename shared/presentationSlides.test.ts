@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { firstSlideIndexForSection, slidesFromSections } from './presentationSlides.ts'
+import { displaySections, firstSlideIndexForSection, slidesFromSections } from './presentationSlides.ts'
 
 describe('slidesFromSections', () => {
   it('chunks lyric lines into groups of four', () => {
@@ -52,5 +52,26 @@ describe('slidesFromSections', () => {
     ])
     expect(firstSlideIndexForSection(slides, 0)).toBe(0)
     expect(firstSlideIndexForSection(slides, 1)).toBe(2)
+  })
+
+  it('splits a pasted blob into Verse and Reff for present mode', () => {
+    const sections = displaySections([
+      {
+        id: 'one',
+        songId: 's1',
+        label: 'Verse',
+        order: 0,
+        lines: [
+          { id: 'a', sectionId: 'one', chords: '', lyric: 'Verse 1', order: 0 },
+          { id: 'b', sectionId: 'one', chords: '', lyric: 'You call me out upon the waters', order: 1 },
+          { id: 'c', sectionId: 'one', chords: '', lyric: 'Reff', order: 2 },
+          { id: 'd', sectionId: 'one', chords: '', lyric: 'Spirit lead me where my trust is without borders', order: 3 },
+        ],
+      },
+    ])
+    expect(sections.map((s) => s.label)).toEqual(['Verse 1', 'Reff'])
+    const slides = slidesFromSections(sections)
+    expect(slides[0].sectionLabel).toBe('Verse 1')
+    expect(slides[1].sectionLabel).toBe('Reff')
   })
 })
