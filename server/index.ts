@@ -5,6 +5,7 @@ import { songsRouter } from './routes/songs.js'
 import { setlistsRouter } from './routes/setlists.js'
 import { preferencesRouter } from './routes/preferences.js'
 import { databaseBackend, durableDatabase, prisma } from './db.js'
+import { databaseVendor } from './hostedDatabase.js'
 import { loadBootstrap } from './bootstrap.js'
 
 export const app = express()
@@ -45,7 +46,12 @@ app.use(async (_req, _res, next) => {
 app.get('/api/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`
-    res.json({ ok: true, durable: durableDatabase, backend: databaseBackend })
+    res.json({
+      ok: true,
+      durable: durableDatabase,
+      backend: databaseBackend,
+      vendor: databaseVendor(process.env.DATABASE_URL || ''),
+    })
   } catch (err) {
     res.status(503).json({
       ok: false,

@@ -38,7 +38,13 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       url: req.url,
       resolvedUrl: url,
       vercel: process.env.VERCEL || null,
-      databaseUrl: process.env.DATABASE_URL || null,
+      databaseHost: (() => {
+        try {
+          return process.env.DATABASE_URL ? new URL(process.env.DATABASE_URL).hostname : null
+        } catch {
+          return 'invalid'
+        }
+      })(),
       task: listDir('/var/task'),
       prisma: listDir('/var/task/prisma'),
       api: listDir('/var/task/api'),
