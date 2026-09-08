@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   HEALTH_FAILS_BEFORE_OFFLINE,
+  HEALTH_GRACE_MS,
   api,
   isOnline,
   pingHealth,
@@ -44,6 +45,19 @@ describe('pingHealth', () => {
       await pingHealth()
     }
     expect(isOnline()).toBe(false)
+  })
+
+  it('ignores health misses shortly after a successful API call', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ id: 1 }, 200) as never)
+    await api('/api/preferences')
+    expect(isOnline()).toBe(true)
+
+    vi.mocked(fetch).mockResolvedValue(jsonResponse({ ok: false }, 503) as never)
+    for (let i = 0; i < HEALTH_FAILS_BEFORE_OFFLINE + 1; i++) {
+      await pingHealth()
+    }
+    expect(isOnline()).toBe(true)
+    expect(HEALTH_GRACE_MS).toBeGreaterThan(0)
   })
 
   it('does not treat a flush-style API error as offline when health recovers', async () => {

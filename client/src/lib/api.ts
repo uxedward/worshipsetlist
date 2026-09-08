@@ -11,9 +11,12 @@ const connListeners = new Set<ConnListener>()
 
 /** One missed /api/health ping is not enough to show the offline banner. */
 export const HEALTH_FAILS_BEFORE_OFFLINE = 2
+/** After a real API response, ignore health blips for this long. */
+export const HEALTH_GRACE_MS = 60_000
 
 let online = true
 let healthFailStreak = 0
+let lastSuccessAt = 0
 
 export function isOnline(): boolean {
   return online
@@ -25,7 +28,10 @@ export function onConnectionChange(cb: ConnListener): () => void {
 }
 
 function setOnline(next: boolean) {
-  if (next) healthFailStreak = 0
+  if (next) {
+    healthFailStreak = 0
+    lastSuccessAt = Date.now()
+  }
   if (online === next) return
   online = next
   connListeners.forEach((cb) => cb(next))
@@ -37,13 +43,15 @@ function noteHealthResult(ok: boolean): boolean {
     return true
   }
   healthFailStreak += 1
-  if (healthFailStreak >= HEALTH_FAILS_BEFORE_OFFLINE) setOnline(false)
+  const recentlyOk = lastSuccessAt > 0 && Date.now() - lastSuccessAt < HEALTH_GRACE_MS
+  if (healthFailStreak >= HEALTH_FAILS_BEFORE_OFFLINE && !recentlyOk) setOnline(false)
   return false
 }
 
 export function resetConnectionStateForTests() {
   online = true
   healthFailStreak = 0
+  lastSuccessAt = 0
 }
 
 export type QueuedRequest = {
@@ -133,7 +141,6 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
     return JSON.parse(text) as T
   } catch (err) {
     if (err instanceof ApiError) throw err
-    void pingHealth()
     const method = (rest.method || 'GET').toUpperCase()
     if (queueOnFail && !skipQueue && (method === 'GET' || method === 'HEAD')) {
       enqueue({
