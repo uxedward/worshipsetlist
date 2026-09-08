@@ -25,14 +25,16 @@ setlistsRouter.get('/', async (_req, res) => {
 
 setlistsRouter.put('/reorder', async (req, res) => {
   const ids: string[] = Array.isArray(req.body?.orderedIds) ? req.body.orderedIds : []
-  await prisma.$transaction(
-    ids.map((id, sortOrder) =>
-      prisma.setlist.update({
-        where: { id },
-        data: { sortOrder },
-      }),
-    ),
-  )
+  if (ids.length > 0) {
+    await prisma.$transaction(
+      ids.map((id, sortOrder) =>
+        prisma.setlist.update({
+          where: { id },
+          data: { sortOrder },
+        }),
+      ),
+    )
+  }
   const setlists = await prisma.setlist.findMany({
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     include: {
