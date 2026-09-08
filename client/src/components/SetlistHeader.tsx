@@ -34,7 +34,7 @@ export function SetlistHeader({ setlist, songs }: { setlist: Setlist; songs: Set
   const total = songs.reduce((sum, s) => sum + (s.song.durationSeconds ?? 0), 0)
 
   const copyPlain = async () => {
-    const { buildSetlistPlain } = await import('../lib/pdf.ts')
+    const { buildSetlistPlain } = await import('../lib/setlistPlain.ts')
     await navigator.clipboard.writeText(buildSetlistPlain(songs))
   }
 

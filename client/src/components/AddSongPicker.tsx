@@ -10,11 +10,11 @@ export function AddSongPicker() {
   const open = useAppStore((s) => s.addPickerOpen)
   const close = () => useAppStore.getState().setAddPickerOpen(false)
   const setlistId = useAppStore((s) => s.activeSetlistId)
-  const { data: setlist } = useSetlist(setlistId)
+  const { data: setlist } = useSetlist(open ? setlistId : null)
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [addingId, setAddingId] = useState<string | null>(null)
-  const { data: songs = [], isLoading } = useSongs({ search, sort: 'title' })
+  const { data: songs = [], isLoading } = useSongs({ search, sort: 'title' }, open)
   const { addSong } = useMutations()
   const qc = useQueryClient()
 

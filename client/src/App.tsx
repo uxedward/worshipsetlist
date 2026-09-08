@@ -1,24 +1,27 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { useAppStore } from './store/useAppStore.ts'
 import { useMutations, usePreferences, useSetlist, useSetlists, useSongs, useBootstrap } from './hooks/useQueries.ts'
 import { useOfflineSync } from './hooks/useOfflineSync.ts'
 import { AppShell } from './components/AppShell.tsx'
 import { SongEditor } from './components/SongEditor.tsx'
-import { PresentationOverlay } from './components/PresentationOverlay.tsx'
 import { SetlistEditModal } from './components/SetlistEditModal.tsx'
 import { BulkImportModal, ExportModal } from './components/Modals.tsx'
 import { AddSongPicker } from './components/AddSongPicker.tsx'
 import { SetlistContextMenu } from './components/SetlistContextMenu.tsx'
 import { ConfirmDialog, OfflineBanner } from './components/ui.tsx'
 
+const PresentationOverlay = lazy(() =>
+  import('./components/PresentationOverlay.tsx').then((mod) => ({ default: mod.PresentationOverlay })),
+)
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 3,
+      retry: 1,
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
       refetchOnWindowFocus: false,
-      staleTime: 10_000,
+      staleTime: 60_000,
     },
   },
 })
@@ -44,6 +47,7 @@ function AppInner() {
   const setFontSize = useAppStore((s) => s.setFontSize)
   const theme = useAppStore((s) => s.theme)
   const playing = useAppStore((s) => s.playing)
+  const presentationOpen = useAppStore((s) => s.presentationOpen)
   const activeSsId = useAppStore((s) => s.activeSetlistSongId)
   const setElapsed = useAppStore((s) => s.setElapsed)
   const setPlaying = useAppStore((s) => s.setPlaying)
@@ -165,7 +169,11 @@ function AppInner() {
       />
       <SongEditor />
       <AddSongPicker />
-      <PresentationOverlay songs={setlistSongs} />
+      {presentationOpen ? (
+        <Suspense fallback={null}>
+          <PresentationOverlay songs={setlistSongs} />
+        </Suspense>
+      ) : null}
       <SetlistEditModal setlists={setlists.data ?? boot.data?.setlists ?? []} />
       <BulkImportModal />
       <ExportModal setlistName={setlist?.name ?? 'Setlist'} songs={setlistSongs} />

@@ -17,7 +17,7 @@ import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations } from '../hooks/useQueries.ts'
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback.ts'
 import { KeyBadge, SetlistThumb } from './ui.tsx'
-import { buildSetlistPlain } from '../lib/pdf.ts'
+import { buildSetlistPlain } from '../lib/setlistPlain.ts'
 
 export function Playbar({ setlist, songs }: { setlist?: Setlist; songs: SetlistSong[] }) {
   const activeId = useAppStore((s) => s.activeSetlistSongId)

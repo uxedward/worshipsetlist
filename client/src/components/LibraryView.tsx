@@ -110,7 +110,7 @@ export function LibraryView({
             ghost
             onClick={async () => {
               const { endpoints } = await import('../lib/api.ts')
-              const { downloadText } = await import('../lib/pdf.ts')
+              const { downloadText } = await import('../lib/download.ts')
               const body = await endpoints.exportSongs()
               downloadText('setflow-songs.txt', body)
             }}

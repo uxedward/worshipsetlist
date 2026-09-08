@@ -1,16 +1,10 @@
 import { Router } from 'express'
 import { prisma } from '../db.js'
-import { songWithChart } from '../songInclude.js'
+import { setlistWithSongMeta } from '../songInclude.js'
 
 export const setlistsRouter = Router()
 
-const setlistInclude = {
-  songs: {
-    orderBy: { order: 'asc' as const },
-    include: { song: { include: songWithChart } },
-  },
-  _count: { select: { songs: true } },
-}
+const setlistInclude = setlistWithSongMeta
 
 setlistsRouter.get('/', async (_req, res) => {
   const setlists = await prisma.setlist.findMany({
@@ -191,7 +185,7 @@ setlistsRouter.post('/:id/songs', async (req, res) => {
   if (already) {
     const row = await prisma.setlistSong.findUnique({
       where: { id: already.id },
-      include: { song: { include: songWithChart } },
+      include: { song: true },
     })
     res.status(200).json(row)
     return
@@ -202,7 +196,7 @@ setlistsRouter.post('/:id/songs', async (req, res) => {
       songId,
       order: typeof req.body.order === 'number' ? req.body.order : maxOrder + 1,
     },
-    include: { song: { include: songWithChart } },
+    include: { song: true },
   })
   res.status(201).json(row)
 })
@@ -222,7 +216,7 @@ setlistsRouter.patch('/:id/songs/:ssId', async (req, res) => {
   const updated = await prisma.setlistSong.update({
     where: { id: row.id },
     data,
-    include: { song: { include: songWithChart } },
+    include: { song: true },
   })
   res.json(updated)
 })

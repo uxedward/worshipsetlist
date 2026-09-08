@@ -3,24 +3,11 @@ import type { Setlist, SetlistSong } from '@shared/types.ts'
 import { soundingKey } from '@shared/transpose.ts'
 import { chartToText } from '@shared/chartParser.ts'
 
+export { downloadText } from './download.ts'
+export { buildSetlistPlain } from './setlistPlain.ts'
+
 function sounding(ss: SetlistSong): string {
   return soundingKey(ss.song.key, ss.transposedKey)
-}
-
-export function buildSetlistPlain(songs: SetlistSong[]): string {
-  return songs
-    .map((ss, i) => `${i + 1}. ${ss.song.title} — ${sounding(ss)} — ${ss.song.bpm} BPM`)
-    .join('\n')
-}
-
-export function downloadText(filename: string, text: string) {
-  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
 }
 
 export async function exportSetlistPdf(

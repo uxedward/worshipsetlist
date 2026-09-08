@@ -40,11 +40,11 @@ describe('resolveDatabaseUrl', () => {
 })
 
 describe('applyPrismaPoolParams', () => {
-  it('caps Vercel to one connection', () => {
+  it('uses a small Vercel connection pool', () => {
     const url = applyPrismaPoolParams('postgresql://user:pass@localhost:5432/setflow?sslmode=require', {
       VERCEL: '1',
     })
-    expect(url).toContain('connection_limit=1')
+    expect(url).toContain('connection_limit=5')
     expect(url).toContain('sslmode=require')
   })
 

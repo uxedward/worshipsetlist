@@ -19,7 +19,7 @@ export async function persistGithubWrites() {
 }
 
 async function prepare() {
-  await prisma.$queryRaw`SELECT 1`
+  if (await songTableExists()) return
   await ensureSchema()
   await ensureWorkspace()
   await restoreLibraryIfEmpty()

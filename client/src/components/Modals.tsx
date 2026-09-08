@@ -4,7 +4,7 @@ import { useMutations } from '../hooks/useQueries.ts'
 import { parseBulkImport } from '@shared/bulkFormat.ts'
 import { parseSpotifyUrl } from '@shared/spotify.ts'
 import { endpoints } from '../lib/api.ts'
-import { downloadText } from '../lib/pdf.ts'
+import { downloadText } from '../lib/download.ts'
 import { Btn } from './ui.tsx'
 import { Check, X } from 'lucide-react'
 

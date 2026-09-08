@@ -116,7 +116,6 @@ songsRouter.get('/', async (req, res) => {
         : sort === 'bpm'
           ? [{ bpm: 'asc' }, { title: 'asc' }]
           : [{ artist: 'asc' }, { title: 'asc' }],
-    include: fullSong,
   })
   res.json(songs)
 })

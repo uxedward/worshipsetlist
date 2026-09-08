@@ -1,37 +1,23 @@
 import { prisma } from './db.ts'
-import { songWithChart } from './songInclude.ts'
-
-const setlistDetailInclude = {
-  songs: {
-    orderBy: { order: 'asc' as const },
-    include: { song: { include: songWithChart } },
-  },
-  _count: { select: { songs: true } },
-}
+import { setlistWithSongMeta } from './songInclude.ts'
 
 export async function loadBootstrap() {
-  const preferences = await prisma.preference.upsert({
-    where: { id: 1 },
-    create: { id: 1, theme: 'dark', presentationFontSize: 'medium' },
-    update: {},
-  })
-  const setlists = await prisma.setlist.findMany({
-    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-    include: {
-      songs: { select: { id: true, songId: true, order: true } },
-      _count: { select: { songs: true } },
-    },
-  })
-  const songs = await prisma.song.findMany({
-    orderBy: [{ artist: 'asc' }, { title: 'asc' }],
-    include: songWithChart,
-  })
+  const [existingPrefs, setlists, songs] = await Promise.all([
+    prisma.preference.findUnique({ where: { id: 1 } }),
+    prisma.setlist.findMany({
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+      include: setlistWithSongMeta,
+    }),
+    prisma.song.findMany({
+      orderBy: [{ artist: 'asc' }, { title: 'asc' }],
+    }),
+  ])
+  const preferences =
+    existingPrefs ??
+    (await prisma.preference.create({
+      data: { id: 1, theme: 'dark', presentationFontSize: 'medium' },
+    }))
   const activeId = preferences.lastSetlistId ?? setlists[0]?.id ?? null
-  const activeSetlist = activeId
-    ? await prisma.setlist.findUnique({
-        where: { id: activeId },
-        include: setlistDetailInclude,
-      })
-    : null
+  const activeSetlist = setlists.find((setlist) => setlist.id === activeId) ?? null
   return { preferences, setlists, songs, activeSetlist }
 }

@@ -26,12 +26,15 @@ import {
   reorderPersistedSetlist,
   reorderPersistedSetlists,
 } from '../lib/persist.ts'
-import { sameSongIdentity, songInputFromSpotifyTrack } from '@shared/spotifyImport.ts'
+import { songsListQueryKey } from '../lib/queryKeys.ts'
 
 export function useBootstrap() {
   const qc = useQueryClient()
   return useQuery({
     queryKey: ['bootstrap'],
+    staleTime: 60_000,
+    retry: 1,
+    refetchOnMount: false,
     queryFn: async () => {
       const seed = (payload: {
         preferences: Preference
@@ -41,7 +44,7 @@ export function useBootstrap() {
       }) => {
         qc.setQueryData(['preferences'], payload.preferences)
         qc.setQueryData(['setlists'], payload.setlists)
-        qc.setQueryData(['songs', {}], payload.songs)
+        qc.setQueryData(songsListQueryKey(), payload.songs)
         if (payload.activeSetlist) {
           qc.setQueryData(['setlist', payload.activeSetlist.id], payload.activeSetlist)
         }
@@ -91,6 +94,7 @@ export function usePreferences(enabled = true) {
     queryKey: ['preferences'],
     queryFn: endpoints.prefs,
     enabled,
+    staleTime: 60_000,
   })
 }
 
@@ -99,6 +103,7 @@ export function useSetlists(enabled = true) {
     queryKey: ['setlists'],
     queryFn: async () => overlaySetlists(await endpoints.setlists()),
     enabled,
+    staleTime: 60_000,
   })
 }
 
@@ -107,6 +112,7 @@ export function useSetlist(id: string | null) {
     queryKey: ['setlist', id],
     queryFn: async () => overlaySetlist(await endpoints.setlist(id!)),
     enabled: Boolean(id),
+    staleTime: 60_000,
   })
 }
 
@@ -121,9 +127,10 @@ export function useSongs(
   if (params.sort) q.set('sort', params.sort)
   const qs = q.toString() ? `?${q.toString()}` : ''
   return useQuery({
-    queryKey: ['songs', params],
+    queryKey: songsListQueryKey(params),
     queryFn: async () => overlaySongs(await endpoints.songs(qs)),
     enabled,
+    staleTime: 60_000,
   })
 }
 
@@ -140,6 +147,7 @@ export function useSong(id: string | null) {
       }
     },
     enabled: Boolean(id),
+    staleTime: 60_000,
   })
 }
 

@@ -53,6 +53,8 @@ export function SetlistThumb({
         src={`/covers/${idx}.jpg`}
         alt=""
         draggable={false}
+        loading="lazy"
+        decoding="async"
         className="h-full w-full object-cover"
       />
       <div

@@ -414,6 +414,7 @@ function PresentBackdrop({
           className="absolute inset-0 h-full w-full object-cover"
           src={background.src}
           poster={background.poster}
+          preload="metadata"
           autoPlay
           muted
           loop

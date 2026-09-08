@@ -69,7 +69,7 @@ export function applyPrismaPoolParams(
   url: string,
   env: Record<string, string | undefined> = process.env,
 ) {
-  const limit = env.VERCEL ? '1' : '3'
+  const limit = env.VERCEL ? '5' : '3'
   try {
     const parsed = new URL(url)
     parsed.searchParams.set('connection_limit', limit)
