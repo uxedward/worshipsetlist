@@ -127,7 +127,7 @@ export function applyEdits(server: Setlist, edit?: SetlistEdit): SetlistSong[] {
   for (const row of edit?.added ?? []) {
     if (!base.some((s) => s.songId === row.songId || s.id === row.id)) base.push(row)
   }
-  return base.map((row) => ({ ...row, song: repairSong(row.song) }))
+  return base.map((row) => (row.song ? { ...row, song: repairSong(row.song) } : row))
 }
 
 export function overlaySetlist(server: Setlist): Setlist {

@@ -179,4 +179,17 @@ describe('persist overlays', () => {
     expect(repaired.bpm).toBe(71)
     expect(repaired.tag).toBe('Worship')
   })
+
+  it('lists setlists whose songs omit the nested song payload', () => {
+    const listed = overlaySetlists([
+      {
+        ...setlist('lg', 'LG - 10 Sep'),
+        songs: [{ id: 'row1', setlistId: 'lg', songId: 's1', order: 0, transposedKey: null, notes: null } as SetlistSong],
+        _count: { songs: 1 },
+      },
+    ])
+    expect(listed).toHaveLength(1)
+    expect(listed[0].name).toBe('LG - 10 Sep')
+    expect(listed[0].songs?.[0]?.songId).toBe('s1')
+  })
 })

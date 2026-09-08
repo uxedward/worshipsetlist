@@ -47,12 +47,24 @@ export function useBootstrap() {
       }
       try {
         const data = await endpoints.bootstrap()
-        const setlists = overlaySetlists(data.setlists)
-        const songs = overlaySongs(data.songs)
-        const activeSetlist = data.activeSetlist ? overlaySetlist(data.activeSetlist) : null
-        const payload = { preferences: data.preferences, setlists, songs, activeSetlist }
-        seed(payload)
-        return payload
+        try {
+          const setlists = overlaySetlists(data.setlists)
+          const songs = overlaySongs(data.songs)
+          const activeSetlist = data.activeSetlist ? overlaySetlist(data.activeSetlist) : null
+          const payload = { preferences: data.preferences, setlists, songs, activeSetlist }
+          seed(payload)
+          return payload
+        } catch {
+          const songs = overlaySongs(data.songs)
+          const payload = {
+            preferences: data.preferences,
+            setlists: data.setlists,
+            songs,
+            activeSetlist: data.activeSetlist,
+          }
+          seed(payload)
+          return payload
+        }
       } catch (err) {
         const setlists = overlaySetlists([])
         const songs = overlaySongs([])
