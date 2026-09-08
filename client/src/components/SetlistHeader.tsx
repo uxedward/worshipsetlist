@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from 'react'
 export function SetlistHeader({ setlist, songs }: { setlist: Setlist; songs: SetlistSong[] }) {
   const openPresentation = useAppStore((s) => s.openPresentation)
   const openSetlistModal = useAppStore((s) => s.openSetlistModal)
+  const setContextMenu = useAppStore((s) => s.setContextMenu)
   const setExportOpen = useAppStore((s) => s.setExportOpen)
   const saveStatus = useAppStore((s) => s.saveStatus)
   const { patchSetlist } = useMutations()
@@ -122,7 +123,11 @@ export function SetlistHeader({ setlist, songs }: { setlist: Setlist; songs: Set
             type="button"
             className="flex h-9 w-9 items-center justify-center rounded-[8px]"
             style={{ color: 'var(--text-dim)' }}
-            onClick={() => openSetlistModal(setlist.id)}
+            title="Setlist actions"
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect()
+              setContextMenu({ id: setlist.id, x: rect.left, y: rect.bottom + 4 })
+            }}
           >
             <MoreHorizontal size={18} />
           </button>

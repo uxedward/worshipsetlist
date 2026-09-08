@@ -11,7 +11,9 @@ export function SetlistEditModal({ setlists }: { setlists: Setlist[] }) {
   const id = useAppStore((s) => s.setlistModalId)
   const close = useAppStore((s) => s.closeSetlistModal)
   const setActive = useAppStore((s) => s.setActiveSetlistId)
-  const { createSetlist, patchSetlist } = useMutations()
+  const askConfirm = useAppStore((s) => s.askConfirm)
+  const activeId = useAppStore((s) => s.activeSetlistId)
+  const { createSetlist, patchSetlist, deleteSetlist } = useMutations()
   const existing = id && id !== 'new' ? setlists.find((s) => s.id === id) : undefined
 
   const [name, setName] = useState('')
@@ -96,13 +98,41 @@ export function SetlistEditModal({ setlists }: { setlists: Setlist[] }) {
             </div>
           </Field>
         </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <Btn ghost onClick={close}>
-            Cancel
-          </Btn>
-          <Btn accent disabled={!name.trim()} onClick={() => void save()}>
-            Save
-          </Btn>
+        <div className="mt-4 flex items-center justify-between gap-2">
+          {id !== 'new' ? (
+            <Btn
+              ghost
+              onClick={() => {
+                askConfirm({
+                  title: 'Delete setlist?',
+                  message: 'This cannot be undone. Songs in your library will be kept.',
+                  danger: true,
+                  confirmLabel: 'Delete',
+                  onConfirm: () => {
+                    deleteSetlist.mutate(id, {
+                      onSuccess: (res) => {
+                        const nextId = (res as { nextId?: string })?.nextId
+                        if (activeId === id && nextId) setActive(nextId)
+                        close()
+                      },
+                    })
+                  },
+                })
+              }}
+            >
+              <span style={{ color: 'var(--danger)' }}>Delete setlist</span>
+            </Btn>
+          ) : (
+            <span />
+          )}
+          <div className="flex gap-2">
+            <Btn ghost onClick={close}>
+              Cancel
+            </Btn>
+            <Btn accent disabled={!name.trim()} onClick={() => void save()}>
+              Save
+            </Btn>
+          </div>
         </div>
       </div>
     </div>

@@ -24,6 +24,7 @@ import {
   songToInput,
   removePersistedSetlistSong,
   reorderPersistedSetlist,
+  reorderPersistedSetlists,
 } from '../lib/persist.ts'
 import { sameSongIdentity, songInputFromSpotifyTrack } from '@shared/spotifyImport.ts'
 
@@ -234,6 +235,7 @@ export function useMutations() {
           serviceName: (body.serviceName as string | null) ?? null,
           date: (body.date as string | null) ?? null,
           colorIndex: typeof body.colorIndex === 'number' ? body.colorIndex : 0,
+          sortOrder: typeof body.sortOrder === 'number' ? body.sortOrder : 0,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           songs: [],
@@ -277,6 +279,7 @@ export function useMutations() {
           serviceName: source?.serviceName ?? null,
           date: source?.date ?? null,
           colorIndex: source?.colorIndex ?? 0,
+          sortOrder: (source?.sortOrder ?? 0) + 1,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           songs: source?.songs ?? [],
@@ -340,6 +343,14 @@ export function useMutations() {
       reorderPersistedSetlist(v.setlistId, v.orderedIds)
       try {
         return await endpoints.reorder(v.setlistId, v.orderedIds)
+      } catch {
+        return { ok: true }
+      }
+    }, invalidate),
+    reorderSetlists: useTrackedMutation(async (orderedIds: string[]) => {
+      reorderPersistedSetlists(orderedIds)
+      try {
+        return await endpoints.reorderSetlists(orderedIds)
       } catch {
         return { ok: true }
       }

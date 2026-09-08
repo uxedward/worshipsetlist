@@ -131,6 +131,7 @@ export interface Setlist {
   serviceName: string | null
   date: string | null
   colorIndex: number
+  sortOrder: number
   createdAt: string
   updatedAt: string
   songs?: SetlistSong[]

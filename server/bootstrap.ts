@@ -16,7 +16,7 @@ export async function loadBootstrap() {
     update: {},
   })
   const setlists = await prisma.setlist.findMany({
-    orderBy: { createdAt: 'asc' },
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     include: {
       songs: { select: { id: true, songId: true, order: true } },
       _count: { select: { songs: true } },

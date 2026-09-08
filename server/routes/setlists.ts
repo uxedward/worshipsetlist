@@ -14,7 +14,27 @@ const setlistInclude = {
 
 setlistsRouter.get('/', async (_req, res) => {
   const setlists = await prisma.setlist.findMany({
-    orderBy: { createdAt: 'asc' },
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    include: {
+      songs: { select: { id: true, songId: true, order: true } },
+      _count: { select: { songs: true } },
+    },
+  })
+  res.json(setlists)
+})
+
+setlistsRouter.put('/reorder', async (req, res) => {
+  const ids: string[] = Array.isArray(req.body?.orderedIds) ? req.body.orderedIds : []
+  await prisma.$transaction(
+    ids.map((id, sortOrder) =>
+      prisma.setlist.update({
+        where: { id },
+        data: { sortOrder },
+      }),
+    ),
+  )
+  const setlists = await prisma.setlist.findMany({
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     include: {
       songs: { select: { id: true, songId: true, order: true } },
       _count: { select: { songs: true } },
@@ -42,6 +62,7 @@ setlistsRouter.post('/', async (req, res) => {
     return
   }
   const count = await prisma.setlist.count()
+  const maxOrder = await prisma.setlist.aggregate({ _max: { sortOrder: true } })
   const setlist = await prisma.setlist.create({
     data: {
       name,
@@ -49,6 +70,7 @@ setlistsRouter.post('/', async (req, res) => {
       serviceName: req.body.serviceName ?? null,
       date: req.body.date ? new Date(req.body.date) : null,
       colorIndex: typeof req.body.colorIndex === 'number' ? req.body.colorIndex : count % 5,
+      sortOrder: (maxOrder._max.sortOrder ?? -1) + 1,
     },
     include: setlistInclude,
   })
@@ -90,13 +112,14 @@ setlistsRouter.delete('/:id', async (req, res) => {
   }
   await prisma.setlist.delete({ where: { id: req.params.id } })
 
-  let remaining = await prisma.setlist.findMany({ orderBy: { createdAt: 'asc' } })
+  let remaining = await prisma.setlist.findMany({ orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] })
   if (remaining.length === 0) {
     const created = await prisma.setlist.create({
       data: {
         name: 'New Setlist',
         colorIndex: 0,
         date: new Date(),
+        sortOrder: 0,
       },
     })
     remaining = [created]
@@ -123,6 +146,7 @@ setlistsRouter.post('/:id/duplicate', async (req, res) => {
     res.status(404).json({ error: 'Setlist not found' })
     return
   }
+  const maxOrder = await prisma.setlist.aggregate({ _max: { sortOrder: true } })
   const copy = await prisma.setlist.create({
     data: {
       name: `Copy of ${source.name}`,
@@ -130,6 +154,7 @@ setlistsRouter.post('/:id/duplicate', async (req, res) => {
       serviceName: source.serviceName,
       date: new Date(),
       colorIndex: source.colorIndex,
+      sortOrder: (maxOrder._max.sortOrder ?? source.sortOrder) + 1,
       songs: {
         create: source.songs.map((s) => ({
           songId: s.songId,

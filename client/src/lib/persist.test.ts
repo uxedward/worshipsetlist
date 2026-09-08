@@ -25,6 +25,7 @@ import {
   rememberSetlist,
   rememberSong,
   rememberSongs,
+  reorderPersistedSetlists,
   songToInput,
 } from './persist.ts'
 import type { Setlist, SetlistSong, Song } from '@shared/types.ts'
@@ -49,6 +50,7 @@ const setlist = (id: string, name: string, songs: SetlistSong[] = []): Setlist =
   serviceName: null,
   date: null,
   colorIndex: 0,
+  sortOrder: 0,
   createdAt: `2026-01-0${id === 'a' ? '1' : '2'}T00:00:00.000Z`,
   updatedAt: '2026-01-01T00:00:00.000Z',
   songs,
@@ -122,6 +124,17 @@ describe('persist overlays', () => {
     rememberSetlist({ ...setlist('a', 'Sunday AM'), name: 'Sunday Gathering' })
     const listed = overlaySetlists([setlist('a', 'Sunday AM')])
     expect(listed[0].name).toBe('Sunday Gathering')
+  })
+
+  it('reorders setlists in the sidebar overlay', () => {
+    overlaySetlists([setlist('a', 'Sunday AM'), setlist('b', 'Midweek'), setlist('c', 'Easter')])
+    reorderPersistedSetlists(['c', 'a', 'b'])
+    const listed = overlaySetlists([
+      setlist('a', 'Sunday AM'),
+      setlist('b', 'Midweek'),
+      { ...setlist('c', 'Easter'), createdAt: '2026-01-03T00:00:00.000Z' },
+    ])
+    expect(listed.map((s) => s.id)).toEqual(['c', 'a', 'b'])
   })
 
   it('does not double-count a song already on the server setlist', () => {

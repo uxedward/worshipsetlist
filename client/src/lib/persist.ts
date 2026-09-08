@@ -17,10 +17,11 @@ export type PersistState = {
   deletedSetlistIds: string[]
   extraSongs: Record<string, Song>
   deletedSongIds: string[]
+  setlistOrder?: string[]
 }
 
 function empty(): PersistState {
-  return { v: 2, edits: {}, extraSetlists: [], deletedSetlistIds: [], extraSongs: {}, deletedSongIds: [] }
+  return { v: 2, edits: {}, extraSetlists: [], deletedSetlistIds: [], extraSongs: {}, deletedSongIds: [], setlistOrder: [] }
 }
 
 function editFor(state: PersistState, id: string): SetlistEdit {
@@ -54,6 +55,7 @@ export function loadPersist(): PersistState {
       deletedSetlistIds: parsed.deletedSetlistIds ?? [],
       extraSongs: parsed.extraSongs ?? {},
       deletedSongIds: parsed.deletedSongIds ?? [],
+      setlistOrder: parsed.setlistOrder ?? [],
     }
   } catch {
     return empty()
@@ -162,7 +164,17 @@ export function overlaySetlists(server: Setlist[]): Setlist[] {
         )
     out.push({ ...base, ...edit?.meta, _count: { songs: count } })
   }
-  out.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  const order = state.setlistOrder ?? []
+  out.sort((a, b) => {
+    const ai = order.indexOf(a.id)
+    const bi = order.indexOf(b.id)
+    const av = ai === -1 ? Number.MAX_SAFE_INTEGER : ai
+    const bv = bi === -1 ? Number.MAX_SAFE_INTEGER : bi
+    if (av !== bv) return av - bv
+    const so = (a.sortOrder ?? 0) - (b.sortOrder ?? 0)
+    if (so !== 0) return so
+    return a.createdAt.localeCompare(b.createdAt)
+  })
   return out
 }
 
@@ -293,5 +305,15 @@ export function reorderPersistedSetlist(setlistId: string, orderedIds: string[])
       const row = byId.get(id)
       return row ? { ...row, order } : null
     }).filter((row): row is SetlistSong => Boolean(row))
+  })
+}
+
+export function reorderPersistedSetlists(orderedIds: string[]) {
+  write((state) => {
+    state.setlistOrder = orderedIds
+    state.extraSetlists = state.extraSetlists.map((setlist) => {
+      const index = orderedIds.indexOf(setlist.id)
+      return index === -1 ? setlist : { ...setlist, sortOrder: index }
+    })
   })
 }

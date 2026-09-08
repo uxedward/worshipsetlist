@@ -171,6 +171,8 @@ export const endpoints = {
     api(`/api/setlists/${setlistId}/songs/${ssId}`, { method: 'DELETE' }),
   reorder: (setlistId: string, orderedIds: string[]) =>
     api(`/api/setlists/${setlistId}/reorder`, { method: 'PUT', json: { orderedIds } }),
+  reorderSetlists: (orderedIds: string[]) =>
+    api('/api/setlists/reorder', { method: 'PUT', json: { orderedIds } }),
   songs: (q: string) => api<import('@shared/types.ts').Song[]>(`/api/songs${q}`),
   song: (id: string) => api<import('@shared/types.ts').Song>(`/api/songs/${id}`),
   createSong: (body: unknown) =>
