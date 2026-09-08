@@ -161,7 +161,7 @@ export function BulkImportModal() {
                     </div>
                     {preview.map((p, i) => (
                       <div key={i} className="truncate">
-                        {p.input ? p.input.title : `Skipped (${p.skipReason})`}
+                        {p.input ? `${p.input.title} · ${p.input.key}` : `Skipped (${p.skipReason})`}
                       </div>
                     ))}
                   </div>

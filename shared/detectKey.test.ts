@@ -39,6 +39,53 @@ For I am Yours`)
     expect(detectKeyFromChords([])).toBeNull()
     expect(detectKeyFromSections([{ lines: [{ lyric: 'Add lyrics', chords: '' }] }])).toBeNull()
   })
+
+  it('detects At the Altar as D, not the IV key G', () => {
+    const { sections } = parseChart(`[Intro]
+D G D G
+[Verse 1]
+D/F#                 I'm removing all of the things
+G                    That would move me further from You
+D                D/F#    G A
+A "thank you" could not be enough
+[Chorus]
+D/F#                     Where the tears of the desperate
+G                     Reach the feet of the Savior
+D/F#                     Nothing I wouldn't offer
+G                     There's no waste at the altar
+[Outro]
+D G D                    Bring it all to the Father
+G                     There's no waste at the altar`)
+    expect(detectKeyFromSections(sections)).toBe('D')
+  })
+
+  it('detects Bukti Kasih-Mu as E even when the intro starts on F#m', () => {
+    const { sections } = parseChart(`[Intro]
+F#m  C#m  B  A
+
+[Verse]
+E         A/E  B/E
+DarahMu Dicurahkan
+G#m7         A    B
+Menggantikan Nyawaku
+G#            C#m
+Kau Mati Biar Kuhidup
+B    F#m       B
+Bukti KasihMu Padaku
+
+[Reff]
+E                  A
+Tiada Kata Yang Dapat Ungkapkan
+G#m  C#m          F#m   B
+Betapa Ku Bersyukur Tuhan
+E                 A
+Kau Layakkan Ku Tuk Terima
+G#m    C#m         F#m
+Anugrah Kasih Dan Keslamatan
+B         E
+Terima kasih Tuhan`)
+    expect(detectKeyFromSections(sections)).toBe('E')
+  })
 })
 
 describe('resolveSongKey', () => {

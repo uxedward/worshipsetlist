@@ -161,7 +161,7 @@ export function serializeSong(song: Song): string {
     `Artist: ${song.artist}`,
   ]
   if (song.album) lines.push(`Album: ${song.album}`)
-  lines.push(`Key: ${song.key}`)
+  lines.push(`Key: ${resolveSongKey(song.key, song.sections)}`)
   lines.push(`BPM: ${song.bpm}`)
   if (song.timeSignature && song.timeSignature !== '4/4') {
     lines.push(`Time Signature: ${song.timeSignature}`)
