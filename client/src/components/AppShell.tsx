@@ -222,7 +222,7 @@ function MobileSongView({ songs }: { songs: SetlistSong[] }) {
           </button>
         </div>
       </div>
-      <div className="mt-3 flex gap-1.5 overflow-x-auto px-4">
+      <div className="scrollbar-hidden mt-3 flex gap-1.5 overflow-x-auto px-4">
         {sections.map((s, i) => (
           <button
             key={s.id}

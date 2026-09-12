@@ -70,11 +70,16 @@ function AppInner() {
   const setPlaying = useAppStore((s) => s.setPlaying)
   const { patchPrefs } = useMutations()
   const lastPrefWrite = useRef<string | null>(null)
+  const hydratedPrefs = useRef(false)
 
   useEffect(() => {
     if (!prefs.data) return
-    setTheme(prefs.data.theme)
-    setFontSize(prefs.data.presentationFontSize)
+    if (!hydratedPrefs.current) {
+      setTheme(prefs.data.theme)
+      setFontSize(prefs.data.presentationFontSize)
+      lastPrefWrite.current = prefs.data.theme
+      hydratedPrefs.current = true
+    }
     if (!activeSetlistId && prefs.data.lastSetlistId) {
       setActiveSetlistId(prefs.data.lastSetlistId)
     }
@@ -91,11 +96,18 @@ function AppInner() {
     const meta = document.querySelector('meta[name="theme-color"]')
     const canvas = getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim()
     if (meta && canvas) meta.setAttribute('content', canvas)
-    if (lastPrefWrite.current !== theme && prefs.data && prefs.data.theme !== theme) {
+  }, [theme])
+
+  useEffect(() => {
+    if (!hydratedPrefs.current || !prefs.data) return
+    if (prefs.data.theme === theme) {
       lastPrefWrite.current = theme
-      patchPrefs.mutate({ theme })
+      return
     }
-  }, [theme, patchPrefs, prefs.data])
+    if (lastPrefWrite.current === theme) return
+    lastPrefWrite.current = theme
+    patchPrefs.mutate({ theme })
+  }, [theme, prefs.data?.theme, patchPrefs, prefs.data])
 
   useEffect(() => {
     if (activeSetlistId && prefs.data && prefs.data.lastSetlistId !== activeSetlistId) {
