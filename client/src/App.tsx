@@ -4,15 +4,26 @@ import { useAppStore } from './store/useAppStore.ts'
 import { useMutations, usePreferences, useSetlist, useSetlists, useSongs, useBootstrap } from './hooks/useQueries.ts'
 import { useOfflineSync } from './hooks/useOfflineSync.ts'
 import { AppShell } from './components/AppShell.tsx'
-import { SongEditor } from './components/SongEditor.tsx'
-import { SetlistEditModal } from './components/SetlistEditModal.tsx'
-import { BulkImportModal, ExportModal } from './components/Modals.tsx'
-import { AddSongPicker } from './components/AddSongPicker.tsx'
 import { SetlistContextMenu } from './components/SetlistContextMenu.tsx'
 import { ConfirmDialog, OfflineBanner } from './components/ui.tsx'
 
 const PresentationOverlay = lazy(() =>
   import('./components/PresentationOverlay.tsx').then((mod) => ({ default: mod.PresentationOverlay })),
+)
+const SongEditor = lazy(() =>
+  import('./components/SongEditor.tsx').then((mod) => ({ default: mod.SongEditor })),
+)
+const AddSongPicker = lazy(() =>
+  import('./components/AddSongPicker.tsx').then((mod) => ({ default: mod.AddSongPicker })),
+)
+const SetlistEditModal = lazy(() =>
+  import('./components/SetlistEditModal.tsx').then((mod) => ({ default: mod.SetlistEditModal })),
+)
+const BulkImportModal = lazy(() =>
+  import('./components/Modals.tsx').then((mod) => ({ default: mod.BulkImportModal })),
+)
+const ExportModal = lazy(() =>
+  import('./components/Modals.tsx').then((mod) => ({ default: mod.ExportModal })),
 )
 
 const queryClient = new QueryClient({
@@ -48,6 +59,11 @@ function AppInner() {
   const theme = useAppStore((s) => s.theme)
   const playing = useAppStore((s) => s.playing)
   const presentationOpen = useAppStore((s) => s.presentationOpen)
+  const editorOpen = useAppStore((s) => s.editorOpen)
+  const addPickerOpen = useAppStore((s) => s.addPickerOpen)
+  const setlistModalId = useAppStore((s) => s.setlistModalId)
+  const bulkImportOpen = useAppStore((s) => s.bulkImportOpen)
+  const exportOpen = useAppStore((s) => s.exportOpen)
   const activeSsId = useAppStore((s) => s.activeSetlistSongId)
   const setElapsed = useAppStore((s) => s.setElapsed)
   const setPlaying = useAppStore((s) => s.setPlaying)
@@ -110,7 +126,7 @@ function AppInner() {
     return () => window.clearInterval(iv)
   }, [playing, activeSsId, setlistSongs, setElapsed, setPlaying])
 
-  const loading = boot.isPending
+  const loading = !boot.data
   const loadError = boot.isError && !boot.data
 
   if (loading) {
@@ -167,16 +183,16 @@ function AppInner() {
         songs={setlistSongs}
         songCount={songsQuery.data?.length ?? boot.data?.songs.length ?? 0}
       />
-      <SongEditor />
-      <AddSongPicker />
-      {presentationOpen ? (
-        <Suspense fallback={null}>
-          <PresentationOverlay songs={setlistSongs} />
-        </Suspense>
-      ) : null}
-      <SetlistEditModal setlists={setlists.data ?? boot.data?.setlists ?? []} />
-      <BulkImportModal />
-      <ExportModal setlistName={setlist?.name ?? 'Setlist'} songs={setlistSongs} />
+      <Suspense fallback={null}>
+        {editorOpen ? <SongEditor /> : null}
+        {addPickerOpen ? <AddSongPicker /> : null}
+        {presentationOpen ? <PresentationOverlay songs={setlistSongs} /> : null}
+        {setlistModalId ? <SetlistEditModal setlists={setlists.data ?? boot.data?.setlists ?? []} /> : null}
+        {bulkImportOpen ? <BulkImportModal /> : null}
+        {exportOpen ? (
+          <ExportModal setlistName={setlist?.name ?? 'Setlist'} songs={setlistSongs} />
+        ) : null}
+      </Suspense>
       <SetlistContextMenu />
       <ConfirmDialog />
     </div>

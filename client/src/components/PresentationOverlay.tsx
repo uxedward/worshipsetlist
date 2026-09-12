@@ -10,6 +10,8 @@ import { cn } from '../lib/cn.ts'
 import {
   PRESENT_BACKGROUNDS,
   findPresentBackground,
+  pickPresentVideoSrc,
+  currentViewport,
   type PresentBackground,
 } from '../lib/presentBackgrounds.ts'
 import {
@@ -399,7 +401,8 @@ function PresentBackdrop({
   background: PresentBackground
   reduceMotion: boolean
 }) {
-  const showVideo = background.kind === 'video' && Boolean(background.src) && !reduceMotion
+  const videoSrc = pickPresentVideoSrc(background, currentViewport())
+  const showVideo = background.kind === 'video' && Boolean(videoSrc) && !reduceMotion
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
       {background.kind === 'gradient' ? (
@@ -410,9 +413,9 @@ function PresentBackdrop({
       ) : null}
       {showVideo ? (
         <video
-          key={background.id}
+          key={`${background.id}-${videoSrc}`}
           className="absolute inset-0 h-full w-full object-cover"
-          src={background.src}
+          src={videoSrc}
           poster={background.poster}
           preload="metadata"
           autoPlay

@@ -20,6 +20,7 @@ import {
   findPresentBackground,
   loadPresentBackgroundId,
   savePresentBackgroundId,
+  pickPresentVideoSrc,
 } from './presentBackgrounds.ts'
 
 describe('present backgrounds', () => {
@@ -32,7 +33,15 @@ describe('present backgrounds', () => {
     expect(kinds).toEqual(new Set(['gradient', 'photo', 'video']))
     expect(PRESENT_BACKGROUNDS.filter((bg) => bg.group === 'still').length).toBeGreaterThanOrEqual(5)
     expect(PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'video')).toHaveLength(4)
-    expect(PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'video').every((bg) => bg.src?.includes('.webm'))).toBe(true)
+    expect(PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'video').every((bg) => bg.src4k?.includes('-4k.mp4'))).toBe(true)
+    expect(PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'photo').every((bg) => bg.src?.includes('.jpg'))).toBe(true)
+  })
+
+  it('picks 4K video on retina / projector canvases and 1080p on phones', () => {
+    const ocean = findPresentBackground('ocean-live')
+    expect(pickPresentVideoSrc(ocean, { width: 390, height: 844, dpr: 3 })).toBe(ocean.src)
+    expect(pickPresentVideoSrc(ocean, { width: 1920, height: 1080, dpr: 1 })).toBe(ocean.src4k)
+    expect(pickPresentVideoSrc(ocean, { width: 1440, height: 900, dpr: 2 })).toBe(ocean.src4k)
   })
 
   it('falls back to dusk for unknown ids', () => {

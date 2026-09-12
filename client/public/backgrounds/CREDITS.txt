@@ -1,21 +1,27 @@
-Live HD present-mode clips are muted, trimmed camera footage from Wikimedia Commons.
+Live 4K present-mode clips are muted, trimmed camera footage. Stills are 4K frames
+from the same clips (except sky).
 
-ocean.webm
-  Ocean waves at Lækjavik beach, Iceland
-  Alexander Grebenkov, CC BY 3.0
-  https://commons.wikimedia.org/wiki/File:Ocean_waves_at_L%C3%A6kjavik_beach,_Iceland.webm
+ocean / ocean-4k
+  Waves crashing on rocks (4K)
+  Pexels video 1409899, free to use (Pexels License)
+  https://www.pexels.com/video/1409899/
 
-forest.webm
-  Valla forest Nature reserve - A quiet place (trimmed)
-  Fredrik Johansson, CC BY 3.0
-  https://commons.wikimedia.org/wiki/File:Valla_forest_Nature_reserve_-_A_quiet_place.webm
+forest / forest-4k
+  Aerial shots of White Mountain Area, New Hampshire
+  CC BY 3.0
+  https://commons.wikimedia.org/wiki/File:Aerial_shots_of_White_Mountain_Area_(dji_phantom_4_advanced_footage)_--_New_Hampshire.webm
 
-lake.webm
-  Jezioro Cisie - panorama 1080p (trimmed)
-  Lubicz, CC BY-SA 4.0
-  https://commons.wikimedia.org/wiki/File:Jezioro_Cisie_-_panorama_1080p.webm
+lake / lake-4k
+  Long Lake, Thurston County, Washington
+  Senapa, CC BY 3.0
+  https://commons.wikimedia.org/wiki/File:2023-05-29,_Long_Lake_of_Thurston_County,_Washington,_video01.webm
 
-mountains.webm
-  Steens Mountain, East Side
-  BLM Oregon & Washington, public domain
-  https://commons.wikimedia.org/wiki/File:Steens_Mountain,_East_Side_(33900331335).webm
+mountains / mountains-4k
+  Piz Neir aerial (4K)
+  CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:Piz_Neir,_aerial_video_4k.webm
+
+sky.jpg
+  Niederbauen und Bristen after sunset from Rigi
+  Wikimedia Commons, CC BY-SA
+  https://commons.wikimedia.org/wiki/File:Niederbauen_und_Bristen_after_sunset_from_Rigi.jpg

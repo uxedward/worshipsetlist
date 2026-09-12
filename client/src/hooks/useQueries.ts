@@ -3,6 +3,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
+import { useLayoutEffect } from 'react'
 import { endpoints, flushQueue, pingHealth } from '../lib/api.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import type { Preference, Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
@@ -28,28 +29,47 @@ import {
 } from '../lib/persist.ts'
 import { songsListQueryKey } from '../lib/queryKeys.ts'
 import { sameSongIdentity, songInputFromSpotifyTrack } from '@shared/spotifyImport.ts'
+import { readBootstrapCache, writeBootstrapCache } from '../lib/bootstrapCache.ts'
+import type { BootstrapPayload } from '../lib/bootstrapCache.ts'
+
+function hydrateBootstrap(raw: BootstrapPayload | null): BootstrapPayload | null {
+  if (!raw) return null
+  try {
+    const setlists = overlaySetlists(raw.setlists)
+    const songs = overlaySongs(raw.songs)
+    const activeSetlist = raw.activeSetlist ? overlaySetlist(raw.activeSetlist) : null
+    return { preferences: raw.preferences, setlists, songs, activeSetlist }
+  } catch {
+    return raw
+  }
+}
+
+const cachedBootstrap = hydrateBootstrap(readBootstrapCache())
 
 export function useBootstrap() {
   const qc = useQueryClient()
+  const seed = (payload: BootstrapPayload) => {
+    qc.setQueryData(['preferences'], payload.preferences)
+    qc.setQueryData(['setlists'], payload.setlists)
+    qc.setQueryData(songsListQueryKey(), payload.songs)
+    if (payload.activeSetlist) {
+      qc.setQueryData(['setlist', payload.activeSetlist.id], payload.activeSetlist)
+    }
+    writeBootstrapCache(payload)
+  }
+
+  useLayoutEffect(() => {
+    if (cachedBootstrap) seed(cachedBootstrap)
+  }, [])
+
   return useQuery({
     queryKey: ['bootstrap'],
     staleTime: 60_000,
     retry: 1,
     refetchOnMount: false,
+    initialData: cachedBootstrap ?? undefined,
+    initialDataUpdatedAt: cachedBootstrap ? 0 : undefined,
     queryFn: async () => {
-      const seed = (payload: {
-        preferences: Preference
-        setlists: Setlist[]
-        songs: Song[]
-        activeSetlist: Setlist | null
-      }) => {
-        qc.setQueryData(['preferences'], payload.preferences)
-        qc.setQueryData(['setlists'], payload.setlists)
-        qc.setQueryData(songsListQueryKey(), payload.songs)
-        if (payload.activeSetlist) {
-          qc.setQueryData(['setlist', payload.activeSetlist.id], payload.activeSetlist)
-        }
-      }
       try {
         const data = await endpoints.bootstrap()
         try {
