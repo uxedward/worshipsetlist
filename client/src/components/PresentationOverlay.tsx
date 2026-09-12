@@ -165,9 +165,11 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
     }
     show()
     window.addEventListener('mousemove', show)
+    window.addEventListener('touchstart', show)
     return () => {
       window.clearTimeout(hideTimer)
       window.removeEventListener('mousemove', show)
+      window.removeEventListener('touchstart', show)
     }
   }, [open, pickerOpen, settingsOpen])
 
