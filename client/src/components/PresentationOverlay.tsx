@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Image as ImageIcon, Minus, Plus, Settings, X } from 'lucide-react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { ChevronLeft, ChevronRight, Image as ImageIcon, Minus, Plus, Settings, Trash2, X } from 'lucide-react'
 import type { SetlistSong } from '@shared/types.ts'
 import { soundingKey } from '@shared/transpose.ts'
 import { LYRICS_PER_SLIDE, displaySections, firstSlideIndexForSection, slidesFromSections } from '@shared/presentationSlides.ts'
@@ -7,7 +7,9 @@ import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSong } from '../hooks/useQueries.ts'
 import { useIsMobile } from '../hooks/useMediaQuery.ts'
 import { cn } from '../lib/cn.ts'
+import { endpoints } from '../lib/api.ts'
 import {
+  DEFAULT_PRESENT_BACKGROUND,
   PRESENT_BACKGROUNDS,
   findPresentBackground,
   pickPresentVideoSrc,
@@ -15,6 +17,13 @@ import {
   presentBackgroundFill,
   type PresentBackground,
 } from '../lib/presentBackgrounds.ts'
+import {
+  addCustomBackgroundFile,
+  deleteCustomBackground,
+  loadCustomBackgrounds,
+  mergeCustomBackgrounds,
+  promoteCustomBackgroundSrc,
+} from '../lib/customPresentBackgrounds.ts'
 import {
   FONT_MAX,
   FONT_MIN,
@@ -52,9 +61,30 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const [reduceMotion, setReduceMotion] = useState(false)
   const [chromeVisible, setChromeVisible] = useState(true)
   const [fittedSize, setFittedSize] = useState(presentSettings.fontSize)
+  const [customBackgrounds, setCustomBackgrounds] = useState<PresentBackground[]>([])
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
   const touchX = useRef<number | null>(null)
   const lyricsBoxRef = useRef<HTMLDivElement>(null)
-  const background = findPresentBackground(backgroundId)
+  const background = findPresentBackground(backgroundId, customBackgrounds)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const local = await loadCustomBackgrounds()
+      if (!cancelled) setCustomBackgrounds(local)
+      try {
+        const remote = await endpoints.backgrounds()
+        if (cancelled) return
+        setCustomBackgrounds(mergeCustomBackgrounds(local, remote.backgrounds))
+      } catch {
+        /* local uploads still work without the API */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const selectedIndex = songs.findIndex((s) => s.id === activeId)
   const index = selectedIndex >= 0 ? selectedIndex : 0
@@ -377,7 +407,65 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
       {pickerOpen ? (
         <BackgroundPicker
           selectedId={background.id}
+          customItems={customBackgrounds}
+          uploading={uploading}
+          error={uploadError}
           onSelect={setBackgroundId}
+          onUpload={async (file) => {
+            setUploadError(null)
+            setUploading(true)
+            try {
+              const created = await addCustomBackgroundFile(file)
+              setCustomBackgrounds((prev) => [...prev.filter((bg) => bg.id !== created.id), created])
+              setBackgroundId(created.id)
+              try {
+                const remote = await endpoints.backgrounds()
+                if (remote.blobEnabled) {
+                  const { upload } = await import('@vercel/blob/client')
+                  const blob = await upload(file.name, file, {
+                    access: 'public',
+                    handleUploadUrl: '/api/backgrounds/upload',
+                  })
+                  const saved = await endpoints.createBackground({
+                    id: created.id,
+                    label: created.label,
+                    src: blob.url,
+                    poster: created.poster,
+                  })
+                  await promoteCustomBackgroundSrc(created.id, saved.src ?? blob.url)
+                  setCustomBackgrounds((prev) =>
+                    prev.map((bg) => (bg.id === created.id ? { ...bg, ...saved, src: saved.src ?? blob.url } : bg)),
+                  )
+                }
+              } catch {
+                /* keep the local copy if remote hosting is unavailable */
+              }
+            } catch (err) {
+              setUploadError(err instanceof Error ? err.message : 'Could not add that video.')
+            } finally {
+              setUploading(false)
+            }
+          }}
+          onDelete={(id) => {
+            useAppStore.getState().askConfirm({
+              title: 'Delete this background?',
+              message: 'This removes the uploaded video from Present mode.',
+              danger: true,
+              confirmLabel: 'Delete',
+              onConfirm: () => {
+                void (async () => {
+                  await deleteCustomBackground(id)
+                  setCustomBackgrounds((prev) => prev.filter((bg) => bg.id !== id))
+                  if (backgroundId === id) setBackgroundId(DEFAULT_PRESENT_BACKGROUND)
+                  try {
+                    await endpoints.deleteBackground(id)
+                  } catch {
+                    /* local delete still stands */
+                  }
+                })()
+              },
+            })
+          }}
         />
       ) : null}
       {settingsOpen ? (
@@ -652,11 +740,22 @@ function PresentSlider({
 
 function BackgroundPicker({
   selectedId,
+  customItems,
+  uploading,
+  error,
   onSelect,
+  onUpload,
+  onDelete,
 }: {
   selectedId: string
+  customItems: PresentBackground[]
+  uploading: boolean
+  error: string | null
   onSelect: (id: string) => void
+  onUpload: (file: File) => void
+  onDelete: (id: string) => void
 }) {
+  const fileRef = useRef<HTMLInputElement>(null)
   const gradients = PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'gradient')
   const stills = PRESENT_BACKGROUNDS.filter((bg) => bg.group === 'still' && bg.kind !== 'gradient')
   const motion = PRESENT_BACKGROUNDS.filter((bg) => bg.group === 'motion')
@@ -666,9 +765,104 @@ function BackgroundPicker({
       style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
       onClick={(e) => e.stopPropagation()}
     >
+      <BackgroundRow title="Your videos" selectedId={selectedId} onSelect={onSelect}>
+        {customItems.map((bg) => (
+          <BackgroundThumb
+            key={bg.id}
+            background={bg}
+            selected={bg.id === selectedId}
+            onSelect={() => onSelect(bg.id)}
+            onDelete={() => onDelete(bg.id)}
+          />
+        ))}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="flex h-[86px] w-[104px] shrink-0 flex-col items-center justify-center gap-1 rounded-[10px] text-caption"
+          style={{
+            border: '2px dashed var(--border-strong)',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <Plus size={16} />
+          {uploading ? 'Uploading…' : 'Add video'}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="video/mp4,video/webm,video/quicktime,video/x-m4v,.mp4,.webm,.mov,.m4v"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (file) onUpload(file)
+          }}
+        />
+      </BackgroundRow>
+      {error ? (
+        <p className="mt-2 text-[12px]" style={{ color: 'var(--warning)' }}>
+          {error}
+        </p>
+      ) : null}
       <BackgroundRow title="Gradients" items={gradients} selectedId={selectedId} onSelect={onSelect} />
       <BackgroundRow title="Stills" items={stills} selectedId={selectedId} onSelect={onSelect} />
       <BackgroundRow title="Live HD" items={motion} selectedId={selectedId} onSelect={onSelect} />
+    </div>
+  )
+}
+
+function BackgroundThumb({
+  background,
+  selected,
+  onSelect,
+  onDelete,
+}: {
+  background: PresentBackground
+  selected: boolean
+  onSelect: () => void
+  onDelete?: () => void
+}) {
+  return (
+    <div className="relative shrink-0" style={{ width: 104 }}>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="w-full overflow-hidden rounded-[10px] text-left"
+        style={{
+          border: selected ? '2px solid var(--text-primary)' : '2px solid var(--border)',
+        }}
+      >
+        <span
+          className="block h-14 w-full bg-cover bg-center"
+          style={{
+            background:
+              background.kind === 'gradient'
+                ? presentBackgroundFill(background)
+                : background.poster || background.src
+                  ? `url(${background.poster ?? background.src}) center/cover`
+                  : 'var(--surface-1)',
+          }}
+        />
+        <span className="block truncate px-1.5 py-1 text-caption" style={{ color: 'var(--text-secondary)' }}>
+          {background.label}
+        </span>
+      </button>
+      {onDelete ? (
+        <button
+          type="button"
+          title={`Delete ${background.label}`}
+          aria-label={`Delete ${background.label}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-[8px]"
+          style={{ background: 'var(--present-scrim)', color: 'var(--text-primary)' }}
+        >
+          <Trash2 size={12} />
+        </button>
+      ) : null}
     </div>
   )
 }
@@ -678,46 +872,29 @@ function BackgroundRow({
   items,
   selectedId,
   onSelect,
+  children,
 }: {
   title: string
-  items: PresentBackground[]
+  items?: PresentBackground[]
   selectedId: string
   onSelect: (id: string) => void
+  children?: ReactNode
 }) {
   return (
-    <div className={title === 'Gradients' ? undefined : 'mt-3'}>
+    <div className={title === 'Your videos' ? undefined : 'mt-3'}>
       <div className="mb-2 text-label" style={{ color: 'var(--text-muted)' }}>
         {title}
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {items.map((bg) => {
-          const selected = bg.id === selectedId
-          return (
-            <button
-              key={bg.id}
-              type="button"
-              onClick={() => onSelect(bg.id)}
-              className="shrink-0 overflow-hidden rounded-[10px] text-left"
-              style={{
-                width: 104,
-                border: selected ? '2px solid var(--text-primary)' : '2px solid var(--border)',
-              }}
-            >
-              <span
-                className="block h-14 w-full bg-cover bg-center"
-                style={{
-                  background:
-                    bg.kind === 'gradient'
-                      ? presentBackgroundFill(bg)
-                      : `url(${bg.poster ?? bg.src}) center/cover`,
-                }}
-              />
-              <span className="block truncate px-1.5 py-1 text-caption" style={{ color: 'var(--text-secondary)' }}>
-                {bg.label}
-              </span>
-            </button>
-          )
-        })}
+      <div className="scrollbar-hidden flex gap-2 overflow-x-auto">
+        {items?.map((bg) => (
+          <BackgroundThumb
+            key={bg.id}
+            background={bg}
+            selected={bg.id === selectedId}
+            onSelect={() => onSelect(bg.id)}
+          />
+        ))}
+        {children}
       </div>
     </div>
   )

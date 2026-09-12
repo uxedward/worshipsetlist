@@ -10,6 +10,7 @@ export type PresentBackground = {
   poster?: string
   /** CSS fill for gradient stills, e.g. var(--present-horizon). */
   fill?: string
+  custom?: boolean
 }
 
 export const DEFAULT_PRESENT_BACKGROUND = 'horizon'
@@ -69,8 +70,11 @@ export const PRESENT_BACKGROUNDS: PresentBackground[] = [
   },
 ]
 
-export function findPresentBackground(id: string | null | undefined): PresentBackground {
-  return PRESENT_BACKGROUNDS.find((bg) => bg.id === id) ?? PRESENT_BACKGROUNDS[0]
+export function findPresentBackground(
+  id: string | null | undefined,
+  extras: PresentBackground[] = [],
+): PresentBackground {
+  return extras.find((bg) => bg.id === id) ?? PRESENT_BACKGROUNDS.find((bg) => bg.id === id) ?? PRESENT_BACKGROUNDS[0]
 }
 
 export function presentBackgroundFill(background: PresentBackground): string {
@@ -101,7 +105,7 @@ export function loadPresentBackgroundId(): string {
   if (typeof localStorage === 'undefined') return DEFAULT_PRESENT_BACKGROUND
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored && PRESENT_BACKGROUNDS.some((bg) => bg.id === stored)) return stored
+    if (stored) return stored
   } catch {
     /* ignore */
   }
@@ -109,7 +113,6 @@ export function loadPresentBackgroundId(): string {
 }
 
 export function savePresentBackgroundId(id: string) {
-  if (typeof localStorage === 'undefined') return
-  if (!PRESENT_BACKGROUNDS.some((bg) => bg.id === id)) return
+  if (typeof localStorage === 'undefined' || !id) return
   localStorage.setItem(STORAGE_KEY, id)
 }
