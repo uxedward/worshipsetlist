@@ -86,8 +86,8 @@
   --present-lyric: #ffffff;
   --present-dusk: radial-gradient(ellipse at center, var(--arc-2) 0%, var(--surface-2) 40%, var(--surface-1) 70%, var(--canvas) 100%);
   /* Stage LED-wall sunsets — sampled from worship stage photography, not chrome. */
-  --present-horizon: radial-gradient(ellipse 130% 58% at 50% 112%, #c45c54 0%, transparent 60%),
-    linear-gradient(180deg, #b496a2 0%, #c4a6ab 20%, #d2aea9 42%, #dea89a 64%, #d68a7a 84%, #c45c54 100%);
+  --present-horizon: radial-gradient(ellipse 140% 62% at 50% 108%, #c4544c 0%, transparent 58%),
+    linear-gradient(180deg, #b496a2 0%, #c8a8ac 16%, #d8b0a8 34%, #e09a88 54%, #d47868 76%, #c4544c 100%);
   --present-afterglow: radial-gradient(ellipse 120% 58% at 50% 112%, #b85060 0%, transparent 58%),
     linear-gradient(180deg, #c4a0b4 0%, #d090a0 38%, #c05860 100%);
   --present-ember: radial-gradient(ellipse 130% 58% at 50% 112%, #c86838 0%, transparent 58%),
@@ -159,8 +159,8 @@
   --present-lyric: #ffffff;
   --present-dusk: radial-gradient(ellipse at center, var(--arc-2) 0%, var(--surface-2) 40%, var(--surface-1) 70%, var(--canvas) 100%);
   /* Stage LED-wall sunsets — sampled from worship stage photography, not chrome. */
-  --present-horizon: radial-gradient(ellipse 130% 58% at 50% 112%, #c45c54 0%, transparent 60%),
-    linear-gradient(180deg, #b496a2 0%, #c4a6ab 20%, #d2aea9 42%, #dea89a 64%, #d68a7a 84%, #c45c54 100%);
+  --present-horizon: radial-gradient(ellipse 140% 62% at 50% 108%, #c4544c 0%, transparent 58%),
+    linear-gradient(180deg, #b496a2 0%, #c8a8ac 16%, #d8b0a8 34%, #e09a88 54%, #d47868 76%, #c4544c 100%);
   --present-afterglow: radial-gradient(ellipse 120% 58% at 50% 112%, #b85060 0%, transparent 58%),
     linear-gradient(180deg, #c4a0b4 0%, #d090a0 38%, #c05860 100%);
   --present-ember: radial-gradient(ellipse 130% 58% at 50% 112%, #c86838 0%, transparent 58%),
