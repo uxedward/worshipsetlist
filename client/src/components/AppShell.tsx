@@ -7,7 +7,6 @@ import { Sidebar } from './Sidebar.tsx'
 import { SetlistHeader } from './SetlistHeader.tsx'
 import { SongTable } from './SongTable.tsx'
 import { SongDetailPanel } from './SongDetailPanel.tsx'
-import { Playbar, MiniPlayer } from './Playbar.tsx'
 import { LibraryView } from './LibraryView.tsx'
 import { MobileNav } from './MobileNav.tsx'
 import { Minus, Play, Plus } from 'lucide-react'
@@ -104,7 +103,6 @@ export function AppShell({
           ) : null}
         </div>
 
-        {isMobile ? <MiniPlayer setlist={setlist ?? setlists[0]} songs={songs} /> : <Playbar setlist={setlist ?? setlists[0]} songs={songs} />}
         {isMobile ? <MobileNav /> : null}
       </div>
 

@@ -75,7 +75,7 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
   return (
     <div className="overflow-x-auto px-4 pb-6">
       <div
-        className="grid px-3 pb-2 text-label"
+        className="grid px-3 pb-3 text-label"
         style={{
           gridTemplateColumns: '24px 40px 1fr 56px 72px 88px 48px 36px',
           color: 'var(--text-muted)',
@@ -91,7 +91,7 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
         <span>Time</span>
         <span />
       </div>
-      <p className="px-3 pb-2 text-caption" style={{ color: 'var(--text-muted)' }}>
+      <p className="px-3 pb-4 text-caption" style={{ color: 'var(--text-muted)' }}>
         Energy: slower to faster
       </p>
       {songs.length === 0 ? (
@@ -189,11 +189,10 @@ function SortableRow({
   return (
     <div
       ref={setNodeRef}
-      className="group relative grid items-center px-3"
+      className="group relative grid items-center px-3 py-4"
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
-        height: 48,
         background: hover || active ? 'var(--surface-1)' : undefined,
         borderBottom: '1px solid var(--border)',
         color: 'var(--text-primary)',
@@ -274,7 +273,7 @@ function SortableRow({
               </span>
             ) : null}
           </div>
-          <div className="truncate text-caption" style={{ color: 'var(--text-secondary)' }}>
+          <div className="truncate text-caption" style={{ color: 'var(--text-secondary)', marginTop: 4 }}>
             {ss.song.artist}
           </div>
         </div>

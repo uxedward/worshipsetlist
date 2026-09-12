@@ -173,7 +173,7 @@ export function SongDetailPanel({
         </div>
       ) : null}
 
-      <div className="scrollbar-thin mt-3 flex-1 overflow-y-auto px-5 pb-6">
+      <div className="scrollbar-hidden mt-3 flex-1 overflow-y-auto px-5 pb-6">
         {isLoading && sections.length === 0 ? (
           <div className="space-y-2">
             <div className="skeleton h-4 w-24" />
