@@ -56,11 +56,11 @@ export function SetlistEditModal({ setlists }: { setlists: Setlist[] }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[75] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
-      <div className="w-full max-w-md rounded-[12px] p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div className="fixed inset-0 z-[75] flex items-center justify-center p-4" style={{ background: 'var(--present-scrim)' }}>
+      <div className="w-full max-w-md rounded-[12px] p-5" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="font-serif text-[20px]">{id === 'new' ? 'New setlist' : 'Edit details'}</h3>
-          <button type="button" onClick={close} style={{ color: 'var(--text-dim)' }}>
+          <h3 className="text-title">{id === 'new' ? 'New setlist' : 'Edit details'}</h3>
+          <button type="button" onClick={close} aria-label="Close" style={{ color: 'var(--text-secondary)' }}>
             <X size={16} />
           </button>
         </div>
@@ -93,7 +93,7 @@ export function SetlistEditModal({ setlists }: { setlists: Setlist[] }) {
               value={description}
               onChange={(e) => setDescription(e.target.value.slice(0, DESCRIPTION_MAX))}
             />
-            <div className="mt-1 text-right text-[11px]" style={{ color: 'var(--text-faint)' }}>
+            <div className="mt-1 text-right text-[11px]" style={{ color: 'var(--text-muted)' }}>
               {description.length}/{DESCRIPTION_MAX}
             </div>
           </Field>
@@ -130,7 +130,7 @@ export function SetlistEditModal({ setlists }: { setlists: Setlist[] }) {
               Cancel
             </Btn>
             <Btn accent disabled={!name.trim()} onClick={() => void save()}>
-              Save
+              {id === 'new' ? 'Create setlist' : 'Save'}
             </Btn>
           </div>
         </div>

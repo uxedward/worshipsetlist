@@ -14,7 +14,7 @@ export function MobileNav() {
     <nav
       className="grid grid-cols-3 md:hidden"
       style={{
-        background: 'var(--surface)',
+        background: 'var(--surface-1)',
         borderTop: '1px solid var(--border)',
         paddingBottom: 'env(safe-area-inset-bottom)',
       }}
@@ -27,8 +27,8 @@ export function MobileNav() {
             key={item.id}
             type="button"
             onClick={() => setTab(item.id)}
-            className={cn('flex flex-col items-center gap-0.5 py-2 text-[11px]')}
-            style={{ color: active ? 'var(--accent)' : 'var(--text-dim)' }}
+            className={cn('flex flex-col items-center gap-0.5 py-2 text-caption')}
+            style={{ color: active ? 'var(--accent)' : 'var(--text-secondary)' }}
           >
             <Icon size={20} />
             {item.label}

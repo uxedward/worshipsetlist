@@ -67,30 +67,30 @@ export function AddSongPicker() {
   return (
     <div
       className="fixed inset-0 z-[72] flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,0.55)' }}
+      style={{ background: 'var(--present-scrim)' }}
       onClick={close}
     >
       <div
         className="flex max-h-[85vh] w-full max-w-lg flex-col rounded-[12px] p-5"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
           <div>
-            <h3 className="font-serif text-[20px]">Add songs</h3>
-            <p className="text-[12px]" style={{ color: 'var(--text-dim)' }}>
+            <h3 className="text-title">Add songs</h3>
+            <p className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
               {setlist?.name ?? 'No setlist selected'}
             </p>
           </div>
-          <button type="button" onClick={close} style={{ color: 'var(--text-dim)' }}>
+          <button type="button" onClick={close} aria-label="Close" style={{ color: 'var(--text-secondary)' }}>
             <X size={16} />
           </button>
         </div>
         <div
           className="flex h-10 items-center gap-2 rounded-[8px] px-3"
-          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
         >
-          <Search size={16} style={{ color: 'var(--text-dim)' }} />
+          <Search size={16} style={{ color: 'var(--text-secondary)' }} />
           <input
             autoFocus
             value={search}
@@ -100,7 +100,7 @@ export function AddSongPicker() {
           />
         </div>
         {error ? (
-          <div className="mt-2 text-[12px]" style={{ color: 'var(--warn)' }}>
+          <div className="mt-2 text-[12px]" style={{ color: 'var(--warning)' }}>
             {error}
           </div>
         ) : null}
@@ -112,8 +112,11 @@ export function AddSongPicker() {
               ))}
             </div>
           ) : songs.length === 0 ? (
-            <div className="py-10 text-center text-[13px]" style={{ color: 'var(--text-dim)' }}>
-              No songs in the library yet.
+            <div className="py-10 text-center">
+              <p className="text-heading">Add your first song</p>
+              <p className="mt-2 text-body" style={{ color: 'var(--text-muted)' }}>
+                Open the library to import a playlist or create a chart.
+              </p>
             </div>
           ) : (
             songs.map((song) => {
@@ -123,7 +126,7 @@ export function AddSongPicker() {
                   <KeyBadge value={song.key} size="sm" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-[14px]">{song.title}</div>
-                    <div className="truncate text-[11px]" style={{ color: 'var(--text-dim)' }}>
+                    <div className="truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>
                       {song.artist}
                     </div>
                   </div>
@@ -131,10 +134,11 @@ export function AddSongPicker() {
                     type="button"
                     disabled={added || addingId === song.id || !setlistId}
                     onClick={() => add(song)}
-                    className="flex h-8 items-center gap-1 rounded-[8px] px-2 text-[12px]"
+                    className="flex h-8 items-center gap-1 rounded-[8px] px-2 text-caption"
                     style={{
-                      background: added ? 'transparent' : 'var(--accent)',
-                      color: added ? 'var(--text-dim)' : '#fff',
+                      background: 'transparent',
+                      color: added ? 'var(--text-secondary)' : 'var(--text-primary)',
+                      border: added ? '0' : '1px solid var(--border-strong)',
                     }}
                   >
                     {added ? (

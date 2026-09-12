@@ -6,6 +6,7 @@ import { useOfflineSync } from './hooks/useOfflineSync.ts'
 import { AppShell } from './components/AppShell.tsx'
 import { SetlistContextMenu } from './components/SetlistContextMenu.tsx'
 import { ConfirmDialog, OfflineBanner } from './components/ui.tsx'
+import { LiveRegion } from './components/LiveRegion.tsx'
 
 const PresentationOverlay = lazy(() =>
   import('./components/PresentationOverlay.tsx').then((mod) => ({ default: mod.PresentationOverlay })),
@@ -88,7 +89,8 @@ function AppInner() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     const meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#1C1612' : '#F7F3EE')
+    const canvas = getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim()
+    if (meta && canvas) meta.setAttribute('content', canvas)
     if (lastPrefWrite.current !== theme && prefs.data && prefs.data.theme !== theme) {
       lastPrefWrite.current = theme
       patchPrefs.mutate({ theme })
@@ -131,8 +133,8 @@ function AppInner() {
 
   if (loading) {
     return (
-      <div className="flex h-full" style={{ background: 'var(--bg)' }}>
-        <div className="hidden h-full w-[260px] p-4 lg:block" style={{ background: 'var(--surface)' }}>
+      <div className="flex h-full" style={{ background: 'var(--canvas)' }}>
+        <div className="hidden h-full w-[280px] p-4 lg:block" style={{ background: 'var(--surface-1)' }}>
           <div className="skeleton mb-6 h-10 w-32" />
           <div className="skeleton mb-2 h-12 w-full" />
           <div className="skeleton mb-2 h-12 w-full" />
@@ -153,17 +155,16 @@ function AppInner() {
       typeof window !== 'undefined' &&
       (window.location.port === '5173' || window.location.hostname === 'localhost')
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-8" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
-        <p className="font-serif text-[22px]">Can’t reach the Setflow API</p>
-        <p className="max-w-md text-center text-[13px]" style={{ color: 'var(--text-dim)' }}>
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-8" style={{ background: 'var(--canvas)', color: 'var(--text-primary)' }}>
+        <p className="text-title">Can’t reach the Setflow API</p>
+        <p className="max-w-md text-center text-body" style={{ color: 'var(--text-secondary)' }}>
           {local
             ? 'Start the app with `npm run dev` so the client (port 5173) and API (port 3001) are both running, then retry.'
             : 'Setflow could not load your library. This is usually a brief connection issue — wait a moment and retry.'}
         </p>
         <button
           type="button"
-          className="rounded-[8px] px-4 py-2 text-[13px]"
-          style={{ background: 'var(--accent)', color: '#fff' }}
+          className="btn-primary"
           onClick={() => {
             void boot.refetch()
           }}
@@ -175,8 +176,9 @@ function AppInner() {
   }
 
   return (
-    <div className="flex h-full flex-col" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+    <div className="flex h-full flex-col" style={{ background: 'var(--canvas)', color: 'var(--text-primary)' }}>
       <OfflineBanner />
+      <LiveRegion />
       <AppShell
         setlists={setlists.data ?? boot.data?.setlists ?? []}
         setlist={setlist}

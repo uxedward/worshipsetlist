@@ -104,10 +104,9 @@ export function LibraryView({
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-5">
-        <h1 className="font-serif text-[28px] font-bold">Song Library</h1>
+        <h1 className="text-title">Song library</h1>
         <div className="flex gap-2">
           <Btn
-            ghost
             onClick={async () => {
               const { endpoints } = await import('../lib/api.ts')
               const { downloadText } = await import('../lib/download.ts')
@@ -117,11 +116,11 @@ export function LibraryView({
           >
             Export
           </Btn>
-          <Btn ghost onClick={() => setBulkImportOpen(true)}>
+          <Btn onClick={() => setBulkImportOpen(true)}>
             Spotify / Import
           </Btn>
           <Btn accent onClick={() => openEditor(null)}>
-            <Plus size={14} /> New Song
+            <Plus size={14} /> New song
           </Btn>
         </div>
       </div>
@@ -129,9 +128,9 @@ export function LibraryView({
       <div className="px-6 pt-4">
         <div
           className="flex h-10 items-center gap-2 rounded-[8px] px-3"
-          style={{ background: 'var(--card)', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
         >
-          <Search size={16} style={{ color: 'var(--text-dim)' }} />
+          <Search size={16} style={{ color: 'var(--text-secondary)' }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -164,7 +163,7 @@ export function LibraryView({
           value={sort}
           onChange={(e) => setSort(e.target.value as typeof sort)}
           className="h-8 rounded-[6px] px-2 text-[12px]"
-          style={{ background: 'var(--card)', color: 'var(--text)', border: '1px solid var(--border)' }}
+          style={{ background: 'var(--surface-2)', color: 'var(--text-primary)', border: '1px solid var(--border)' }}
         >
           <option value="artist">Sort: Artist</option>
           <option value="title">Sort: Title</option>
@@ -173,7 +172,7 @@ export function LibraryView({
       </div>
 
       {addError ? (
-        <div className="px-6 pt-2 text-[12px]" style={{ color: 'var(--warn)' }}>
+        <div className="px-6 pt-2 text-[12px]" style={{ color: 'var(--warning)' }}>
           {addError}
         </div>
       ) : null}
@@ -186,8 +185,11 @@ export function LibraryView({
             ))}
           </div>
         ) : grouped.length === 0 ? (
-          <div className="px-4 py-12 text-center text-[13px]" style={{ color: 'var(--text-dim)' }}>
-            No songs yet. Import a Spotify playlist or click + New Song.
+          <div className="px-4 py-12 text-center">
+            <p className="text-heading">Add your first song</p>
+            <p className="mt-2 text-body" style={{ color: 'var(--text-muted)' }}>
+              Import a public Spotify playlist or create a chart.
+            </p>
           </div>
         ) : useVirtual ? (
           <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
@@ -207,10 +209,10 @@ export function LibraryView({
                 >
                   {row.type === 'header' ? (
                     <div
-                      className="px-2 pt-3 text-[10px] font-semibold tracking-[0.14em]"
-                      style={{ color: 'var(--text-faint)' }}
+                      className="px-2 pt-3 text-label"
+                      style={{ color: 'var(--text-muted)' }}
                     >
-                      {row.artist.toUpperCase()} · {row.count} {row.count === 1 ? 'song' : 'songs'}
+                  {row.artist} · {row.count} {row.count === 1 ? 'song' : 'songs'}
                     </div>
                   ) : (
                     <LibraryRow
@@ -229,10 +231,10 @@ export function LibraryView({
             row.type === 'header' ? (
               <div
                 key={row.id}
-                className="px-2 pt-3 text-[10px] font-semibold tracking-[0.14em]"
-                style={{ color: 'var(--text-faint)' }}
+                className="px-2 pt-3 text-label"
+                style={{ color: 'var(--text-muted)' }}
               >
-                {row.artist.toUpperCase()} · {row.count} {row.count === 1 ? 'song' : 'songs'}
+                {row.artist} · {row.count} {row.count === 1 ? 'song' : 'songs'}
               </div>
             ) : (
               <LibraryRow
@@ -247,7 +249,7 @@ export function LibraryView({
         )}
       </div>
 
-      <div className="px-6 py-3 text-[12px]" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-dim)' }}>
+      <div className="px-6 py-3 text-[12px]" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
         {songs.length} songs · {addedCount} in setlist
       </div>
     </div>
@@ -272,21 +274,21 @@ function LibraryRow({
     >
       <div className="min-w-0 flex-1">
         <div className="truncate text-[14px]">{song.title}</div>
-        <div className="truncate text-[11px]" style={{ color: 'var(--text-dim)' }}>
+        <div className="truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>
           {song.artist}
         </div>
       </div>
       <KeyBadge value={meta.key} size="sm" />
-      <span className="hidden w-10 shrink-0 text-center text-[12px] sm:inline" style={{ color: 'var(--text-dim)' }}>
+      <span className="hidden w-10 shrink-0 text-center text-caption tabular sm:inline" style={{ color: 'var(--text-secondary)' }}>
         {meta.bpm}
       </span>
       <span
         className="hidden max-w-[88px] shrink-0 truncate rounded-[20px] px-2 py-0.5 text-[10px] sm:inline"
-        style={{ background: 'var(--card)', color: 'var(--text-dim)' }}
+        style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
       >
         {meta.tag}
       </span>
-      <button type="button" className="shrink-0" onClick={onEdit} style={{ color: 'var(--text-dim)' }} title="Edit">
+      <button type="button" className="shrink-0" onClick={onEdit} style={{ color: 'var(--text-secondary)' }} title="Edit song" aria-label="Edit song">
         <Pencil size={14} />
       </button>
       <button
@@ -298,8 +300,9 @@ function LibraryRow({
         disabled={added}
         className="flex h-8 shrink-0 items-center gap-1 rounded-[8px] px-2 text-[12px]"
         style={{
-          background: added ? 'transparent' : 'var(--accent)',
-          color: added ? 'var(--text-dim)' : '#fff',
+          background: added ? 'transparent' : 'var(--surface-2)',
+          color: 'var(--text-primary)',
+          border: '1px solid var(--border-strong)',
         }}
       >
         {added ? (

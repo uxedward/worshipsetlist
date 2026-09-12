@@ -44,14 +44,14 @@ describe('present settings', () => {
   })
 
   it('persists and reloads settings including typeface', () => {
-    savePresentSettings({ fontSize: 40, lineWidth: 72, shadow: 20, fontId: 'playfair' })
-    expect(loadPresentSettings()).toEqual({ fontSize: 40, lineWidth: 72, shadow: 20, fontId: 'playfair' })
+    savePresentSettings({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'playfair' })
+    expect(loadPresentSettings()).toEqual({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'playfair' })
   })
 
   it('falls back to Georgia for an unknown stored typeface', () => {
     memory.set(
       'setflow.presentSettings',
-      JSON.stringify({ fontSize: 40, lineWidth: 72, shadow: 20, fontId: 'comic-sans' }),
+      JSON.stringify({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'comic-sans' }),
     )
     expect(loadPresentSettings().fontId).toBe('georgia')
   })
@@ -59,9 +59,9 @@ describe('present settings', () => {
   it('drops a stored overlay value from older settings', () => {
     memory.set(
       'setflow.presentSettings',
-      JSON.stringify({ fontSize: 40, lineWidth: 72, overlay: 80, shadow: 20 }),
+      JSON.stringify({ fontSize: 52, lineWidth: 72, overlay: 80, shadow: 20 }),
     )
-    expect(loadPresentSettings()).toEqual({ fontSize: 40, lineWidth: 72, shadow: 20, fontId: 'georgia' })
+    expect(loadPresentSettings()).toEqual({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'georgia' })
   })
 
   it('returns defaults when storage is empty or corrupt', () => {
@@ -72,7 +72,7 @@ describe('present settings', () => {
 
   it('shrinks font so a long line fits the four-line width', () => {
     expect(fittedFontSize(52, 400, 800)).toBe(52)
-    expect(fittedFontSize(52, 1040, 800)).toBe(40)
+    expect(fittedFontSize(52, 1040, 800)).toBe(48)
     expect(fittedFontSize(52, 8000, 800)).toBe(FONT_MIN)
   })
 

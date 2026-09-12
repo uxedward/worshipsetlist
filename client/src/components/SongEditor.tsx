@@ -163,25 +163,25 @@ export function SongEditor() {
   const warningByLine = new Map(parsed.warnings.map((w) => [w.lineIndex, w.message]))
 
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col" style={{ background: 'var(--bg)' }}>
+    <div className="fixed inset-0 z-[70] flex flex-col" style={{ background: 'var(--canvas)' }}>
       <div
         className="flex items-center justify-between px-5 py-3"
         style={{ borderBottom: '1px solid var(--border)' }}
       >
         <div>
-          <div className="text-[10px] font-semibold tracking-[0.14em]" style={{ color: 'var(--text-faint)' }}>
-            {songId ? 'EDIT SONG' : 'NEW SONG'}
+          <div className="text-label" style={{ color: 'var(--text-muted)' }}>
+            {songId ? 'Edit song' : 'New song'}
           </div>
-          <div className="font-serif text-[20px]">{form.title || 'Untitled'}</div>
+          <div className="text-title">{form.title || 'Untitled'}</div>
         </div>
         <div className="flex items-center gap-2">
           <Btn ghost onClick={close}>
             Cancel
           </Btn>
           <Btn accent disabled={!valid} onClick={() => void save()}>
-            Save
+            Save song
           </Btn>
-          <button type="button" onClick={close} style={{ color: 'var(--text-dim)' }}>
+          <button type="button" onClick={close} aria-label="Close" style={{ color: 'var(--text-secondary)' }}>
             <X size={18} />
           </button>
         </div>
@@ -230,7 +230,7 @@ export function SongEditor() {
               ))}
             </select>
             {detectedKey ? (
-              <p className="mt-1 text-[11px]" style={{ color: 'var(--text-dim)' }}>
+              <p className="mt-1 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
                 Detected {detectedKey} from the chord chart
                 {detectedKey !== form.key ? (
                   <>
@@ -307,7 +307,7 @@ export function SongEditor() {
 
         <div className="flex min-h-0 flex-col p-5">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--text-dim)' }}>
+            <span className="text-label" style={{ color: 'var(--text-muted)' }}>
               Chord chart
             </span>
             <Btn ghost onClick={() => void pasteChart()}>
@@ -328,14 +328,14 @@ export function SongEditor() {
               borderRadius: 12,
             }}
           />
-          <p className="mt-2 text-[11px]" style={{ color: 'var(--text-dim)' }}>
+          <p className="mt-2 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
             Paste the whole song — Verse, Reff, Chorus, and Bridge lines are detected even without [brackets].
             Chord names go on the line above the lyrics they apply to.
           </p>
 
-          <div className="mt-4 min-h-[180px] flex-1 overflow-y-auto rounded-[12px] p-4" style={{ background: 'var(--card)' }}>
-            <div className="mb-2 text-[10px] font-semibold tracking-[0.14em]" style={{ color: 'var(--text-faint)' }}>
-              LIVE PREVIEW
+          <div className="mt-4 min-h-[180px] flex-1 overflow-y-auto rounded-[12px] p-4" style={{ background: 'var(--surface-2)' }}>
+            <div className="mb-2 text-label" style={{ color: 'var(--text-muted)' }}>
+              Live preview
             </div>
             {previewText.trim() ? (
               <>
@@ -361,10 +361,10 @@ export function SongEditor() {
                       if (!msg) return null
                       return (
                         <div key={i} className="text-[12px]" title={msg}>
-                          <span className="font-mono" style={{ borderBottom: '2px solid var(--warn)' }}>
+                          <span className="font-mono" style={{ borderBottom: '2px solid var(--warning)' }}>
                             {line || '(empty)'}
                           </span>
-                          <span className="ml-2" style={{ color: 'var(--warn)' }}>
+                          <span className="ml-2" style={{ color: 'var(--warning)' }}>
                             {msg}
                           </span>
                         </div>
@@ -374,7 +374,7 @@ export function SongEditor() {
                 ) : null}
               </>
             ) : (
-              <p className="text-[13px]" style={{ color: 'var(--text-dim)' }}>
+              <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
                 Start typing a chart to see the preview.
               </p>
             )}

@@ -52,18 +52,24 @@ export function AppShell({
     <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
       <SetlistHeader setlist={setlist} songs={songs} />
       {isMobile ? (
-        <div className="mx-4 mb-3 flex flex-wrap gap-2 text-[11px]" style={{ color: 'var(--text-dim)' }}>
+        <div className="mx-4 mb-3 flex flex-wrap gap-2 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
           <span>{songs.length} songs</span>
           <span>{formatDurationLong(total)}</span>
           <span>{keys.join(', ') || 'No keys'}</span>
-          {warnings > 0 ? <span style={{ color: 'var(--warn)' }}>{warnings} key warnings</span> : null}
+          {warnings > 0 ? <span style={{ color: 'var(--warning)' }}>{warnings} key warnings</span> : null}
         </div>
       ) : null}
       <SongTable setlistId={setlist.id} songs={songs} />
     </div>
   ) : (
-    <div className="flex flex-1 items-center justify-center text-[13px]" style={{ color: 'var(--text-dim)' }}>
-      Create a setlist to get started
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+      <p className="text-heading">Add your first setlist</p>
+      <p className="max-w-sm text-body" style={{ color: 'var(--text-muted)' }}>
+        Name a service, then pull songs from the library.
+      </p>
+      <Btn accent onClick={() => useAppStore.getState().openSetlistModal('new')}>
+        New setlist
+      </Btn>
     </div>
   )
 
@@ -83,7 +89,7 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex min-h-0 flex-1">
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ background: 'var(--bg)' }}>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ background: 'var(--canvas)' }}>
             {isMobile ? (showSetlist ? mainSetlist : showLibrary ? <LibraryView setlistId={setlist?.id ?? null} setlistSongs={songs} /> : <MobileSongView songs={songs} />) : showLibrary ? (
               <LibraryView setlistId={setlist?.id ?? null} setlistSongs={songs} />
             ) : (
@@ -92,7 +98,7 @@ export function AppShell({
           </div>
 
           {isDesktop ? (
-            <div className="h-full w-[340px] shrink-0" style={{ background: 'var(--surface)', borderLeft: '1px solid var(--border)' }}>
+            <div className="h-full w-[340px] shrink-0" style={{ background: 'var(--surface-1)', borderLeft: '1px solid var(--border)' }}>
               <SongDetailPanel setlistSong={activeSs} />
             </div>
           ) : null}
@@ -106,7 +112,7 @@ export function AppShell({
         <div className="fixed inset-0 z-40" onClick={() => setDrawerOpen(false)}>
           <div
             className="absolute inset-x-0 bottom-0 flex h-[60%] flex-col rounded-t-[16px]"
-            style={{ background: 'var(--surface)', borderTop: '1px solid var(--border)' }}
+            style={{ background: 'var(--surface-1)', borderTop: '1px solid var(--border)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex justify-center py-2">
@@ -143,7 +149,7 @@ function MobileSongView({ songs }: { songs: SetlistSong[] }) {
 
   if (!current || !song) {
     return (
-      <div className="flex flex-1 items-center justify-center p-6 text-[13px]" style={{ color: 'var(--text-dim)' }}>
+      <div className="flex flex-1 items-center justify-center p-6 text-body" style={{ color: 'var(--text-muted)' }}>
         Select a song from the setlist
       </div>
     )
@@ -157,17 +163,17 @@ function MobileSongView({ songs }: { songs: SetlistSong[] }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-start justify-between px-4 pt-4">
         <div>
-          <h1 className="font-serif text-[24px] font-bold">{song.title}</h1>
-          <div className="text-[12px]" style={{ color: 'var(--text-dim)' }}>
+          <h1 className="text-title">{song.title}</h1>
+          <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
             {song.artist}
           </div>
         </div>
-        <Btn accent onClick={openPresentation}>
-          <Play size={14} fill="currentColor" />
+        <Btn accent onClick={openPresentation} className="shrink-0">
+          <Play size={14} fill="currentColor" /> Start presenting
         </Btn>
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5 px-4">
-        <Pill accent>Key of {key}</Pill>
+        <Pill>Key of {key}</Pill>
         <Pill>{song.bpm} BPM</Pill>
         <Pill>{song.timeSignature}</Pill>
         <Pill>{song.tag}</Pill>
@@ -176,8 +182,9 @@ function MobileSongView({ songs }: { songs: SetlistSong[] }) {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            aria-label="Transpose down"
             className="flex h-8 w-8 items-center justify-center rounded-[8px]"
-            style={{ background: 'var(--card)' }}
+            style={{ background: 'var(--surface-2)' }}
             disabled={offset <= TRANSPOSE_MIN}
             onClick={() => {
               const next = transposeKey(key, -1)
@@ -189,8 +196,9 @@ function MobileSongView({ songs }: { songs: SetlistSong[] }) {
           <KeyBadge value={key} />
           <button
             type="button"
+            aria-label="Transpose up"
             className="flex h-8 w-8 items-center justify-center rounded-[8px]"
-            style={{ background: 'var(--card)' }}
+            style={{ background: 'var(--surface-2)' }}
             disabled={offset >= TRANSPOSE_MAX}
             onClick={() => {
               const next = transposeKey(key, 1)
@@ -200,11 +208,11 @@ function MobileSongView({ songs }: { songs: SetlistSong[] }) {
             <Plus size={14} />
           </button>
         </div>
-        <div className="inline-flex rounded-[20px] p-0.5" style={{ background: 'var(--card)' }}>
+        <div className="inline-flex rounded-[20px] p-0.5" style={{ background: 'var(--surface-2)' }}>
           <button
             type="button"
             className="rounded-[20px] px-3 py-1 text-[12px]"
-            style={{ background: !lyricsOnly ? 'var(--accent)' : 'transparent', color: !lyricsOnly ? '#fff' : 'var(--text-dim)' }}
+            style={{ background: !lyricsOnly ? 'var(--accent-bg)' : 'transparent', color: !lyricsOnly ? 'var(--accent-text)' : 'var(--text-secondary)' }}
             onClick={() => setLyricsOnly(false)}
           >
             Chords
@@ -212,7 +220,7 @@ function MobileSongView({ songs }: { songs: SetlistSong[] }) {
           <button
             type="button"
             className="rounded-[20px] px-3 py-1 text-[12px]"
-            style={{ background: lyricsOnly ? 'var(--accent)' : 'transparent', color: lyricsOnly ? '#fff' : 'var(--text-dim)' }}
+            style={{ background: lyricsOnly ? 'var(--accent-bg)' : 'transparent', color: lyricsOnly ? 'var(--accent-text)' : 'var(--text-secondary)' }}
             onClick={() => setLyricsOnly(true)}
           >
             Lyrics
@@ -227,8 +235,8 @@ function MobileSongView({ songs }: { songs: SetlistSong[] }) {
             onClick={() => setSection(i)}
             className="shrink-0 rounded-[20px] px-3 py-1 text-[12px]"
             style={{
-              background: sectionIndex === i ? 'var(--accent)' : 'var(--card)',
-              color: sectionIndex === i ? '#fff' : 'var(--text)',
+              background: sectionIndex === i ? 'var(--accent-bg)' : 'var(--surface-2)',
+              color: sectionIndex === i ? 'var(--accent-text)' : 'var(--text-primary)',
             }}
           >
             {s.label}
@@ -257,7 +265,7 @@ function MobileSongView({ songs }: { songs: SetlistSong[] }) {
         >
           ← Prev
         </Btn>
-        <span className="text-[12px]" style={{ color: 'var(--text-dim)' }}>
+        <span className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
           Section {sections.length ? sectionIndex + 1 : 0} of {sections.length}
         </span>
         <Btn

@@ -42,7 +42,7 @@ export function SongDetailPanel({
 
   if (!song) {
     return (
-      <div className="flex h-full items-center justify-center p-6 text-center text-[13px]" style={{ color: 'var(--text-dim)' }}>
+      <div className="flex h-full items-center justify-center p-6 text-center text-body" style={{ color: 'var(--text-muted)' }}>
         Select a song to see the chart
       </div>
     )
@@ -73,22 +73,22 @@ export function SongDetailPanel({
       <div className="flex items-start justify-between gap-3 px-5 pt-5">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <h2 className="truncate font-serif text-[20px] font-semibold">{song.title}</h2>
-            <button type="button" onClick={() => openEditor(song.id)} style={{ color: 'var(--text-dim)' }}>
+            <h2 className="truncate text-title">{song.title}</h2>
+            <button type="button" onClick={() => openEditor(song.id)} aria-label="Edit song" style={{ color: 'var(--text-secondary)' }}>
               <Pencil size={14} />
             </button>
           </div>
-          <div className="text-[12px]" style={{ color: 'var(--text-dim)' }}>
+          <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
             {song.artist}
           </div>
         </div>
-        <Btn accent onClick={openPresentation} className="shrink-0">
-          <Play size={13} fill="currentColor" /> Present
+        <Btn ghost onClick={openPresentation} className="shrink-0">
+          <Play size={13} fill="currentColor" /> Start presenting
         </Btn>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-1.5 px-5">
-        <Pill accent>Key of {key}</Pill>
+        <Pill>Key of {key}</Pill>
         <Pill>{song.bpm} BPM</Pill>
         <Pill>{song.timeSignature}</Pill>
         <Pill>{song.tag}</Pill>
@@ -96,33 +96,35 @@ export function SongDetailPanel({
 
       {setlistSong ? (
         <div className="mt-4 px-5">
-          <div className="text-[10px] font-semibold tracking-[0.14em]" style={{ color: 'var(--text-faint)' }}>
-            TRANSPOSE
+          <div className="text-label" style={{ color: 'var(--text-muted)' }}>
+            Transpose
           </div>
           <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
+              aria-label="Transpose down"
               className="flex h-8 w-8 items-center justify-center rounded-[8px]"
-              style={{ background: 'var(--card)' }}
+              style={{ background: 'var(--surface-2)' }}
               disabled={offset <= TRANSPOSE_MIN}
               onClick={() => shift(-1)}
             >
               <Minus size={14} />
             </button>
-            <div className="min-w-[36px] text-center">
+            <div className="min-w-[36px] text-center font-mono tabular" style={{ fontFamily: 'var(--font-mono)' }}>
               <KeyBadge value={key} />
             </div>
             <button
               type="button"
+              aria-label="Transpose up"
               className="flex h-8 w-8 items-center justify-center rounded-[8px]"
-              style={{ background: 'var(--card)' }}
+              style={{ background: 'var(--surface-2)' }}
               disabled={offset >= TRANSPOSE_MAX}
               onClick={() => shift(1)}
             >
               <Plus size={14} />
             </button>
             {setlistSong.transposedKey && setlistSong.transposedKey !== song.key ? (
-              <span className="text-[11px]" style={{ color: 'var(--text-dim)' }}>
+              <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
                 orig: {song.key}
               </span>
             ) : null}
@@ -131,7 +133,7 @@ export function SongDetailPanel({
       ) : null}
 
       <div className="mt-4 flex px-5">
-        <div className="inline-flex rounded-[20px] p-0.5" style={{ background: 'var(--card)' }}>
+        <div className="inline-flex rounded-[20px] p-0.5" style={{ background: 'var(--surface-2)' }}>
           {(['Chords', 'Lyrics only'] as const).map((label) => {
             const on = label === 'Lyrics only' ? lyricsOnly : !lyricsOnly
             return (
@@ -140,10 +142,10 @@ export function SongDetailPanel({
                 type="button"
                 onClick={() => setLyricsOnly(label === 'Lyrics only')}
                 className={cn('rounded-[20px] px-3 py-1 text-[12px]')}
-                style={{
-                  background: on ? 'var(--accent)' : 'transparent',
-                  color: on ? '#fff' : 'var(--text-dim)',
-                }}
+            style={{
+              background: on ? 'var(--accent-bg)' : 'transparent',
+              color: on ? 'var(--accent-text)' : 'var(--text-secondary)',
+            }}
               >
                 {label}
               </button>
@@ -161,8 +163,8 @@ export function SongDetailPanel({
               onClick={() => setSection(i)}
               className="shrink-0 rounded-[20px] px-3 py-1 text-[12px]"
               style={{
-                background: sectionIndex === i ? 'var(--accent)' : 'var(--card)',
-                color: sectionIndex === i ? '#fff' : 'var(--text)',
+                background: sectionIndex === i ? 'var(--accent-bg)' : 'var(--surface-2)',
+                color: sectionIndex === i ? 'var(--accent-text)' : 'var(--text-primary)',
               }}
             >
               {s.label}
@@ -179,11 +181,11 @@ export function SongDetailPanel({
             <div className="skeleton h-16 w-full" />
           </div>
         ) : isError && sections.length === 0 ? (
-          <p className="text-[13px]" style={{ color: 'var(--warn)' }}>
+          <p className="text-[13px]" style={{ color: 'var(--warning)' }}>
             Could not load this chart. Check that the API is running, then refresh.
           </p>
         ) : sections.length === 0 ? (
-          <p className="text-[13px]" style={{ color: 'var(--text-dim)' }}>
+          <p className="text-[13px]" style={{ color: 'var(--text-secondary)' }}>
             No chart yet. Click the pencil to add one.
           </p>
         ) : (

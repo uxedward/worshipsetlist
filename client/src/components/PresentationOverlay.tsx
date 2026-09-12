@@ -47,6 +47,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [reduceMotion, setReduceMotion] = useState(false)
+  const [chromeVisible, setChromeVisible] = useState(true)
   const [fittedSize, setFittedSize] = useState(presentSettings.fontSize)
   const touchX = useRef<number | null>(null)
   const lyricsBoxRef = useRef<HTMLDivElement>(null)
@@ -66,8 +67,8 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const currentSlide = slides[slide] ?? slides[0]
   const lyrics = (currentSlide?.lines ?? []).slice(0, LYRICS_PER_SLIDE)
   const key = current ? soundingKey(current.song.key, current.transposedKey) : ''
-  const minSize = isMobile ? 18 : FONT_MIN
-  const preferredSize = isMobile ? Math.round(presentSettings.fontSize * 0.52) : presentSettings.fontSize
+  const minSize = FONT_MIN
+  const preferredSize = presentSettings.fontSize
 
   const lastCoarse = useRef(coarseFontSize(presentSettings.fontSize))
 
@@ -100,7 +101,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
     window.setTimeout(() => {
       setSlide(next)
       setAnim('in')
-    }, 250)
+    }, 150)
   }
 
   const nudgeFont = (dir: number) => {
@@ -154,6 +155,23 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   }, [])
 
   useEffect(() => {
+    if (!open) return
+    let hideTimer = 0
+    const show = () => {
+      setChromeVisible(true)
+      window.clearTimeout(hideTimer)
+      if (pickerOpen || settingsOpen) return
+      hideTimer = window.setTimeout(() => setChromeVisible(false), 2000)
+    }
+    show()
+    window.addEventListener('mousemove', show)
+    return () => {
+      window.clearTimeout(hideTimer)
+      window.removeEventListener('mousemove', show)
+    }
+  }, [open, pickerOpen, settingsOpen])
+
+  useEffect(() => {
     if (!open) {
       setPickerOpen(false)
       setSettingsOpen(false)
@@ -204,7 +222,9 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex flex-col text-white"
+      data-theme="dark"
+      className="fixed inset-0 z-[90] flex flex-col"
+      style={{ color: 'var(--text-primary)' }}
       onTouchStart={(e) => {
         touchX.current = e.changedTouches[0]?.clientX ?? null
       }}
@@ -218,8 +238,14 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
       }}
     >
       <PresentBackdrop background={background} reduceMotion={reduceMotion} />
-      <div className="relative z-10 flex h-11 items-center justify-between px-4">
-        <div className="w-[28%] truncate text-[13px]" style={{ color: 'rgba(255,255,255,0.6)' }}>
+      <div
+        className="relative z-10 flex h-11 items-center justify-between px-4 transition-opacity duration-150"
+        style={{
+          opacity: chromeVisible || pickerOpen || settingsOpen ? 1 : 0,
+          pointerEvents: chromeVisible || pickerOpen || settingsOpen ? 'auto' : 'none',
+        }}
+      >
+        <div className="w-[28%] truncate text-label" style={{ color: 'var(--text-secondary)' }}>
           {song.title} · {index + 1} of {songs.length} · {key}
         </div>
         <div className="flex max-w-[44%] gap-1.5 overflow-x-auto">
@@ -235,14 +261,14 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
                   setAnim('in')
                 }, 180)
               }}
-              className="shrink-0 rounded-[20px] px-3 py-1 text-[12px]"
+              className="shrink-0 rounded-[8px] px-3 py-1 text-caption"
               style={
                 currentSlide?.sectionIndex === i
-                  ? { background: 'var(--accent)', color: '#fff' }
+                  ? { background: 'var(--surface-2)', color: 'var(--text-primary)' }
                   : {
-                      background: 'rgba(0,0,0,0.25)',
-                      border: '0.5px solid rgba(255,255,255,0.2)',
-                      color: 'rgba(255,255,255,0.7)',
+                      background: 'var(--present-scrim)',
+                      border: '1px solid var(--border-strong)',
+                      color: 'var(--text-secondary)',
                     }
               }
             >
@@ -254,24 +280,26 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
           <button
             type="button"
             title="Backgrounds"
+            aria-label="Backgrounds"
             onClick={() => {
               setPickerOpen((v) => !v)
               setSettingsOpen(false)
             }}
             className="flex h-7 w-7 items-center justify-center rounded-[8px]"
-            style={{ background: pickerOpen ? 'var(--accent)' : 'rgba(0,0,0,0.25)' }}
+            style={{ background: pickerOpen ? 'var(--surface-2)' : 'var(--present-scrim)' }}
           >
             <ImageIcon size={14} />
           </button>
           <button
             type="button"
             title="Text settings"
+            aria-label="Text settings"
             onClick={() => {
               setSettingsOpen((v) => !v)
               setPickerOpen(false)
             }}
             className="flex h-7 w-7 items-center justify-center rounded-[8px]"
-            style={{ background: settingsOpen ? 'var(--accent)' : 'rgba(0,0,0,0.25)' }}
+            style={{ background: settingsOpen ? 'var(--surface-2)' : 'var(--present-scrim)' }}
           >
             <Settings size={14} />
           </button>
@@ -284,9 +312,10 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
               key={b.title}
               type="button"
               title={b.title}
+              aria-label={b.title}
               onClick={b.onClick}
               className="flex h-7 w-7 items-center justify-center rounded-[8px]"
-              style={{ background: 'rgba(0,0,0,0.25)' }}
+              style={{ background: 'var(--present-scrim)' }}
             >
               {b.icon}
             </button>
@@ -304,8 +333,8 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
           style={{ width: `${presentSettings.lineWidth}%`, maxWidth: '96%' }}
         >
           <div
-            className="relative mb-6 text-[11px] uppercase"
-            style={{ letterSpacing: '0.15em', color: 'rgba(255,255,255,0.35)' }}
+            className="relative mb-6 text-caption"
+            style={{ color: 'var(--text-muted)' }}
           >
             {currentSlide?.sectionLabel ?? ''}
           </div>
@@ -314,8 +343,10 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
             className="relative w-full text-center font-normal"
             style={{
               fontFamily: presentFontFamily(presentSettings.fontId),
-              fontSize: fittedSize,
+              fontSize: Math.max(fittedSize, FONT_MIN),
               lineHeight: 1.45,
+              color: 'var(--text-primary)',
+              fontWeight: 400,
               textShadow: lyricTextShadow(presentSettings.shadow),
             }}
           >
@@ -330,7 +361,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
                 </div>
               ))
             ) : (
-              <div style={{ color: 'rgba(255,255,255,0.4)' }}>Instrumental</div>
+              <div style={{ color: 'var(--text-muted)' }}>Instrumental</div>
             )}
           </div>
         </div>
@@ -355,15 +386,22 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
         />
       ) : null}
 
-      <div className="relative z-10 flex h-14 items-center justify-between px-4">
+      <div
+        className="relative z-10 flex h-14 items-center justify-between px-4 transition-opacity duration-150"
+        style={{
+          opacity: chromeVisible || pickerOpen || settingsOpen ? 1 : 0,
+          pointerEvents: chromeVisible || pickerOpen || settingsOpen ? 'auto' : 'none',
+        }}
+      >
         <button
           type="button"
+          aria-label="Previous slide"
           onClick={(e) => {
             e.stopPropagation()
             goSlide(slide - 1)
           }}
-          className={cn('rounded-[24px] px-4 py-2 text-[13px]', isMobile && 'min-h-11')}
-          style={{ background: 'rgba(0,0,0,0.4)' }}
+          className={cn('rounded-[24px] px-4 py-2 text-label', isMobile && 'min-h-11')}
+          style={{ background: 'var(--present-scrim)' }}
         >
           <ChevronLeft size={14} className="inline" /> Prev
         </button>
@@ -376,22 +414,23 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
                 width: i === slide ? 8 : 6,
                 background:
                   i === slide
-                    ? 'var(--accent)'
+                    ? 'var(--text-primary)'
                     : i < slide
-                      ? 'rgba(255,255,255,0.4)'
-                      : 'rgba(255,255,255,0.2)',
+                      ? 'var(--text-muted)'
+                      : 'var(--text-disabled)',
               }}
             />
           ))}
         </div>
         <button
           type="button"
+          aria-label="Next slide"
           onClick={(e) => {
             e.stopPropagation()
             goSlide(slide + 1)
           }}
-          className={cn('rounded-[24px] px-4 py-2 text-[13px]', isMobile && 'min-h-11')}
-          style={{ background: 'var(--accent)' }}
+          className={cn('rounded-[24px] px-4 py-2 text-label', isMobile && 'min-h-11')}
+          style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}
         >
           Next <ChevronRight size={14} className="inline" />
         </button>
@@ -400,8 +439,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   )
 }
 
-const DUSK_GRADIENT =
-  'radial-gradient(ellipse at center, #8B3A0F 0%, #5C2008 35%, #2A0D04 65%, #0D0503 100%)'
+const DUSK_GRADIENT = 'var(--present-dusk)'
 
 function PresentBackdrop({
   background,
@@ -436,6 +474,9 @@ function PresentBackdrop({
       {background.kind === 'video' && reduceMotion && background.poster ? (
         <img src={background.poster} alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : null}
+      {background.kind !== 'gradient' ? (
+        <div className="absolute inset-0" style={{ background: 'var(--present-scrim)' }} />
+      ) : null}
     </div>
   )
 }
@@ -462,11 +503,13 @@ function PresentSettingsPanel({
   return (
     <div
       className="relative z-20 mx-4 mb-3 rounded-[12px] px-4 py-3"
-      style={{ background: 'rgba(12,8,6,0.78)', border: '1px solid rgba(255,255,255,0.12)' }}
+      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
       onClick={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
     >
-      <div className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-white/50">TEXT</div>
+      <div className="mb-2 text-label" style={{ color: 'var(--text-muted)' }}>
+        Text
+      </div>
       <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
         {PRESENT_FONTS.map((font) => {
           const selected = font.id === fontId
@@ -475,22 +518,24 @@ function PresentSettingsPanel({
               key={font.id}
               type="button"
               onClick={() => onFontId(font.id)}
-              className="shrink-0 rounded-[10px] px-2 py-1.5 text-left"
+              className="shrink-0 rounded-[8px] px-2 py-1.5 text-left"
               style={{
                 width: 88,
-                border: selected ? '2px solid var(--accent)' : '2px solid rgba(255,255,255,0.12)',
-                background: selected ? 'rgba(196,98,45,0.18)' : 'rgba(255,255,255,0.04)',
+                border: selected ? '2px solid var(--border-strong)' : '2px solid var(--border)',
+                background: selected ? 'var(--surface-3)' : 'var(--canvas)',
               }}
               aria-pressed={selected}
               aria-label={font.label}
             >
               <span
-                className="block text-center text-[22px] leading-none text-white"
-                style={{ fontFamily: font.family }}
+                className="block text-center text-title"
+                style={{ fontFamily: font.family, color: 'var(--text-primary)' }}
               >
                 Aa
               </span>
-              <span className="mt-1 block truncate text-center text-[11px] text-white/75">{font.label}</span>
+              <span className="mt-1 block truncate text-center text-caption" style={{ color: 'var(--text-secondary)' }}>
+                {font.label}
+              </span>
             </button>
           )
         })}
@@ -532,7 +577,9 @@ function PresentSlider({
 }) {
   return (
     <label className="flex items-center gap-3 py-1.5">
-      <span className="w-[7.2rem] shrink-0 text-[12px] text-white/75">{label}</span>
+      <span className="w-[7.2rem] shrink-0 text-caption" style={{ color: 'var(--text-secondary)' }}>
+        {label}
+      </span>
       <input
         type="range"
         min={min}
@@ -542,7 +589,7 @@ function PresentSlider({
         className="present-slider min-h-8 flex-1"
         onChange={(e) => onChange(Number(e.target.value))}
       />
-      <span className="w-11 text-right text-[11px] tabular-nums text-white/55">
+      <span className="w-11 text-right text-caption tabular" style={{ color: 'var(--text-muted)' }}>
         {value}
         {suffix}
       </span>
@@ -562,7 +609,7 @@ function BackgroundPicker({
   return (
     <div
       className="relative z-20 mx-4 mb-3 rounded-[12px] px-4 py-3"
-      style={{ background: 'rgba(12,8,6,0.78)', border: '1px solid rgba(255,255,255,0.12)' }}
+      style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
       onClick={(e) => e.stopPropagation()}
     >
       <BackgroundRow title="Stills" items={stills} selectedId={selectedId} onSelect={onSelect} />
@@ -584,7 +631,9 @@ function BackgroundRow({
 }) {
   return (
     <div className={title === 'Live HD' ? 'mt-3' : undefined}>
-      <div className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-white/50">{title}</div>
+      <div className="mb-2 text-label" style={{ color: 'var(--text-muted)' }}>
+        {title}
+      </div>
       <div className="flex gap-2 overflow-x-auto pb-1">
         {items.map((bg) => {
           const selected = bg.id === selectedId
@@ -596,7 +645,7 @@ function BackgroundRow({
               className="shrink-0 overflow-hidden rounded-[10px] text-left"
               style={{
                 width: 104,
-                border: selected ? '2px solid var(--accent)' : '2px solid transparent',
+                border: selected ? '2px solid var(--text-primary)' : '2px solid var(--border)',
               }}
             >
               <span
@@ -608,7 +657,9 @@ function BackgroundRow({
                       : `url(${bg.poster ?? bg.src}) center/cover`,
                 }}
               />
-              <span className="block truncate px-1.5 py-1 text-[11px] text-white/80">{bg.label}</span>
+              <span className="block truncate px-1.5 py-1 text-caption" style={{ color: 'var(--text-secondary)' }}>
+                {bg.label}
+              </span>
             </button>
           )
         })}

@@ -18,9 +18,10 @@ import type { Setlist } from '@shared/types.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations } from '../hooks/useQueries.ts'
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback.ts'
-import { EqualizerBars, KeyBadge } from './ui.tsx'
+import { EqualizerBars, EnergyArc, KeyBadge, Btn } from './ui.tsx'
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
+import { announce } from '../lib/announce.ts'
 
 function sounding(ss: SetlistSong) {
   return soundingKey(ss.song.key, ss.transposedKey)
@@ -59,25 +60,51 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
     reorder.mutate({ setlistId, orderedIds: next.map((s) => s.id) })
   }
 
+  const moveSong = (id: string, dir: -1 | 1) => {
+    const oldIndex = songs.findIndex((s) => s.id === id)
+    const newIndex = oldIndex + dir
+    if (oldIndex < 0 || newIndex < 0 || newIndex >= songs.length) return
+    const next = arrayMove(songs, oldIndex, newIndex).map((row, order) => ({ ...row, order }))
+    qc.setQueryData<Setlist>(['setlist', setlistId], (prev) =>
+      prev ? { ...prev, songs: next } : prev,
+    )
+    reorder.mutate({ setlistId, orderedIds: next.map((s) => s.id) })
+    announce(`Moved ${songs[oldIndex].song.title} to position ${newIndex + 1} of ${next.length}`)
+  }
+
   return (
     <div className="overflow-x-auto px-4 pb-6">
       <div
-        className="grid px-3 pb-2 text-[10px] font-semibold tracking-[0.12em]"
+        className="grid px-3 pb-2 text-label"
         style={{
-          gridTemplateColumns: '24px 40px 1fr 56px 48px 88px 48px 36px',
-          color: 'var(--text-faint)',
+          gridTemplateColumns: '24px 40px 1fr 56px 72px 88px 48px 36px',
+          color: 'var(--text-muted)',
           minWidth: 560,
         }}
       >
         <span />
         <span>#</span>
-        <span>TITLE</span>
-        <span>KEY</span>
+        <span>Title</span>
+        <span>Key</span>
         <span>BPM</span>
-        <span>TAG</span>
-        <span>⏱</span>
+        <span>Tag</span>
+        <span>Time</span>
         <span />
       </div>
+      <p className="px-3 pb-2 text-caption" style={{ color: 'var(--text-muted)' }}>
+        Energy: slower to faster
+      </p>
+      {songs.length === 0 ? (
+        <div className="px-3 py-12 text-center">
+          <p className="text-heading">Add your first song</p>
+          <p className="mt-2 text-body" style={{ color: 'var(--text-muted)' }}>
+            Pull from the library to build this set.
+          </p>
+          <div className="mt-4 flex justify-center">
+            <Btn onClick={() => setAddPickerOpen(true)}>Add song</Btn>
+          </div>
+        </div>
+      ) : (
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={songs.map((s) => s.id)} strategy={verticalListSortingStrategy}>
           {songs.map((ss, i) => {
@@ -94,6 +121,7 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
                 warn={Boolean(warn)}
                 onSelect={() => setActive(ss.id)}
                 onRemove={() => removeSong.mutate({ setlistId, ssId: ss.id })}
+                onMove={(dir) => moveSong(ss.id, dir)}
                 onTranspose={(delta) => {
                   const current = sounding(ss)
                   const next = transposeKey(current, delta)
@@ -115,14 +143,17 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
           })}
         </SortableContext>
       </DndContext>
+      )}
+      {songs.length > 0 ? (
       <button
         type="button"
         onClick={() => setAddPickerOpen(true)}
-        className="mt-1 w-full rounded-[8px] px-3 py-3 text-left text-[13px]"
-        style={{ color: 'var(--text-dim)' }}
+        className="mt-1 w-full rounded-[8px] px-3 py-3 text-left text-label"
+        style={{ color: 'var(--text-secondary)' }}
       >
-        + Add a song from the library
+        Add song from the library
       </button>
+      ) : null}
     </div>
   )
 }
@@ -135,6 +166,7 @@ function SortableRow({
   warn,
   onSelect,
   onRemove,
+  onMove,
   onTranspose,
 }: {
   ss: SetlistSong
@@ -144,6 +176,7 @@ function SortableRow({
   warn: boolean
   onSelect: () => void
   onRemove: () => void
+  onMove: (dir: -1 | 1) => void
   onTranspose: (delta: number) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -156,14 +189,14 @@ function SortableRow({
   return (
     <div
       ref={setNodeRef}
-      className="group relative grid items-center rounded-[8px] px-3"
+      className="group relative grid items-center px-3"
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         height: 48,
-        background: active ? 'var(--card)' : undefined,
-        boxShadow: active ? 'inset 3px 0 0 var(--accent)' : undefined,
-        color: active ? 'var(--accent)' : 'var(--text)',
+        background: hover || active ? 'var(--surface-1)' : undefined,
+        borderBottom: '1px solid var(--border)',
+        color: 'var(--text-primary)',
         opacity: isDragging ? 0.7 : 1,
         minWidth: 560,
       }}
@@ -173,16 +206,28 @@ function SortableRow({
     >
       <div
         className="grid items-center"
-        style={{ gridTemplateColumns: '24px 40px 1fr 56px 48px 88px 48px 36px' }}
+        style={{ gridTemplateColumns: '24px 40px 1fr 56px 72px 88px 48px 36px' }}
       >
         <button
           type="button"
           title="Drag to reorder"
+          aria-label={`Reorder ${ss.song.title}. Hold Alt and press up or down to move.`}
           className="flex h-8 w-5 shrink-0 touch-none items-center justify-center"
-          style={{ color: 'var(--text-faint)', cursor: 'grab' }}
+          style={{ color: 'var(--text-muted)', cursor: 'grab' }}
           {...attributes}
           {...listeners}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (!e.altKey) return
+            if (e.key === 'ArrowUp') {
+              e.preventDefault()
+              onMove(-1)
+            }
+            if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              onMove(1)
+            }
+          }}
         >
           <GripVertical size={14} />
         </button>
@@ -194,14 +239,18 @@ function SortableRow({
             >
               <button
                 type="button"
+                aria-label="Transpose down"
                 disabled={offset <= TRANSPOSE_MIN}
                 onClick={() => onTranspose(-1)}
               >
                 <Minus size={10} />
               </button>
-              <span className="min-w-[18px] text-center font-medium">{key}</span>
+              <span className="min-w-[18px] text-center font-mono tabular" style={{ fontFamily: 'var(--font-mono)', fontWeight: 500 }}>
+                {key}
+              </span>
               <button
                 type="button"
+                aria-label="Transpose up"
                 disabled={offset >= TRANSPOSE_MAX}
                 onClick={() => onTranspose(1)}
               >
@@ -211,41 +260,47 @@ function SortableRow({
           ) : playing ? (
             <EqualizerBars />
           ) : (
-            <span className="text-[12px]" style={{ color: 'var(--text-dim)' }}>
+            <span className="text-caption tabular" style={{ color: 'var(--text-secondary)' }}>
               {index + 1}
             </span>
           )}
         </div>
         <div className="min-w-0 pr-2">
-          <div className="flex items-center gap-1.5 truncate text-[14px]">
+          <div className="flex items-center gap-1.5 truncate text-body">
             {ss.song.title}
             {warn ? (
               <span title="Key jump greater than 3 semitones">
-                <AlertTriangle size={13} style={{ color: 'var(--warn)' }} />
+                <AlertTriangle size={13} style={{ color: 'var(--warning)' }} />
               </span>
             ) : null}
           </div>
-          <div className="truncate text-[11px]" style={{ color: 'var(--text-dim)' }}>
+          <div className="truncate text-caption" style={{ color: 'var(--text-secondary)' }}>
             {ss.song.artist}
           </div>
         </div>
         <KeyBadge value={key} size="sm" />
-        <span className="text-[12px]" style={{ color: 'var(--text-dim)' }}>
+        <span className="inline-flex items-center gap-1 text-caption tabular" style={{ color: 'var(--text-secondary)' }}>
+          <EnergyArc bpm={ss.song.bpm} />
           {ss.song.bpm}
         </span>
         <span
-          className="w-fit rounded-[20px] px-2 py-0.5 text-[10px]"
-          style={{ background: 'var(--card)', color: 'var(--text-dim)' }}
+          className="w-fit px-2 py-0.5 text-caption"
+          style={{
+            background: 'var(--surface-2)',
+            color: 'var(--text-secondary)',
+            borderRadius: 'var(--radius-sm)',
+          }}
         >
           {ss.song.tag}
         </span>
-        <span className="text-[12px]" style={{ color: 'var(--text-dim)' }}>
+        <span className="text-caption tabular" style={{ color: 'var(--text-secondary)' }}>
           {formatDuration(ss.song.durationSeconds)}
         </span>
         <button
           type="button"
+          aria-label={`Remove ${ss.song.title}`}
           className="justify-self-end opacity-0 group-hover:opacity-100"
-          style={{ color: 'var(--text-dim)' }}
+          style={{ color: 'var(--text-secondary)' }}
           onClick={(e) => {
             e.stopPropagation()
             onRemove()

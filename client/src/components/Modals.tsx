@@ -56,14 +56,14 @@ export function BulkImportModal() {
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[75] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
+    <div className="fixed inset-0 z-[75] flex items-center justify-center p-4" style={{ background: 'var(--present-scrim)' }}>
       <div
         className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-[12px] p-5"
-        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+        style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="font-serif text-[20px]">{success ? 'Import complete' : 'Import songs'}</h3>
-          <button type="button" onClick={close} style={{ color: 'var(--text-dim)' }}>
+          <h3 className="text-title">{success ? 'Import complete' : 'Import songs'}</h3>
+          <button type="button" onClick={close} aria-label="Close" style={{ color: 'var(--text-secondary)' }}>
             <X size={16} />
           </button>
         </div>
@@ -83,7 +83,7 @@ export function BulkImportModal() {
 
             {tab === 'spotify' ? (
               <>
-                <p className="mb-2 text-[12px]" style={{ color: 'var(--text-dim)' }}>
+                <p className="mb-2 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
                   Paste a Spotify playlist, album, or song link. Spotify does not include lyrics, so each
                   song is added with an “Add lyrics” placeholder — open Edit to paste your chart. Playlists
                   import the first 50 tracks.
@@ -96,10 +96,10 @@ export function BulkImportModal() {
                   }}
                   placeholder="https://open.spotify.com/playlist/…"
                   className="h-10 rounded-[12px] px-3 text-[13px] outline-none"
-                  style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 />
                 {spotifyLooksComplete && !spotifyLink ? (
-                  <div className="mt-2 text-[12px]" style={{ color: 'var(--warn)' }}>
+                  <div className="mt-2 text-[12px]" style={{ color: 'var(--warning)' }}>
                     That does not look like a Spotify playlist, album, or song link.
                   </div>
                 ) : null}
@@ -128,7 +128,11 @@ export function BulkImportModal() {
                           name: res.name,
                         })
                       } catch (err) {
-                        setError(err instanceof Error ? err.message : 'Could not import from Spotify.')
+                        setError(
+                          err instanceof Error
+                            ? err.message
+                            : 'Couldn’t import from Spotify. Check the playlist is public and try again.',
+                        )
                       } finally {
                         setBusy(false)
                       }
@@ -140,7 +144,7 @@ export function BulkImportModal() {
               </>
             ) : (
               <>
-                <p className="mb-2 text-[12px]" style={{ color: 'var(--text-dim)' }}>
+                <p className="mb-2 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
                   Separate songs with === lines. Each block needs Title and Artist.
                 </p>
                 <textarea
@@ -150,12 +154,12 @@ export function BulkImportModal() {
                     setError(null)
                   }}
                   className="min-h-[220px] flex-1 rounded-[12px] p-3 font-mono text-[12px] outline-none"
-                  style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                  style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   placeholder={`===\nTitle: Song Name\nArtist: Artist Name\nKey: G\nBPM: 72\nTag: Worship\n\n[Verse 1]\nG              D\nLyric line here\n===`}
                 />
                 {preview.length > 0 ? (
                   <div className="mt-3 max-h-32 overflow-y-auto text-[12px]">
-                    <div style={{ color: 'var(--text-dim)' }}>
+                    <div style={{ color: 'var(--text-secondary)' }}>
                       {ready.length} will import
                       {skipped.length ? ` · ${skipped.length} skipped` : ''}
                     </div>
@@ -241,8 +245,8 @@ function ImportSuccessState({
         ? `${success.skipped} already in your library or skipped.`
         : 'No songs were added.'
       : success.source === 'spotify' && success.name
-        ? `Added to your Song Library from ${success.name}.`
-        : 'Added to your Song Library.'
+        ? `Added to your song library from ${success.name}.`
+        : 'Added to your song library.'
   const extra =
     success.imported > 0 && success.skipped > 0
       ? `${success.skipped} skipped.`
@@ -254,16 +258,16 @@ function ImportSuccessState({
     <div className="flex flex-col items-center py-4 text-center">
       <div
         className="mb-4 flex h-12 w-12 items-center justify-center rounded-full"
-        style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}
+        style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}
       >
         <Check size={24} />
       </div>
-      <h4 className="text-[18px] font-semibold">{heading}</h4>
-      <p className="mt-1 max-w-md text-[13px]" style={{ color: 'var(--text-dim)' }}>
+      <h4 className="text-heading">{heading}</h4>
+      <p className="mt-1 max-w-md text-[13px]" style={{ color: 'var(--text-secondary)' }}>
         {detail}
       </p>
       {extra ? (
-        <p className="mt-1 text-[12px]" style={{ color: 'var(--text-dim)' }}>
+        <p className="mt-1 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
           {extra}
         </p>
       ) : null}
@@ -273,13 +277,13 @@ function ImportSuccessState({
             <li
               key={`${title}-${i}`}
               className="truncate rounded-[8px] px-3 py-1.5"
-              style={{ color: 'var(--text)' }}
+              style={{ color: 'var(--text-primary)' }}
             >
               {title}
             </li>
           ))}
           {more > 0 ? (
-            <li className="px-3 py-1.5 text-[12px]" style={{ color: 'var(--text-dim)' }}>
+            <li className="px-3 py-1.5 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
               +{more} more
             </li>
           ) : null}
@@ -313,8 +317,8 @@ function TabBtn({
       className="rounded-[20px] px-3 py-1 text-[12px]"
       style={
         active
-          ? { background: 'var(--accent)', color: '#fff' }
-          : { background: 'var(--card)', color: 'var(--text-dim)' }
+          ? { background: 'var(--accent-bg)', color: 'var(--accent-text)' }
+          : { background: 'var(--surface-2)', color: 'var(--text-secondary)' }
       }
     >
       {children}
@@ -337,11 +341,11 @@ export function ExportModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[75] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.55)' }}>
-      <div className="w-full max-w-sm rounded-[12px] p-5" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
+    <div className="fixed inset-0 z-[75] flex items-center justify-center p-4" style={{ background: 'var(--present-scrim)' }}>
+      <div className="w-full max-w-sm rounded-[12px] p-5" style={{ background: 'var(--surface-1)', border: '1px solid var(--border)' }}>
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="font-serif text-[20px]">Export {setlistName}</h3>
-          <button type="button" onClick={close} style={{ color: 'var(--text-dim)' }}>
+          <h3 className="text-title">Export {setlistName}</h3>
+          <button type="button" onClick={close} aria-label="Close" style={{ color: 'var(--text-secondary)' }}>
             <X size={16} />
           </button>
         </div>

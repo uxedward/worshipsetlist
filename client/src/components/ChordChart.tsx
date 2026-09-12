@@ -22,11 +22,11 @@ export function ChordChart({
         <div
           key={section.id || `${section.label}-${i}`}
           className={cn(highlightSection === i && 'rounded-[8px]')}
-          style={highlightSection === i ? { outline: '1px solid var(--accent)' } : undefined}
+          style={highlightSection === i ? { outline: '1px solid var(--border-strong)' } : undefined}
         >
           <div
-            className="mb-2 text-[9px] font-semibold uppercase tracking-[0.14em]"
-            style={{ color: 'var(--text-dim)' }}
+            className="mb-2 text-caption"
+            style={{ color: 'var(--text-muted)' }}
           >
             {section.label}
           </div>
@@ -37,14 +37,14 @@ export function ChordChart({
                 <div key={line.id || `${line.order}`}>
                   {!lyricsOnly && line.chords?.trim() ? (
                     <pre
-                      className="m-0 font-mono text-[13px] font-bold leading-[1.35]"
-                      style={{ color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}
+                      className="m-0 font-mono text-label"
+                      style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontWeight: 500 }}
                     >
                       {transposeChordLine(line.chords, semitones ?? 0, preferFlats ?? false)}
                     </pre>
                   ) : null}
                   {line.lyric?.trim() ? (
-                    <p className="m-0 text-[16px] leading-[1.6]" style={{ color: 'var(--text)' }}>
+                    <p className="m-0 text-body" style={{ color: 'var(--text-primary)' }}>
                       {line.lyric}
                     </p>
                   ) : null}

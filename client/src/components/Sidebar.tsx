@@ -17,6 +17,7 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback.ts'
+import { announce } from '../lib/announce.ts'
 
 export function Sidebar({
   setlists,
@@ -54,14 +55,24 @@ export function Sidebar({
     persistReorder(next.map((s) => s.id))
   }
 
+  const moveSetlist = (id: string, dir: -1 | 1) => {
+    const oldIndex = setlists.findIndex((s) => s.id === id)
+    const newIndex = oldIndex + dir
+    if (oldIndex < 0 || newIndex < 0 || newIndex >= setlists.length) return
+    const next = arrayMove(setlists, oldIndex, newIndex).map((s, sortOrder) => ({ ...s, sortOrder }))
+    qc.setQueryData<Setlist[]>(['setlists'], next)
+    persistReorder(next.map((s) => s.id))
+    announce(`Moved ${setlists[oldIndex].name} to position ${newIndex + 1} of ${next.length}`)
+  }
+
   if (collapsed && !overlay) {
     return (
       <aside
         className="flex h-full w-16 flex-col items-center py-4"
-        style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
+        style={{ background: 'var(--surface-1)', borderRight: '1px solid var(--border)' }}
         onMouseEnter={() => setSidebarHover(true)}
       >
-        <div className="mb-4 font-serif text-[18px] font-bold" style={{ color: 'var(--accent)' }}>
+        <div className="font-display mb-4 text-[18px]" style={{ color: 'var(--accent)' }}>
           S
         </div>
         <div className="flex flex-1 flex-col gap-2">
@@ -79,6 +90,7 @@ export function Sidebar({
               }}
               className="rounded-[8px]"
               style={activeId === s.id ? { outline: '2px solid var(--accent)' } : undefined}
+              aria-label={s.name}
             >
               <SetlistThumb colorIndex={s.colorIndex} size={36} />
             </button>
@@ -86,9 +98,10 @@ export function Sidebar({
         </div>
         <button
           type="button"
-          title="Song Library"
+          title="Song library"
+          aria-label="Song library"
           onClick={() => setMainView('library')}
-          style={{ color: mainView === 'library' ? 'var(--accent)' : 'var(--text-dim)' }}
+          style={{ color: mainView === 'library' ? 'var(--accent)' : 'var(--text-secondary)' }}
         >
           <Library size={18} />
         </button>
@@ -99,19 +112,19 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        'flex h-full w-[260px] flex-col',
-        overlay && 'absolute left-0 top-0 z-30 shadow-2xl',
+        'flex h-full w-[280px] flex-col',
+        overlay && 'absolute left-0 top-0 z-30',
       )}
-      style={{ background: 'var(--surface)', borderRight: '1px solid var(--border)' }}
+      style={{ background: 'var(--surface-1)', borderRight: '1px solid var(--border)' }}
       onMouseLeave={() => overlay && setSidebarHover(false)}
     >
       <div className="px-5 pt-5 pb-4">
         <div className="flex items-start justify-between">
           <div>
-            <div className="font-serif text-[26px] font-bold leading-none" style={{ color: 'var(--accent)' }}>
+            <div className="font-display" style={{ color: 'var(--accent)', fontSize: 24, lineHeight: 1.25 }}>
               Setflow
             </div>
-            <div className="mt-1 text-[11px]" style={{ color: 'var(--text-dim)' }}>
+            <div className="mt-1 text-caption" style={{ color: 'var(--text-secondary)' }}>
               Worship setlist builder
             </div>
           </div>
@@ -123,15 +136,16 @@ export function Sidebar({
       </div>
 
       <div className="flex items-center justify-between px-5 pb-2">
-        <span className="text-[10px] font-semibold tracking-[0.14em]" style={{ color: 'var(--text-faint)' }}>
-          YOUR SETLISTS
+        <span className="text-label" style={{ color: 'var(--text-muted)' }}>
+          Your setlists
         </span>
         <button
           type="button"
           title="New setlist"
+          aria-label="New setlist"
           onClick={() => openSetlistModal('new')}
           className="flex h-6 w-6 items-center justify-center rounded-[8px]"
-          style={{ background: 'var(--card)', color: 'var(--text)' }}
+          style={{ background: 'var(--surface-2)', color: 'var(--text-primary)' }}
         >
           <Plus size={14} />
         </button>
@@ -150,6 +164,7 @@ export function Sidebar({
                   setMainView('setlist')
                 }}
                 onMenu={(x, y) => setContextMenu({ id: s.id, x, y })}
+                onMove={(dir) => moveSetlist(s.id, dir)}
               />
             ))}
           </SortableContext>
@@ -159,14 +174,15 @@ export function Sidebar({
       <button
         type="button"
         onClick={() => setMainView('library')}
-        className="flex items-center gap-2 px-5 py-4 text-left text-[13px]"
+        className="flex items-center gap-2 px-5 py-4 text-left text-label"
         style={{
           borderTop: '1px solid var(--border)',
-          color: mainView === 'library' ? 'var(--accent)' : 'var(--text)',
+          color: mainView === 'library' ? 'var(--accent)' : 'var(--text-primary)',
+          background: mainView === 'library' ? 'var(--accent-bg)' : 'transparent',
         }}
       >
         <Library size={16} />
-        Song Library · {songCount} {songCount === 1 ? 'song' : 'songs'}
+        Song library · {songCount} {songCount === 1 ? 'song' : 'songs'}
       </button>
     </aside>
   )
@@ -177,11 +193,13 @@ function SortableSetlistRow({
   active,
   onOpen,
   onMenu,
+  onMove,
 }: {
   setlist: Setlist
   active: boolean
   onOpen: () => void
   onMenu: (x: number, y: number) => void
+  onMove: (dir: -1 | 1) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: setlist.id,
@@ -195,16 +213,28 @@ function SortableSetlistRow({
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
-        background: active ? 'var(--card)' : 'transparent',
-        boxShadow: active ? 'inset 3px 0 0 var(--accent)' : undefined,
+        background: active ? 'var(--accent-bg)' : 'transparent',
+        color: active ? 'var(--accent-text)' : 'var(--text-primary)',
         opacity: isDragging ? 0.7 : 1,
       }}
     >
       <button
         type="button"
         className="flex h-8 w-5 shrink-0 items-center justify-center rounded-[6px] opacity-0 group-hover:opacity-100"
-        style={{ color: 'var(--text-faint)' }}
+        style={{ color: 'var(--text-muted)' }}
         title="Drag to reorder"
+        aria-label={`Reorder ${setlist.name}. Hold Alt and press up or down to move.`}
+        onKeyDown={(e) => {
+          if (!e.altKey) return
+          if (e.key === 'ArrowUp') {
+            e.preventDefault()
+            onMove(-1)
+          }
+          if (e.key === 'ArrowDown') {
+            e.preventDefault()
+            onMove(1)
+          }
+        }}
         {...attributes}
         {...listeners}
         onClick={(e) => e.stopPropagation()}
@@ -222,8 +252,8 @@ function SortableSetlistRow({
       >
         <SetlistThumb colorIndex={setlist.colorIndex} size={36} />
         <div className="min-w-0">
-          <div className="truncate font-serif text-[13px]">{setlist.name}</div>
-          <div className="truncate text-[11px]" style={{ color: 'var(--text-dim)' }}>
+          <div className="truncate text-label">{setlist.name}</div>
+          <div className="truncate text-caption" style={{ color: 'var(--text-secondary)' }}>
             {count} {count === 1 ? 'song' : 'songs'}
             {setlist.date ? ` · ${formatDate(setlist.date)}` : ''}
           </div>
@@ -232,8 +262,9 @@ function SortableSetlistRow({
       <button
         type="button"
         title="Setlist actions"
+        aria-label={`${setlist.name} actions`}
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] opacity-70 hover:opacity-100"
-        style={{ color: 'var(--text-dim)' }}
+        style={{ color: 'var(--text-secondary)' }}
         onClick={(e) => {
           e.stopPropagation()
           const rect = e.currentTarget.getBoundingClientRect()

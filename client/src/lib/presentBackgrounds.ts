@@ -17,7 +17,7 @@ const ASSET_V = '4'
 // Live clips are muted looping 4K camera footage. Stills are 4K frames.
 // Sources and licenses: client/public/backgrounds/CREDITS.txt
 export const PRESENT_BACKGROUNDS: PresentBackground[] = [
-  { id: 'dusk', label: 'Warm dusk', kind: 'gradient', group: 'still' },
+  { id: 'dusk', label: 'Dusk', kind: 'gradient', group: 'still' },
   { id: 'ocean', label: 'Ocean', kind: 'photo', group: 'still', src: `/backgrounds/ocean.jpg?v=${ASSET_V}` },
   { id: 'mountains', label: 'Mountains', kind: 'photo', group: 'still', src: `/backgrounds/mountains.jpg?v=${ASSET_V}` },
   { id: 'forest', label: 'Forest', kind: 'photo', group: 'still', src: `/backgrounds/forest.jpg?v=${ASSET_V}` },

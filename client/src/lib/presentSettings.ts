@@ -26,7 +26,7 @@ export type PresentSettings = {
   fontId: PresentFontId
 }
 
-export const FONT_MIN = 22
+export const FONT_MIN = 48
 export const FONT_MAX = 78
 export const FONT_DEFAULT = 52
 export const LINE_WIDTH_MIN = 58

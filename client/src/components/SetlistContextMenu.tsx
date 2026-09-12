@@ -28,9 +28,8 @@ export function SetlistContextMenu() {
       style={{
         left: menu.x,
         top: menu.y,
-        background: 'var(--surface)',
+        background: 'var(--surface-2)',
         border: '1px solid var(--border)',
-        boxShadow: '0 12px 40px var(--shadow)',
       }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -98,7 +97,7 @@ function MenuItem({
       type="button"
       onClick={onClick}
       className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px]"
-      style={{ color: danger ? 'var(--danger)' : 'var(--text)' }}
+      style={{ color: danger ? 'var(--danger)' : 'var(--text-primary)' }}
     >
       {icon}
       {label}
