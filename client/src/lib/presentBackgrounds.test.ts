@@ -55,11 +55,13 @@ describe('present backgrounds', () => {
       'horizon',
       'afterglow',
       'ember',
+      'canyon',
       'violet',
       'blush',
       'dusk',
     ])
     expect(gradients.every((bg) => bg.fill?.startsWith('var(--present-'))).toBe(true)
+    expect(findPresentBackground('canyon').fill).toBe('var(--present-canyon)')
   })
 
   it('persists a chosen background', () => {

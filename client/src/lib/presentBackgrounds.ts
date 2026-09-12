@@ -22,6 +22,7 @@ export const PRESENT_BACKGROUNDS: PresentBackground[] = [
   { id: 'horizon', label: 'Horizon', kind: 'gradient', group: 'still', fill: 'var(--present-horizon)' },
   { id: 'afterglow', label: 'Afterglow', kind: 'gradient', group: 'still', fill: 'var(--present-afterglow)' },
   { id: 'ember', label: 'Ember', kind: 'gradient', group: 'still', fill: 'var(--present-ember)' },
+  { id: 'canyon', label: 'Canyon', kind: 'gradient', group: 'still', fill: 'var(--present-canyon)' },
   { id: 'violet', label: 'Violet hour', kind: 'gradient', group: 'still', fill: 'var(--present-violet)' },
   { id: 'blush', label: 'Blush', kind: 'gradient', group: 'still', fill: 'var(--present-blush)' },
   { id: 'dusk', label: 'Dusk', kind: 'gradient', group: 'still', fill: 'var(--present-dusk)' },

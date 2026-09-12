@@ -104,5 +104,6 @@ describe('present settings', () => {
     expect(findPresentFont('missing').id).toBe('montserrat')
     expect(presentFontFamily('playfair')).toContain('Playfair Display')
     expect(findPresentFont('montserrat').weight).toBe(600)
+    expect(findPresentFont('montserrat').tracking).toBe('-0.02em')
   })
 })

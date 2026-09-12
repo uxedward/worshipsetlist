@@ -348,8 +348,9 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
             style={{
               fontFamily: presentFontFamily(presentSettings.fontId),
               fontSize: Math.max(fittedSize, FONT_MIN),
-              lineHeight: 1.35,
-              color: 'var(--text-primary)',
+              lineHeight: 1.28,
+              letterSpacing: findPresentFont(presentSettings.fontId).tracking ?? 'normal',
+              color: 'var(--present-lyric)',
               fontWeight: findPresentFont(presentSettings.fontId).weight,
               textShadow: lyricTextShadow(presentSettings.shadow),
             }}

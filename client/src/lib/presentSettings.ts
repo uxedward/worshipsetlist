@@ -7,10 +7,11 @@ export type PresentFont = {
   label: string
   family: string
   weight: 400 | 500 | 600
+  tracking?: string
 }
 
 export const PRESENT_FONTS: PresentFont[] = [
-  { id: 'montserrat', label: 'Montserrat', family: 'Montserrat, Inter, sans-serif', weight: 600 },
+  { id: 'montserrat', label: 'Montserrat', family: 'Montserrat, Inter, sans-serif', weight: 600, tracking: '-0.02em' },
   { id: 'georgia', label: 'Georgia', family: 'Georgia, "Times New Roman", Times, serif', weight: 400 },
   { id: 'inter', label: 'Inter', family: 'Inter, system-ui, sans-serif', weight: 400 },
   { id: 'playfair', label: 'Playfair', family: '"Playfair Display", Georgia, serif', weight: 400 },

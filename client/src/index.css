@@ -83,17 +83,21 @@
   --arc-5: #a5d0f5;
 
   --present-scrim: rgba(14, 19, 25, 0.55);
+  --present-lyric: #ffffff;
   --present-dusk: radial-gradient(ellipse at center, var(--arc-2) 0%, var(--surface-2) 40%, var(--surface-1) 70%, var(--canvas) 100%);
-  --present-horizon: radial-gradient(ellipse 120% 70% at 50% 115%, #c45444 0%, transparent 58%),
-    linear-gradient(180deg, #e5c5cc 0%, #e39a86 40%, #d06656 100%);
-  --present-afterglow: radial-gradient(ellipse 110% 65% at 50% 120%, #b84458 0%, transparent 55%),
-    linear-gradient(180deg, #d4b0c8 0%, #e08078 45%, #c44c50 100%);
-  --present-ember: radial-gradient(ellipse 120% 70% at 50% 115%, #c85830 0%, transparent 58%),
-    linear-gradient(180deg, #f0d0b8 0%, #e89868 42%, #d06040 100%);
-  --present-violet: radial-gradient(ellipse 110% 65% at 50% 120%, #8a4a78 0%, transparent 55%),
-    linear-gradient(180deg, #c8b0d4 0%, #d080a0 45%, #b05870 100%);
-  --present-blush: radial-gradient(ellipse 120% 70% at 50% 115%, #d07070 0%, transparent 58%),
-    linear-gradient(180deg, #f2d8dc 0%, #ebb0a8 40%, #d87870 100%);
+  /* Stage LED-wall sunsets — sampled from worship stage photography, not chrome. */
+  --present-horizon: radial-gradient(ellipse 130% 58% at 50% 112%, #c45c54 0%, transparent 60%),
+    linear-gradient(180deg, #b496a2 0%, #c4a6ab 20%, #d2aea9 42%, #dea89a 64%, #d68a7a 84%, #c45c54 100%);
+  --present-afterglow: radial-gradient(ellipse 120% 58% at 50% 112%, #b85060 0%, transparent 58%),
+    linear-gradient(180deg, #c4a0b4 0%, #d090a0 38%, #c05860 100%);
+  --present-ember: radial-gradient(ellipse 130% 58% at 50% 112%, #c86838 0%, transparent 58%),
+    linear-gradient(180deg, #d4b8a8 0%, #e09870 42%, #c85838 100%);
+  --present-canyon: radial-gradient(ellipse 130% 58% at 50% 112%, #c87040 0%, transparent 58%),
+    linear-gradient(180deg, #dcc4b0 0%, #e8b078 40%, #d07048 100%);
+  --present-violet: radial-gradient(ellipse 120% 58% at 50% 112%, #7a4870 0%, transparent 58%),
+    linear-gradient(180deg, #b8a4c4 0%, #c080a0 45%, #a05070 100%);
+  --present-blush: radial-gradient(ellipse 130% 58% at 50% 112%, #d07878 0%, transparent 58%),
+    linear-gradient(180deg, #e8d0d4 0%, #e0b0a8 42%, #d07068 100%);
 
   --font-display: "Newsreader", "Iowan Old Style", Georgia, serif;
   --font-ui: Outfit, Inter, -apple-system, system-ui, sans-serif;
@@ -152,17 +156,21 @@
   --arc-5: #1b4b7e;
 
   --present-scrim: rgba(14, 19, 25, 0.55);
+  --present-lyric: #ffffff;
   --present-dusk: radial-gradient(ellipse at center, var(--arc-2) 0%, var(--surface-2) 40%, var(--surface-1) 70%, var(--canvas) 100%);
-  --present-horizon: radial-gradient(ellipse 120% 70% at 50% 115%, #c45444 0%, transparent 58%),
-    linear-gradient(180deg, #e5c5cc 0%, #e39a86 40%, #d06656 100%);
-  --present-afterglow: radial-gradient(ellipse 110% 65% at 50% 120%, #b84458 0%, transparent 55%),
-    linear-gradient(180deg, #d4b0c8 0%, #e08078 45%, #c44c50 100%);
-  --present-ember: radial-gradient(ellipse 120% 70% at 50% 115%, #c85830 0%, transparent 58%),
-    linear-gradient(180deg, #f0d0b8 0%, #e89868 42%, #d06040 100%);
-  --present-violet: radial-gradient(ellipse 110% 65% at 50% 120%, #8a4a78 0%, transparent 55%),
-    linear-gradient(180deg, #c8b0d4 0%, #d080a0 45%, #b05870 100%);
-  --present-blush: radial-gradient(ellipse 120% 70% at 50% 115%, #d07070 0%, transparent 58%),
-    linear-gradient(180deg, #f2d8dc 0%, #ebb0a8 40%, #d87870 100%);
+  /* Stage LED-wall sunsets — sampled from worship stage photography, not chrome. */
+  --present-horizon: radial-gradient(ellipse 130% 58% at 50% 112%, #c45c54 0%, transparent 60%),
+    linear-gradient(180deg, #b496a2 0%, #c4a6ab 20%, #d2aea9 42%, #dea89a 64%, #d68a7a 84%, #c45c54 100%);
+  --present-afterglow: radial-gradient(ellipse 120% 58% at 50% 112%, #b85060 0%, transparent 58%),
+    linear-gradient(180deg, #c4a0b4 0%, #d090a0 38%, #c05860 100%);
+  --present-ember: radial-gradient(ellipse 130% 58% at 50% 112%, #c86838 0%, transparent 58%),
+    linear-gradient(180deg, #d4b8a8 0%, #e09870 42%, #c85838 100%);
+  --present-canyon: radial-gradient(ellipse 130% 58% at 50% 112%, #c87040 0%, transparent 58%),
+    linear-gradient(180deg, #dcc4b0 0%, #e8b078 40%, #d07048 100%);
+  --present-violet: radial-gradient(ellipse 120% 58% at 50% 112%, #7a4870 0%, transparent 58%),
+    linear-gradient(180deg, #b8a4c4 0%, #c080a0 45%, #a05070 100%);
+  --present-blush: radial-gradient(ellipse 130% 58% at 50% 112%, #d07878 0%, transparent 58%),
+    linear-gradient(180deg, #e8d0d4 0%, #e0b0a8 42%, #d07068 100%);
 }
 
 * {
