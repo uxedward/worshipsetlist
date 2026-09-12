@@ -14,7 +14,7 @@ export const PRESENT_FONTS: PresentFont[] = [
   {
     id: 'helvetica',
     label: 'Helvetica Neue',
-    family: '"Helvetica Neue", HelveticaNeue, Helvetica, Arial, sans-serif',
+    family: '"Helvetica Neue", Arial, Inter, sans-serif',
     weight: 700,
     tracking: '-0.02em',
   },

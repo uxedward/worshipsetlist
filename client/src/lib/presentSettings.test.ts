@@ -105,6 +105,7 @@ describe('present settings', () => {
     expect(findPresentFont('missing').id).toBe('helvetica')
     expect(presentFontFamily('playfair')).toContain('Playfair Display')
     expect(presentFontFamily('helvetica')).toContain('Helvetica Neue')
+    expect(presentFontFamily('helvetica')).toMatch(/Helvetica Neue.*Arial.*Inter/)
     expect(findPresentFont('helvetica').weight).toBe(700)
     expect(findPresentFont('helvetica').tracking).toBe('-0.02em')
     expect(findPresentFont('montserrat').weight).toBe(600)
