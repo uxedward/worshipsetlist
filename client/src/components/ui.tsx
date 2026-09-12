@@ -245,7 +245,7 @@ export function ConfirmDialog() {
   const close = useAppStore((s) => s.closeConfirm)
   if (!confirm) return null
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: 'var(--present-scrim)' }}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'var(--present-scrim)' }}>
       <div
         className="w-full max-w-sm p-5"
         style={{
