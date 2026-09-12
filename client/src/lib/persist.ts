@@ -109,12 +109,18 @@ export function rememberSong(song: Song) {
   })
 }
 
-export function rememberDeletedSong(id: string) {
+export function rememberDeletedSong(id: string, fromSetlistIds: string[] = []) {
   write((state) => {
     delete state.extraSongs[id]
     if (!state.deletedSongIds.includes(id)) state.deletedSongIds.push(id)
-    for (const edit of Object.values(state.edits)) {
+    const touch = new Set(fromSetlistIds)
+    for (const [setlistId, edit] of Object.entries(state.edits)) {
+      const before = edit.added.length
       edit.added = edit.added.filter((row) => row.songId !== id)
+      if (edit.added.length !== before) touch.add(setlistId)
+    }
+    for (const setlistId of touch) {
+      const edit = editFor(state, setlistId)
       if (!edit.removedSongIds.includes(id)) edit.removedSongIds.push(id)
     }
   })
@@ -127,9 +133,11 @@ function repairSong(song: Song): Song {
   return { ...song, ...meta, key }
 }
 
-export function applyEdits(server: Setlist, edit?: SetlistEdit): SetlistSong[] {
-  const base = (server.songs ?? []).filter((row) => !edit?.removedSongIds.includes(row.songId))
+export function applyEdits(server: Setlist, edit?: SetlistEdit, deletedSongIds: string[] = []): SetlistSong[] {
+  const blocked = new Set([...(edit?.removedSongIds ?? []), ...deletedSongIds])
+  const base = (server.songs ?? []).filter((row) => !blocked.has(row.songId))
   for (const row of edit?.added ?? []) {
+    if (blocked.has(row.songId)) continue
     if (!base.some((s) => s.songId === row.songId || s.id === row.id)) base.push(row)
   }
   const repaired = base.map((row) => (row.song ? { ...row, song: repairSong(row.song) } : row))
@@ -150,7 +158,7 @@ export function overlaySetlist(server: Setlist): Setlist {
   const extra = state.extraSetlists.find((s) => s.id === server.id)
   const edit = state.edits[server.id]
   const source = extra ?? server
-  const songs = applyEdits(source, edit)
+  const songs = applyEdits(source, edit, state.deletedSongIds)
   return { ...source, ...edit?.meta, songs, _count: { songs: songs.length } }
 }
 
@@ -167,7 +175,7 @@ export function overlaySetlists(server: Setlist[]): Setlist[] {
     if (!base) continue
     const edit = state.edits[id]
     const sourceSongs = extra?.songs ?? remote?.songs
-    const songs = sourceSongs ? applyEdits({ ...base, songs: sourceSongs }, edit) : undefined
+    const songs = sourceSongs ? applyEdits({ ...base, songs: sourceSongs }, edit, state.deletedSongIds) : undefined
     const uniqueAdded = new Set(edit?.added.map((row) => row.songId) ?? []).size
     const count = songs
       ? songs.length

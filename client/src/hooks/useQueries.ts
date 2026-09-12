@@ -216,6 +216,65 @@ function putSetlistSong(
   }
 }
 
+function replaceSetlistSong(
+  qc: ReturnType<typeof useQueryClient>,
+  setlistId: string,
+  fromId: string,
+  row: SetlistSong,
+) {
+  qc.setQueryData<Setlist>(['setlist', setlistId], (prev) => {
+    if (!prev?.songs) return prev
+    return {
+      ...prev,
+      songs: prev.songs.map((s) =>
+        s.id === fromId || s.songId === row.songId ? { ...row, song: row.song ?? s.song } : s,
+      ),
+    }
+  })
+}
+
+function dropSongFromCaches(qc: ReturnType<typeof useQueryClient>, songId: string) {
+  qc.removeQueries({ queryKey: ['song', songId] })
+  qc.setQueriesData<Song[]>({ queryKey: ['songs'] }, (prev) => prev?.filter((s) => s.id !== songId))
+  qc.setQueriesData<Setlist>({ queryKey: ['setlist'] }, (prev) => {
+    if (!prev?.songs) return prev
+    const songs = prev.songs.filter((row) => row.songId !== songId)
+    if (songs.length === prev.songs.length) return prev
+    return { ...prev, songs, _count: { songs: songs.length } }
+  })
+  qc.setQueryData<Setlist[]>(['setlists'], (prev) =>
+    prev?.map((s) => {
+      const detail = qc.getQueryData<Setlist>(['setlist', s.id])
+      return detail?._count ? { ...s, _count: detail._count } : s
+    }),
+  )
+  const store = useAppStore.getState()
+  if (store.editorSongId === songId) store.closeEditor()
+  const activeId = store.activeSetlistId
+  const activeRow = activeId
+    ? qc.getQueryData<Setlist>(['setlist', activeId])?.songs?.find((row) => row.id === store.activeSetlistSongId)
+    : undefined
+  if (!activeRow || activeRow.songId === songId) store.setActiveSetlistSongId(null)
+}
+
+function patchSetlistCaches(
+  qc: ReturnType<typeof useQueryClient>,
+  id: string,
+  patch: Record<string, unknown>,
+) {
+  qc.setQueryData<Setlist>(['setlist', id], (prev) => (prev ? { ...prev, ...patch } : prev))
+  qc.setQueryData<Setlist[]>(['setlists'], (prev) => prev?.map((s) => (s.id === id ? { ...s, ...patch } : s)))
+}
+
+function upsertSongInCaches(qc: ReturnType<typeof useQueryClient>, song: Song) {
+  qc.setQueryData(['song', song.id], song)
+  qc.setQueriesData<Song[]>({ queryKey: ['songs'] }, (prev) => {
+    if (!prev) return prev
+    if (prev.some((s) => s.id === song.id)) return prev.map((s) => (s.id === song.id ? song : s))
+    return [song, ...prev]
+  })
+}
+
 function useTrackedMutation<TData, TVars>(
   fn: (vars: TVars) => Promise<TData>,
   onSettled?: () => void,
@@ -234,12 +293,9 @@ function useTrackedMutation<TData, TVars>(
 
 export function useMutations() {
   const qc = useQueryClient()
-  const invalidate = () => {
-    void qc.invalidateQueries({ queryKey: ['setlists'] })
-    void qc.invalidateQueries({ queryKey: ['setlist'] })
+  const refreshLibrary = () => {
     void qc.invalidateQueries({ queryKey: ['songs'] })
     void qc.invalidateQueries({ queryKey: ['song'] })
-    void qc.invalidateQueries({ queryKey: ['preferences'] })
   }
 
   return {
@@ -256,6 +312,12 @@ export function useMutations() {
       try {
         const created = await endpoints.createSetlist(body)
         rememberSetlist(created as Setlist)
+        qc.setQueryData(['setlist', (created as Setlist).id], created)
+        qc.setQueryData<Setlist[]>(['setlists'], (prev) =>
+          prev?.some((s) => s.id === (created as Setlist).id)
+            ? prev
+            : [created as Setlist, ...(prev ?? [])],
+        )
         return created
       } catch (err) {
         const local: Setlist = {
@@ -272,33 +334,42 @@ export function useMutations() {
           _count: { songs: 0 },
         }
         rememberSetlist(local)
+        qc.setQueryData(['setlist', local.id], local)
+        qc.setQueryData<Setlist[]>(['setlists'], (prev) => [local, ...(prev ?? [])])
         if (err instanceof Error && /not found/i.test(err.message)) throw err
         return local
       }
-    }, invalidate),
+    }),
     patchSetlist: useTrackedMutation(async (v: { id: string; body: Record<string, unknown> }) => {
+      const patch = { ...v.body, updatedAt: new Date().toISOString() }
+      patchSetlistCaches(qc, v.id, patch)
+      const current = qc.getQueryData<Setlist>(['setlist', v.id])
+      if (current) rememberSetlist(current)
       try {
         const updated = (await endpoints.patchSetlist(v.id, v.body)) as Setlist
         rememberSetlist(overlaySetlist(updated))
+        patchSetlistCaches(qc, v.id, updated as unknown as Record<string, unknown>)
         return updated
       } catch {
-        const current = qc.getQueryData<Setlist>(['setlist', v.id])
-        if (current) rememberSetlist({ ...current, ...v.body, updatedAt: new Date().toISOString() } as Setlist)
         return current
       }
-    }, invalidate),
+    }),
     deleteSetlist: useTrackedMutation(async (id: string) => {
       rememberDeletedSetlist(id)
+      qc.setQueryData<Setlist[]>(['setlists'], (prev) => prev?.filter((s) => s.id !== id))
+      qc.removeQueries({ queryKey: ['setlist', id] })
       try {
         return await endpoints.deleteSetlist(id)
       } catch {
         return { ok: true }
       }
-    }, invalidate),
+    }),
     duplicateSetlist: useTrackedMutation(async (id: string) => {
       try {
         const copy = (await endpoints.duplicateSetlist(id)) as Setlist
         rememberSetlist(copy)
+        qc.setQueryData(['setlist', copy.id], copy)
+        qc.setQueryData<Setlist[]>(['setlists'], (prev) => [copy, ...(prev ?? [])])
         return copy
       } catch {
         const source = qc.getQueryData<Setlist>(['setlist', id])
@@ -316,29 +387,34 @@ export function useMutations() {
           _count: { songs: source?.songs?.length ?? 0 },
         }
         rememberSetlist(local)
+        qc.setQueryData(['setlist', local.id], local)
+        qc.setQueryData<Setlist[]>(['setlists'], (prev) => [local, ...(prev ?? [])])
         return local
       }
-    }, invalidate),
+    }),
     addSong: useTrackedMutation(async (v: { setlistId: string; songId: string }) => {
-      let row: SetlistSong
-      try {
-        row = await endpoints.addSongToSetlist(v.setlistId, v.songId)
-      } catch (err) {
-        const song = findSongInCache(qc, v.songId)
-        if (!song) throw err
-        row = {
-          id: `local-${crypto.randomUUID()}`,
-          setlistId: v.setlistId,
-          songId: v.songId,
-          order: nextSetlistOrder(qc, v.setlistId),
-          transposedKey: null,
-          notes: null,
-          song,
-        }
+      const current = qc.getQueryData<Setlist>(['setlist', v.setlistId])
+      const existing = current?.songs?.find((row) => row.songId === v.songId)
+      if (existing && !existing.id.startsWith('local-')) return existing
+      const song = findSongInCache(qc, v.songId)
+      const optimistic: SetlistSong = existing ?? {
+        id: `local-${crypto.randomUUID()}`,
+        setlistId: v.setlistId,
+        songId: v.songId,
+        order: nextSetlistOrder(qc, v.setlistId),
+        transposedKey: null,
+        notes: null,
+        song: song ?? ({ id: v.songId, title: 'Song', artist: '', key: 'C', bpm: 80, timeSignature: '4/4', tag: 'Worship', album: null, durationSeconds: null, createdAt: new Date().toISOString() } as Song),
       }
-      putSetlistSong(qc, v.setlistId, row)
-      return row
-    }, invalidate),
+      if (!existing) putSetlistSong(qc, v.setlistId, optimistic)
+      try {
+        const row = await endpoints.addSongToSetlist(v.setlistId, v.songId)
+        replaceSetlistSong(qc, v.setlistId, optimistic.id, row)
+        return row
+      } catch {
+        return optimistic
+      }
+    }),
     patchSetlistSong: useTrackedMutation(
       async (v: { setlistId: string; ssId: string; body: Record<string, unknown> }) => {
         patchPersistedSetlistSong(v.setlistId, v.ssId, {
@@ -352,7 +428,6 @@ export function useMutations() {
           return v.body
         }
       },
-      invalidate,
     ),
     removeSong: useTrackedMutation(async (v: { setlistId: string; ssId: string }) => {
       const current = qc.getQueryData<Setlist>(['setlist', v.setlistId])
@@ -363,12 +438,18 @@ export function useMutations() {
         const songs = prev.songs.filter((row) => row.id !== v.ssId)
         return { ...prev, songs, _count: { songs: songs.length } }
       })
+      const nextCount = qc.getQueryData<Setlist>(['setlist', v.setlistId])?.songs?.length
+      if (typeof nextCount === 'number') {
+        qc.setQueryData<Setlist[]>(['setlists'], (prev) =>
+          prev?.map((s) => (s.id === v.setlistId ? { ...s, _count: { songs: nextCount } } : s)),
+        )
+      }
       try {
         return await endpoints.removeSetlistSong(v.setlistId, v.ssId)
       } catch {
         return { ok: true }
       }
-    }, invalidate),
+    }),
     reorder: useTrackedMutation(async (v: { setlistId: string; orderedIds: string[] }) => {
       reorderPersistedSetlist(v.setlistId, v.orderedIds)
       try {
@@ -376,7 +457,7 @@ export function useMutations() {
       } catch {
         return { ok: true }
       }
-    }, invalidate),
+    }),
     reorderSetlists: useTrackedMutation(async (orderedIds: string[]) => {
       reorderPersistedSetlists(orderedIds)
       try {
@@ -384,40 +465,52 @@ export function useMutations() {
       } catch {
         return { ok: true }
       }
-    }, invalidate),
+    }),
     createSong: useTrackedMutation(async (body: SongInput) => {
       try {
         const created = (await endpoints.createSong(body)) as Song
         rememberSong(created)
+        upsertSongInCaches(qc, created)
         return created
       } catch (err) {
-        rememberSong(songFromInput(body))
+        const local = songFromInput(body)
+        rememberSong(local)
+        upsertSongInCaches(qc, local)
         throw err
       }
-    }, invalidate),
+    }),
     patchSong: useTrackedMutation(async (v: { id: string; body: SongInput }) => {
       try {
         const updated = (await endpoints.patchSong(v.id, v.body)) as Song
         rememberSong(updated)
+        upsertSongInCaches(qc, updated)
         return updated
       } catch (err) {
         const current = findSongInCache(qc, v.id)
         const local = { ...(current ?? { id: v.id }), ...v.body } as Song
         rememberSong(local)
+        upsertSongInCaches(qc, local)
         throw err
       }
-    }, invalidate),
+    }),
     deleteSong: useTrackedMutation(async (id: string) => {
-      rememberDeletedSong(id)
+      const fromSetlistIds: string[] = []
+      for (const [, setlist] of qc.getQueriesData<Setlist>({ queryKey: ['setlist'] })) {
+        if (setlist?.id && setlist.songs?.some((row) => row.songId === id)) {
+          fromSetlistIds.push(setlist.id)
+        }
+      }
+      rememberDeletedSong(id, fromSetlistIds)
+      dropSongFromCaches(qc, id)
       try {
         return await endpoints.deleteSong(id)
       } catch {
         return { ok: true }
       }
-    }, invalidate),
+    }),
     bulkImport: useTrackedMutation(async (text: string) => {
       return await endpoints.bulkImport(text)
-    }, invalidate),
+    }, refreshLibrary),
     spotifyImport: useTrackedMutation(async (url: string) => {
       const lookup = await endpoints.spotifyLookup(url)
       let server: Song[] = []
@@ -464,7 +557,7 @@ export function useMutations() {
             ? `${created.length} imported from ${lookup.name}, ${skipped} already in the library`
             : `${created.length} imported from ${lookup.name}`,
       }
-    }, invalidate),
+    }, refreshLibrary),
   }
 }
 

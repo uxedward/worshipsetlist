@@ -1,14 +1,13 @@
 import { useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Check, Pencil, Plus, Search } from 'lucide-react'
+import { Check, Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { TAGS } from '@shared/types.ts'
 import { displaySongMeta } from '@shared/bulkFormat.ts'
-import type { Setlist, SetlistSong, Song } from '@shared/types.ts'
+import type { SetlistSong, Song } from '@shared/types.ts'
 import { cn } from '../lib/cn.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSongs } from '../hooks/useQueries.ts'
 import { Btn, KeyBadge, Pill } from './ui.tsx'
-import { useQueryClient } from '@tanstack/react-query'
 
 type Row =
   | { type: 'header'; id: string; artist: string; count: number }
@@ -27,12 +26,12 @@ export function LibraryView({
   const [sort, setSort] = useState<'artist' | 'title' | 'bpm'>('artist')
   const openEditor = useAppStore((s) => s.openEditor)
   const setBulkImportOpen = useAppStore((s) => s.setBulkImportOpen)
+  const askConfirm = useAppStore((s) => s.askConfirm)
   const storeSetlistId = useAppStore((s) => s.activeSetlistId)
   const targetSetlistId = setlistId ?? storeSetlistId
   const [addError, setAddError] = useState<string | null>(null)
-  const { addSong } = useMutations()
+  const { addSong, deleteSong } = useMutations()
   const { data: songs = [], isLoading } = useSongs({ search, artist, tag, sort })
-  const qc = useQueryClient()
 
   const inSetlist = useMemo(() => new Set(setlistSongs.map((s) => s.songId)), [setlistSongs])
   const artists = useMemo(() => {
@@ -86,19 +85,21 @@ export function LibraryView({
     addSong.mutate(
       { setlistId: targetSetlistId, songId: song.id },
       {
-        onSuccess: (row) => {
-          qc.setQueryData<Setlist>(['setlist', targetSetlistId], (prev) => {
-            if (!prev) return prev
-            const list = prev.songs ?? []
-            if (list.some((s) => s.id === row.id || s.songId === song.id)) return prev
-            return { ...prev, songs: [...list, row] }
-          })
-        },
         onError: (err) => {
           setAddError(err instanceof Error ? err.message : 'Could not add that song.')
         },
       },
     )
+  }
+
+  const requestDelete = (song: Song) => {
+    askConfirm({
+      title: `Delete ${song.title}?`,
+      message: 'This removes it from the library and every setlist.',
+      danger: true,
+      confirmLabel: 'Delete',
+      onConfirm: () => deleteSong.mutate(song.id),
+    })
   }
 
   return (
@@ -220,6 +221,7 @@ export function LibraryView({
                       added={inSetlist.has(row.song.id)}
                       onAdd={() => addToSetlist(row.song)}
                       onEdit={() => openEditor(row.song.id)}
+                      onDelete={() => requestDelete(row.song)}
                     />
                   )}
                 </div>
@@ -243,6 +245,7 @@ export function LibraryView({
                 added={inSetlist.has(row.song.id)}
                 onAdd={() => addToSetlist(row.song)}
                 onEdit={() => openEditor(row.song.id)}
+                onDelete={() => requestDelete(row.song)}
               />
             ),
           )
@@ -261,11 +264,13 @@ function LibraryRow({
   added,
   onAdd,
   onEdit,
+  onDelete,
 }: {
   song: Song
   added: boolean
   onAdd: () => void
   onEdit: () => void
+  onDelete: () => void
 }) {
   const meta = displaySongMeta(song)
   return (
@@ -290,6 +295,19 @@ function LibraryRow({
       </span>
       <button type="button" className="shrink-0" onClick={onEdit} style={{ color: 'var(--text-secondary)' }} title="Edit song" aria-label="Edit song">
         <Pencil size={14} />
+      </button>
+      <button
+        type="button"
+        className="shrink-0"
+        onClick={(e) => {
+          e.stopPropagation()
+          onDelete()
+        }}
+        style={{ color: 'var(--text-secondary)' }}
+        title="Delete song"
+        aria-label="Delete song"
+      >
+        <Trash2 size={14} />
       </button>
       <button
         type="button"

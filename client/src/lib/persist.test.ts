@@ -22,6 +22,7 @@ import {
   overlaySetlists,
   overlaySongs,
   rememberDeletedSetlist,
+  rememberDeletedSong,
   rememberSetlist,
   rememberSong,
   rememberSongs,
@@ -107,6 +108,20 @@ describe('persist overlays', () => {
     rememberDeletedSetlist('b')
     const listed = overlaySetlists([setlist('a', 'Sunday AM'), setlist('b', 'Easter')])
     expect(listed.map((s) => s.name)).toEqual(['Sunday AM'])
+  })
+
+  it('remembers a deleted song', () => {
+    rememberSong(song('keep', 'Keep'))
+    rememberSong(song('drop', 'Drop'))
+    rememberDeletedSong('drop', ['a'])
+    const songs = overlaySongs([song('keep', 'Keep'), song('drop', 'Drop')])
+    expect(songs.map((s) => s.title)).toEqual(['Keep'])
+    const sunday = overlaySetlist(setlist('a', 'Sunday AM', [row('a', song('drop', 'Drop'))]))
+    expect(sunday.songs).toHaveLength(0)
+    const listed = overlaySetlists([
+      { ...setlist('a', 'Sunday AM'), songs: undefined, _count: { songs: 1 } },
+    ])
+    expect(listed[0]._count?.songs).toBe(0)
   })
 
   it('keeps a locally created song in the library overlay', () => {
