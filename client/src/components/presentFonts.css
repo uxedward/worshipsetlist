@@ -1,5 +1,15 @@
 /* Latin subsets for present-mode lyrics. Loaded with the overlay chunk, not the first paint. */
 
+/* Helvetica Neue Bold is a system face (macOS / iOS). local() maps weight 700
+   to the Bold cut when it is installed; otherwise the family stack falls through. */
+@font-face {
+  font-family: "Helvetica Neue";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local("Helvetica Neue Bold"), local("HelveticaNeue-Bold"), local("Arial Bold");
+}
+
 @font-face {
   font-family: "Playfair Display";
   font-style: normal;

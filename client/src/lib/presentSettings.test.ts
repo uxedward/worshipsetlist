@@ -39,7 +39,7 @@ describe('present settings', () => {
       fontSize: FONT_MIN,
       lineWidth: 94,
       shadow: 100,
-      fontId: 'montserrat',
+      fontId: 'helvetica',
     })
   })
 
@@ -48,12 +48,12 @@ describe('present settings', () => {
     expect(loadPresentSettings()).toEqual({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'playfair' })
   })
 
-  it('falls back to Montserrat for an unknown stored typeface', () => {
+  it('falls back to Helvetica Neue for an unknown stored typeface', () => {
     memory.set(
       'setflow.presentSettings',
       JSON.stringify({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'comic-sans' }),
     )
-    expect(loadPresentSettings().fontId).toBe('montserrat')
+    expect(loadPresentSettings().fontId).toBe('helvetica')
   })
 
   it('drops a stored overlay value from older settings', () => {
@@ -61,7 +61,7 @@ describe('present settings', () => {
       'setflow.presentSettings',
       JSON.stringify({ fontSize: 52, lineWidth: 72, overlay: 80, shadow: 20 }),
     )
-    expect(loadPresentSettings()).toEqual({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'montserrat' })
+    expect(loadPresentSettings()).toEqual({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'helvetica' })
   })
 
   it('returns defaults when storage is empty or corrupt', () => {
@@ -91,8 +91,9 @@ describe('present settings', () => {
     expect(lyricTextShadow(100)).toContain('rgba(0,0,0,1.000)')
   })
 
-  it('offers several present-mode typefaces and falls back to Montserrat', () => {
+  it('offers several present-mode typefaces and falls back to Helvetica Neue Bold', () => {
     expect(PRESENT_FONTS.map((font) => font.id)).toEqual([
+      'helvetica',
       'montserrat',
       'georgia',
       'inter',
@@ -101,9 +102,11 @@ describe('present settings', () => {
       'outfit',
     ])
     expect(findPresentFont('outfit').label).toBe('Outfit')
-    expect(findPresentFont('missing').id).toBe('montserrat')
+    expect(findPresentFont('missing').id).toBe('helvetica')
     expect(presentFontFamily('playfair')).toContain('Playfair Display')
+    expect(presentFontFamily('helvetica')).toContain('Helvetica Neue')
+    expect(findPresentFont('helvetica').weight).toBe(700)
+    expect(findPresentFont('helvetica').tracking).toBe('-0.02em')
     expect(findPresentFont('montserrat').weight).toBe(600)
-    expect(findPresentFont('montserrat').tracking).toBe('-0.02em')
   })
 })

@@ -1,16 +1,23 @@
 import type { PresentationFontSize } from '@shared/types.ts'
 
-export type PresentFontId = 'montserrat' | 'georgia' | 'inter' | 'playfair' | 'garamond' | 'outfit'
+export type PresentFontId = 'helvetica' | 'montserrat' | 'georgia' | 'inter' | 'playfair' | 'garamond' | 'outfit'
 
 export type PresentFont = {
   id: PresentFontId
   label: string
   family: string
-  weight: 400 | 500 | 600
+  weight: 400 | 500 | 600 | 700
   tracking?: string
 }
 
 export const PRESENT_FONTS: PresentFont[] = [
+  {
+    id: 'helvetica',
+    label: 'Helvetica Neue',
+    family: '"Helvetica Neue", HelveticaNeue, Helvetica, Arial, sans-serif',
+    weight: 700,
+    tracking: '-0.02em',
+  },
   { id: 'montserrat', label: 'Montserrat', family: 'Montserrat, Inter, sans-serif', weight: 600, tracking: '-0.02em' },
   { id: 'georgia', label: 'Georgia', family: 'Georgia, "Times New Roman", Times, serif', weight: 400 },
   { id: 'inter', label: 'Inter', family: 'Inter, system-ui, sans-serif', weight: 400 },
@@ -19,7 +26,7 @@ export const PRESENT_FONTS: PresentFont[] = [
   { id: 'outfit', label: 'Outfit', family: 'Outfit, Inter, sans-serif', weight: 500 },
 ]
 
-export const DEFAULT_PRESENT_FONT_ID: PresentFontId = 'montserrat'
+export const DEFAULT_PRESENT_FONT_ID: PresentFontId = 'helvetica'
 export const PRESENT_FONT = PRESENT_FONTS[0].family
 
 export type PresentSettings = {

@@ -523,7 +523,7 @@ function PresentSettingsPanel({
               onClick={() => onFontId(font.id)}
               className="shrink-0 rounded-[8px] px-2 py-1.5 text-left"
               style={{
-                width: 88,
+                width: 110,
                 border: selected ? '2px solid var(--border-strong)' : '2px solid var(--border)',
                 background: selected ? 'var(--surface-3)' : 'var(--canvas)',
               }}
