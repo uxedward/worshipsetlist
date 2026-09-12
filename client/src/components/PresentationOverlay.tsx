@@ -19,11 +19,15 @@ import {
   FONT_MIN,
   LINE_WIDTH_MAX,
   LINE_WIDTH_MIN,
-  PRESENT_FONT,
+  PRESENT_FONTS,
   coarseFontSize,
+  findPresentFont,
   fittedFontSize,
   lyricTextShadow,
+  presentFontFamily,
+  type PresentFontId,
 } from '../lib/presentSettings.ts'
+import './presentFonts.css'
 
 export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const open = useAppStore((s) => s.presentationOpen)
@@ -126,8 +130,11 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
     fit()
     const observer = new ResizeObserver(fit)
     observer.observe(el)
+    const family = findPresentFont(presentSettings.fontId).family.split(',')[0]
+    const loaded = document.fonts?.load?.(`${preferredSize}px ${family}`)
+    if (loaded) void loaded.then(fit).catch(() => undefined)
     return () => observer.disconnect()
-  }, [lyrics, preferredSize, minSize, presentSettings.lineWidth])
+  }, [lyrics, preferredSize, minSize, presentSettings.lineWidth, presentSettings.fontId])
 
   useEffect(() => {
     if (slides.length === 0) {
@@ -304,9 +311,9 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
           </div>
           <div
             ref={lyricsBoxRef}
-            className="relative w-full text-center font-serif font-normal"
+            className="relative w-full text-center font-normal"
             style={{
-              fontFamily: PRESENT_FONT,
+              fontFamily: presentFontFamily(presentSettings.fontId),
               fontSize: fittedSize,
               lineHeight: 1.45,
               textShadow: lyricTextShadow(presentSettings.shadow),
@@ -337,9 +344,11 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
       ) : null}
       {settingsOpen ? (
         <PresentSettingsPanel
+          fontId={presentSettings.fontId}
           fontSize={presentSettings.fontSize}
           lineWidth={presentSettings.lineWidth}
           shadow={presentSettings.shadow}
+          onFontId={(fontId) => setPresentSettings({ fontId })}
           onFontSize={applyFontSize}
           onLineWidth={(lineWidth) => setPresentSettings({ lineWidth })}
           onShadow={(shadow) => setPresentSettings({ shadow })}
@@ -432,16 +441,20 @@ function PresentBackdrop({
 }
 
 function PresentSettingsPanel({
+  fontId,
   fontSize,
   lineWidth,
   shadow,
+  onFontId,
   onFontSize,
   onLineWidth,
   onShadow,
 }: {
+  fontId: PresentFontId
   fontSize: number
   lineWidth: number
   shadow: number
+  onFontId: (id: PresentFontId) => void
   onFontSize: (n: number) => void
   onLineWidth: (n: number) => void
   onShadow: (n: number) => void
@@ -454,6 +467,34 @@ function PresentSettingsPanel({
       onPointerDown={(e) => e.stopPropagation()}
     >
       <div className="mb-2 text-[10px] font-semibold tracking-[0.14em] text-white/50">TEXT</div>
+      <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
+        {PRESENT_FONTS.map((font) => {
+          const selected = font.id === fontId
+          return (
+            <button
+              key={font.id}
+              type="button"
+              onClick={() => onFontId(font.id)}
+              className="shrink-0 rounded-[10px] px-2 py-1.5 text-left"
+              style={{
+                width: 88,
+                border: selected ? '2px solid var(--accent)' : '2px solid rgba(255,255,255,0.12)',
+                background: selected ? 'rgba(196,98,45,0.18)' : 'rgba(255,255,255,0.04)',
+              }}
+              aria-pressed={selected}
+              aria-label={font.label}
+            >
+              <span
+                className="block text-center text-[22px] leading-none text-white"
+                style={{ fontFamily: font.family }}
+              >
+                Aa
+              </span>
+              <span className="mt-1 block truncate text-center text-[11px] text-white/75">{font.label}</span>
+            </button>
+          )
+        })}
+      </div>
       <PresentSlider
         label="Size"
         value={fontSize}

@@ -1,9 +1,29 @@
 import type { PresentationFontSize } from '@shared/types.ts'
 
+export type PresentFontId = 'georgia' | 'inter' | 'playfair' | 'garamond' | 'outfit'
+
+export type PresentFont = {
+  id: PresentFontId
+  label: string
+  family: string
+}
+
+export const PRESENT_FONTS: PresentFont[] = [
+  { id: 'georgia', label: 'Georgia', family: 'Georgia, "Times New Roman", Times, serif' },
+  { id: 'inter', label: 'Inter', family: 'Inter, system-ui, sans-serif' },
+  { id: 'playfair', label: 'Playfair', family: '"Playfair Display", Georgia, serif' },
+  { id: 'garamond', label: 'Garamond', family: '"EB Garamond", Georgia, serif' },
+  { id: 'outfit', label: 'Outfit', family: 'Outfit, Inter, sans-serif' },
+]
+
+export const DEFAULT_PRESENT_FONT_ID: PresentFontId = 'georgia'
+export const PRESENT_FONT = PRESENT_FONTS[0].family
+
 export type PresentSettings = {
   fontSize: number
   lineWidth: number
   shadow: number
+  fontId: PresentFontId
 }
 
 export const FONT_MIN = 22
@@ -18,10 +38,18 @@ export const DEFAULT_PRESENT_SETTINGS: PresentSettings = {
   fontSize: FONT_DEFAULT,
   lineWidth: LINE_WIDTH_DEFAULT,
   shadow: SHADOW_DEFAULT,
+  fontId: DEFAULT_PRESENT_FONT_ID,
 }
 
 const STORAGE_KEY = 'setflow.presentSettings'
-export const PRESENT_FONT = 'Georgia, "Times New Roman", Times, serif'
+
+export function findPresentFont(id: string | null | undefined): PresentFont {
+  return PRESENT_FONTS.find((font) => font.id === id) ?? PRESENT_FONTS[0]
+}
+
+export function presentFontFamily(id: string | null | undefined): string {
+  return findPresentFont(id).family
+}
 
 function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min
@@ -34,6 +62,7 @@ export function clampPresentSettings(partial: Partial<PresentSettings> | null | 
     fontSize: clamp(src.fontSize ?? FONT_DEFAULT, FONT_MIN, FONT_MAX),
     lineWidth: clamp(src.lineWidth ?? LINE_WIDTH_DEFAULT, LINE_WIDTH_MIN, LINE_WIDTH_MAX),
     shadow: clamp(src.shadow ?? SHADOW_DEFAULT, 0, 100),
+    fontId: findPresentFont(src.fontId).id,
   }
 }
 

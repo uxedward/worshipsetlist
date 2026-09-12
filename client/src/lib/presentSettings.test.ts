@@ -18,11 +18,14 @@ import {
   DEFAULT_PRESENT_SETTINGS,
   FONT_MAX,
   FONT_MIN,
+  PRESENT_FONTS,
   clampPresentSettings,
   coarseFontSize,
+  findPresentFont,
   fittedFontSize,
   loadPresentSettings,
   lyricTextShadow,
+  presentFontFamily,
   savePresentSettings,
 } from './presentSettings.ts'
 
@@ -36,12 +39,21 @@ describe('present settings', () => {
       fontSize: FONT_MIN,
       lineWidth: 94,
       shadow: 100,
+      fontId: 'georgia',
     })
   })
 
-  it('persists and reloads settings', () => {
-    savePresentSettings({ fontSize: 40, lineWidth: 72, shadow: 20 })
-    expect(loadPresentSettings()).toEqual({ fontSize: 40, lineWidth: 72, shadow: 20 })
+  it('persists and reloads settings including typeface', () => {
+    savePresentSettings({ fontSize: 40, lineWidth: 72, shadow: 20, fontId: 'playfair' })
+    expect(loadPresentSettings()).toEqual({ fontSize: 40, lineWidth: 72, shadow: 20, fontId: 'playfair' })
+  })
+
+  it('falls back to Georgia for an unknown stored typeface', () => {
+    memory.set(
+      'setflow.presentSettings',
+      JSON.stringify({ fontSize: 40, lineWidth: 72, shadow: 20, fontId: 'comic-sans' }),
+    )
+    expect(loadPresentSettings().fontId).toBe('georgia')
   })
 
   it('drops a stored overlay value from older settings', () => {
@@ -49,7 +61,7 @@ describe('present settings', () => {
       'setflow.presentSettings',
       JSON.stringify({ fontSize: 40, lineWidth: 72, overlay: 80, shadow: 20 }),
     )
-    expect(loadPresentSettings()).toEqual({ fontSize: 40, lineWidth: 72, shadow: 20 })
+    expect(loadPresentSettings()).toEqual({ fontSize: 40, lineWidth: 72, shadow: 20, fontId: 'georgia' })
   })
 
   it('returns defaults when storage is empty or corrupt', () => {
@@ -77,5 +89,18 @@ describe('present settings', () => {
     expect(mid).toContain('rgba(0,0,0,0.920)')
     expect(mid.split(',').length).toBeGreaterThanOrEqual(4)
     expect(lyricTextShadow(100)).toContain('rgba(0,0,0,1.000)')
+  })
+
+  it('offers several present-mode typefaces and falls back to Georgia', () => {
+    expect(PRESENT_FONTS.map((font) => font.id)).toEqual([
+      'georgia',
+      'inter',
+      'playfair',
+      'garamond',
+      'outfit',
+    ])
+    expect(findPresentFont('outfit').label).toBe('Outfit')
+    expect(findPresentFont('missing').id).toBe('georgia')
+    expect(presentFontFamily('playfair')).toContain('Playfair Display')
   })
 })
