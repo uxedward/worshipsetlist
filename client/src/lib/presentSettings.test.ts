@@ -39,7 +39,7 @@ describe('present settings', () => {
       fontSize: FONT_MIN,
       lineWidth: 94,
       shadow: 100,
-      fontId: 'georgia',
+      fontId: 'montserrat',
     })
   })
 
@@ -48,12 +48,12 @@ describe('present settings', () => {
     expect(loadPresentSettings()).toEqual({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'playfair' })
   })
 
-  it('falls back to Georgia for an unknown stored typeface', () => {
+  it('falls back to Montserrat for an unknown stored typeface', () => {
     memory.set(
       'setflow.presentSettings',
       JSON.stringify({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'comic-sans' }),
     )
-    expect(loadPresentSettings().fontId).toBe('georgia')
+    expect(loadPresentSettings().fontId).toBe('montserrat')
   })
 
   it('drops a stored overlay value from older settings', () => {
@@ -61,7 +61,7 @@ describe('present settings', () => {
       'setflow.presentSettings',
       JSON.stringify({ fontSize: 52, lineWidth: 72, overlay: 80, shadow: 20 }),
     )
-    expect(loadPresentSettings()).toEqual({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'georgia' })
+    expect(loadPresentSettings()).toEqual({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'montserrat' })
   })
 
   it('returns defaults when storage is empty or corrupt', () => {
@@ -91,8 +91,9 @@ describe('present settings', () => {
     expect(lyricTextShadow(100)).toContain('rgba(0,0,0,1.000)')
   })
 
-  it('offers several present-mode typefaces and falls back to Georgia', () => {
+  it('offers several present-mode typefaces and falls back to Montserrat', () => {
     expect(PRESENT_FONTS.map((font) => font.id)).toEqual([
+      'montserrat',
       'georgia',
       'inter',
       'playfair',
@@ -100,7 +101,8 @@ describe('present settings', () => {
       'outfit',
     ])
     expect(findPresentFont('outfit').label).toBe('Outfit')
-    expect(findPresentFont('missing').id).toBe('georgia')
+    expect(findPresentFont('missing').id).toBe('montserrat')
     expect(presentFontFamily('playfair')).toContain('Playfair Display')
+    expect(findPresentFont('montserrat').weight).toBe(600)
   })
 })

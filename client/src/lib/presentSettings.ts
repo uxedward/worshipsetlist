@@ -1,22 +1,24 @@
 import type { PresentationFontSize } from '@shared/types.ts'
 
-export type PresentFontId = 'georgia' | 'inter' | 'playfair' | 'garamond' | 'outfit'
+export type PresentFontId = 'montserrat' | 'georgia' | 'inter' | 'playfair' | 'garamond' | 'outfit'
 
 export type PresentFont = {
   id: PresentFontId
   label: string
   family: string
+  weight: 400 | 500 | 600
 }
 
 export const PRESENT_FONTS: PresentFont[] = [
-  { id: 'georgia', label: 'Georgia', family: 'Georgia, "Times New Roman", Times, serif' },
-  { id: 'inter', label: 'Inter', family: 'Inter, system-ui, sans-serif' },
-  { id: 'playfair', label: 'Playfair', family: '"Playfair Display", Georgia, serif' },
-  { id: 'garamond', label: 'Garamond', family: '"EB Garamond", Georgia, serif' },
-  { id: 'outfit', label: 'Outfit', family: 'Outfit, Inter, sans-serif' },
+  { id: 'montserrat', label: 'Montserrat', family: 'Montserrat, Inter, sans-serif', weight: 600 },
+  { id: 'georgia', label: 'Georgia', family: 'Georgia, "Times New Roman", Times, serif', weight: 400 },
+  { id: 'inter', label: 'Inter', family: 'Inter, system-ui, sans-serif', weight: 400 },
+  { id: 'playfair', label: 'Playfair', family: '"Playfair Display", Georgia, serif', weight: 400 },
+  { id: 'garamond', label: 'Garamond', family: '"EB Garamond", Georgia, serif', weight: 400 },
+  { id: 'outfit', label: 'Outfit', family: 'Outfit, Inter, sans-serif', weight: 500 },
 ]
 
-export const DEFAULT_PRESENT_FONT_ID: PresentFontId = 'georgia'
+export const DEFAULT_PRESENT_FONT_ID: PresentFontId = 'montserrat'
 export const PRESENT_FONT = PRESENT_FONTS[0].family
 
 export type PresentSettings = {

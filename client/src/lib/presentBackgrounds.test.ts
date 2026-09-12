@@ -44,8 +44,22 @@ describe('present backgrounds', () => {
     expect(pickPresentVideoSrc(ocean, { width: 1440, height: 900, dpr: 2 })).toBe(ocean.src4k)
   })
 
-  it('falls back to dusk for unknown ids', () => {
+  it('falls back to horizon for unknown ids', () => {
     expect(findPresentBackground('missing').id).toBe(DEFAULT_PRESENT_BACKGROUND)
+    expect(DEFAULT_PRESENT_BACKGROUND).toBe('horizon')
+  })
+
+  it('ships warm stage gradients plus dusk', () => {
+    const gradients = PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'gradient')
+    expect(gradients.map((bg) => bg.id)).toEqual([
+      'horizon',
+      'afterglow',
+      'ember',
+      'violet',
+      'blush',
+      'dusk',
+    ])
+    expect(gradients.every((bg) => bg.fill?.startsWith('var(--present-'))).toBe(true)
   })
 
   it('persists a chosen background', () => {

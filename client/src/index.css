@@ -84,6 +84,16 @@
 
   --present-scrim: rgba(14, 19, 25, 0.55);
   --present-dusk: radial-gradient(ellipse at center, var(--arc-2) 0%, var(--surface-2) 40%, var(--surface-1) 70%, var(--canvas) 100%);
+  --present-horizon: radial-gradient(ellipse 120% 70% at 50% 115%, #c45444 0%, transparent 58%),
+    linear-gradient(180deg, #e5c5cc 0%, #e39a86 40%, #d06656 100%);
+  --present-afterglow: radial-gradient(ellipse 110% 65% at 50% 120%, #b84458 0%, transparent 55%),
+    linear-gradient(180deg, #d4b0c8 0%, #e08078 45%, #c44c50 100%);
+  --present-ember: radial-gradient(ellipse 120% 70% at 50% 115%, #c85830 0%, transparent 58%),
+    linear-gradient(180deg, #f0d0b8 0%, #e89868 42%, #d06040 100%);
+  --present-violet: radial-gradient(ellipse 110% 65% at 50% 120%, #8a4a78 0%, transparent 55%),
+    linear-gradient(180deg, #c8b0d4 0%, #d080a0 45%, #b05870 100%);
+  --present-blush: radial-gradient(ellipse 120% 70% at 50% 115%, #d07070 0%, transparent 58%),
+    linear-gradient(180deg, #f2d8dc 0%, #ebb0a8 40%, #d87870 100%);
 
   --font-display: "Newsreader", "Iowan Old Style", Georgia, serif;
   --font-ui: Outfit, Inter, -apple-system, system-ui, sans-serif;
@@ -143,6 +153,16 @@
 
   --present-scrim: rgba(14, 19, 25, 0.55);
   --present-dusk: radial-gradient(ellipse at center, var(--arc-2) 0%, var(--surface-2) 40%, var(--surface-1) 70%, var(--canvas) 100%);
+  --present-horizon: radial-gradient(ellipse 120% 70% at 50% 115%, #c45444 0%, transparent 58%),
+    linear-gradient(180deg, #e5c5cc 0%, #e39a86 40%, #d06656 100%);
+  --present-afterglow: radial-gradient(ellipse 110% 65% at 50% 120%, #b84458 0%, transparent 55%),
+    linear-gradient(180deg, #d4b0c8 0%, #e08078 45%, #c44c50 100%);
+  --present-ember: radial-gradient(ellipse 120% 70% at 50% 115%, #c85830 0%, transparent 58%),
+    linear-gradient(180deg, #f0d0b8 0%, #e89868 42%, #d06040 100%);
+  --present-violet: radial-gradient(ellipse 110% 65% at 50% 120%, #8a4a78 0%, transparent 55%),
+    linear-gradient(180deg, #c8b0d4 0%, #d080a0 45%, #b05870 100%);
+  --present-blush: radial-gradient(ellipse 120% 70% at 50% 115%, #d07070 0%, transparent 58%),
+    linear-gradient(180deg, #f2d8dc 0%, #ebb0a8 40%, #d87870 100%);
 }
 
 * {

@@ -12,6 +12,7 @@ import {
   findPresentBackground,
   pickPresentVideoSrc,
   currentViewport,
+  presentBackgroundFill,
   type PresentBackground,
 } from '../lib/presentBackgrounds.ts'
 import {
@@ -132,7 +133,8 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
     const observer = new ResizeObserver(fit)
     observer.observe(el)
     const family = findPresentFont(presentSettings.fontId).family.split(',')[0]
-    const loaded = document.fonts?.load?.(`${preferredSize}px ${family}`)
+    const weight = findPresentFont(presentSettings.fontId).weight
+    const loaded = document.fonts?.load?.(`${weight} ${preferredSize}px ${family}`)
     if (loaded) void loaded.then(fit).catch(() => undefined)
     return () => observer.disconnect()
   }, [lyrics, preferredSize, minSize, presentSettings.lineWidth, presentSettings.fontId])
@@ -342,13 +344,13 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
           </div>
           <div
             ref={lyricsBoxRef}
-            className="relative w-full text-center font-normal"
+            className="relative w-full text-center"
             style={{
               fontFamily: presentFontFamily(presentSettings.fontId),
               fontSize: Math.max(fittedSize, FONT_MIN),
-              lineHeight: 1.45,
+              lineHeight: 1.35,
               color: 'var(--text-primary)',
-              fontWeight: 400,
+              fontWeight: findPresentFont(presentSettings.fontId).weight,
               textShadow: lyricTextShadow(presentSettings.shadow),
             }}
           >
@@ -441,8 +443,6 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   )
 }
 
-const DUSK_GRADIENT = 'var(--present-dusk)'
-
 function PresentBackdrop({
   background,
   reduceMotion,
@@ -455,7 +455,7 @@ function PresentBackdrop({
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
       {background.kind === 'gradient' ? (
-        <div className="absolute inset-0" style={{ background: DUSK_GRADIENT }} />
+        <div className="absolute inset-0" style={{ background: presentBackgroundFill(background) }} />
       ) : null}
       {background.kind === 'photo' && background.src ? (
         <img src={background.src} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -531,7 +531,11 @@ function PresentSettingsPanel({
             >
               <span
                 className="block text-center text-title"
-                style={{ fontFamily: font.family, color: 'var(--text-primary)' }}
+                style={{
+                  fontFamily: font.family,
+                  fontWeight: font.weight,
+                  color: 'var(--text-primary)',
+                }}
               >
                 Aa
               </span>
@@ -606,7 +610,8 @@ function BackgroundPicker({
   selectedId: string
   onSelect: (id: string) => void
 }) {
-  const stills = PRESENT_BACKGROUNDS.filter((bg) => bg.group === 'still')
+  const gradients = PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'gradient')
+  const stills = PRESENT_BACKGROUNDS.filter((bg) => bg.group === 'still' && bg.kind !== 'gradient')
   const motion = PRESENT_BACKGROUNDS.filter((bg) => bg.group === 'motion')
   return (
     <div
@@ -614,6 +619,7 @@ function BackgroundPicker({
       style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
       onClick={(e) => e.stopPropagation()}
     >
+      <BackgroundRow title="Gradients" items={gradients} selectedId={selectedId} onSelect={onSelect} />
       <BackgroundRow title="Stills" items={stills} selectedId={selectedId} onSelect={onSelect} />
       <BackgroundRow title="Live HD" items={motion} selectedId={selectedId} onSelect={onSelect} />
     </div>
@@ -632,7 +638,7 @@ function BackgroundRow({
   onSelect: (id: string) => void
 }) {
   return (
-    <div className={title === 'Live HD' ? 'mt-3' : undefined}>
+    <div className={title === 'Gradients' ? undefined : 'mt-3'}>
       <div className="mb-2 text-label" style={{ color: 'var(--text-muted)' }}>
         {title}
       </div>
@@ -655,7 +661,7 @@ function BackgroundRow({
                 style={{
                   background:
                     bg.kind === 'gradient'
-                      ? DUSK_GRADIENT
+                      ? presentBackgroundFill(bg)
                       : `url(${bg.poster ?? bg.src}) center/cover`,
                 }}
               />

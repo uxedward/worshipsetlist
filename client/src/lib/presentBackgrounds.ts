@@ -8,16 +8,23 @@ export type PresentBackground = {
   src?: string
   src4k?: string
   poster?: string
+  /** CSS fill for gradient stills, e.g. var(--present-horizon). */
+  fill?: string
 }
 
-export const DEFAULT_PRESENT_BACKGROUND = 'dusk'
+export const DEFAULT_PRESENT_BACKGROUND = 'horizon'
 const STORAGE_KEY = 'setflow.presentBackground'
 const ASSET_V = '4'
 
 // Live clips are muted looping 4K camera footage. Stills are 4K frames.
 // Sources and licenses: client/public/backgrounds/CREDITS.txt
 export const PRESENT_BACKGROUNDS: PresentBackground[] = [
-  { id: 'dusk', label: 'Dusk', kind: 'gradient', group: 'still' },
+  { id: 'horizon', label: 'Horizon', kind: 'gradient', group: 'still', fill: 'var(--present-horizon)' },
+  { id: 'afterglow', label: 'Afterglow', kind: 'gradient', group: 'still', fill: 'var(--present-afterglow)' },
+  { id: 'ember', label: 'Ember', kind: 'gradient', group: 'still', fill: 'var(--present-ember)' },
+  { id: 'violet', label: 'Violet hour', kind: 'gradient', group: 'still', fill: 'var(--present-violet)' },
+  { id: 'blush', label: 'Blush', kind: 'gradient', group: 'still', fill: 'var(--present-blush)' },
+  { id: 'dusk', label: 'Dusk', kind: 'gradient', group: 'still', fill: 'var(--present-dusk)' },
   { id: 'ocean', label: 'Ocean', kind: 'photo', group: 'still', src: `/backgrounds/ocean.jpg?v=${ASSET_V}` },
   { id: 'mountains', label: 'Mountains', kind: 'photo', group: 'still', src: `/backgrounds/mountains.jpg?v=${ASSET_V}` },
   { id: 'forest', label: 'Forest', kind: 'photo', group: 'still', src: `/backgrounds/forest.jpg?v=${ASSET_V}` },
@@ -63,6 +70,10 @@ export const PRESENT_BACKGROUNDS: PresentBackground[] = [
 
 export function findPresentBackground(id: string | null | undefined): PresentBackground {
   return PRESENT_BACKGROUNDS.find((bg) => bg.id === id) ?? PRESENT_BACKGROUNDS[0]
+}
+
+export function presentBackgroundFill(background: PresentBackground): string {
+  return background.fill ?? 'var(--present-dusk)'
 }
 
 /** Retina / projector canvases get the 4K file; phones keep the 1080p loop. */
