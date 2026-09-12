@@ -35,10 +35,7 @@ export function SetlistHeader({ setlist, songs }: { setlist: Setlist; songs: Set
         <SetlistThumb colorIndex={setlist.colorIndex} size={160} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-label" style={{ color: 'var(--text-muted)' }}>
-          Setlist
-        </div>
-        <div className="mt-1 flex items-center gap-2">
+        <div className="flex items-center gap-2">
           {editing ? (
             <input
               ref={inputRef}

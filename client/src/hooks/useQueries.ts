@@ -49,13 +49,18 @@ const cachedBootstrap = hydrateBootstrap(readBootstrapCache())
 export function useBootstrap() {
   const qc = useQueryClient()
   const seed = (payload: BootstrapPayload) => {
-    qc.setQueryData(['preferences'], payload.preferences)
+    qc.setQueryData(['preferences'], (prev: Preference | undefined) =>
+      prev
+        ? { ...payload.preferences, theme: prev.theme, presentationFontSize: prev.presentationFontSize }
+        : payload.preferences,
+    )
     qc.setQueryData(['setlists'], payload.setlists)
     qc.setQueryData(songsListQueryKey(), payload.songs)
     if (payload.activeSetlist) {
       qc.setQueryData(['setlist', payload.activeSetlist.id], payload.activeSetlist)
     }
-    writeBootstrapCache(payload)
+    const preferences = qc.getQueryData<Preference>(['preferences']) ?? payload.preferences
+    writeBootstrapCache({ ...payload, preferences })
   }
 
   useLayoutEffect(() => {
@@ -244,13 +249,19 @@ export function useMutations() {
 
   return {
     patchPrefs: useTrackedMutation(async (body: Record<string, unknown>) => {
+      qc.setQueryData(['preferences'], (prev: Preference | undefined) =>
+        prev ? { ...prev, ...body } : prev,
+      )
+      qc.setQueryData(['bootstrap'], (prev: BootstrapPayload | undefined) =>
+        prev ? { ...prev, preferences: { ...prev.preferences, ...body } } : prev,
+      )
       try {
-        return await endpoints.patchPrefs(body)
+        const next = (await endpoints.patchPrefs(body)) as Preference
+        qc.setQueryData(['preferences'], next)
+        return next
       } catch {
         return body
       }
-    }, () => {
-      void qc.invalidateQueries({ queryKey: ['preferences'] })
     }),
     createSetlist: useTrackedMutation(async (body: Record<string, unknown>) => {
       try {

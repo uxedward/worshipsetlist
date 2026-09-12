@@ -155,7 +155,7 @@ export function SongDetailPanel({
       </div>
 
       {sections.length > 0 ? (
-        <div className="mt-3 flex gap-1.5 overflow-x-auto px-5 pb-1">
+        <div className="scrollbar-hidden mt-3 flex gap-1.5 overflow-x-auto px-5">
           {sections.map((s, i) => (
             <button
               key={s.id}
