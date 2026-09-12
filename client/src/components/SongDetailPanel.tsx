@@ -1,4 +1,4 @@
-import { Minus, Pencil, Play, Plus } from 'lucide-react'
+import { Minus, Pencil, Play, Plus, Trash2 } from 'lucide-react'
 import type { SetlistSong, Song } from '@shared/types.ts'
 import { soundingKey, transposeKey, semitonesFromKeys, preferFlatsForKey } from '@shared/transpose.ts'
 import { TRANSPOSE_MAX, TRANSPOSE_MIN } from '@shared/types.ts'
@@ -26,9 +26,10 @@ export function SongDetailPanel({
   const setLyricsOnly = useAppStore((s) => s.setLyricsOnly)
   const openPresentation = useAppStore((s) => s.openPresentation)
   const openEditor = useAppStore((s) => s.openEditor)
+  const askConfirm = useAppStore((s) => s.askConfirm)
   const sectionIndex = useAppStore((s) => s.activeSectionIndex)
   const setSection = useAppStore((s) => s.setActiveSectionIndex)
-  const { patchSetlistSong } = useMutations()
+  const { patchSetlistSong, deleteSong } = useMutations()
   const setlistId = setlistSong?.setlistId
   const qc = useQueryClient()
 
@@ -74,8 +75,25 @@ export function SongDetailPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="truncate text-title">{song.title}</h2>
-            <button type="button" onClick={() => openEditor(song.id)} aria-label="Edit song" style={{ color: 'var(--text-secondary)' }}>
+            <button type="button" onClick={() => openEditor(song.id)} aria-label="Edit song" title="Edit song" style={{ color: 'var(--text-secondary)' }}>
               <Pencil size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                askConfirm({
+                  title: `Delete ${song.title}?`,
+                  message: 'This removes it from the library and every setlist.',
+                  danger: true,
+                  confirmLabel: 'Delete',
+                  onConfirm: () => deleteSong.mutate(song.id),
+                })
+              }}
+              aria-label="Delete song"
+              title="Delete song"
+              style={{ color: 'var(--text-secondary)' }}
+            >
+              <Trash2 size={14} />
             </button>
           </div>
           <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
