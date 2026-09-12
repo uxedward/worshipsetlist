@@ -19,9 +19,11 @@ import {
   FONT_MAX,
   FONT_MIN,
   PRESENT_FONTS,
+  PRESENT_STROKES,
   clampPresentSettings,
   coarseFontSize,
   findPresentFont,
+  findPresentStroke,
   fittedFontSize,
   loadPresentSettings,
   lyricTextShadow,
@@ -40,12 +42,13 @@ describe('present settings', () => {
       lineWidth: 94,
       shadow: 100,
       fontId: 'helvetica',
+      strokeId: 'black',
     })
   })
 
   it('persists and reloads settings including typeface', () => {
-    savePresentSettings({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'playfair' })
-    expect(loadPresentSettings()).toEqual({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'playfair' })
+    savePresentSettings({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'playfair', strokeId: 'black' })
+    expect(loadPresentSettings()).toEqual({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'playfair', strokeId: 'black' })
   })
 
   it('falls back to Helvetica Neue for an unknown stored typeface', () => {
@@ -61,7 +64,7 @@ describe('present settings', () => {
       'setflow.presentSettings',
       JSON.stringify({ fontSize: 52, lineWidth: 72, overlay: 80, shadow: 20 }),
     )
-    expect(loadPresentSettings()).toEqual({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'helvetica' })
+    expect(loadPresentSettings()).toEqual({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'helvetica', strokeId: 'black' })
   })
 
   it('returns defaults when storage is empty or corrupt', () => {
@@ -82,13 +85,25 @@ describe('present settings', () => {
     expect(coarseFontSize(68)).toBe('large')
   })
 
-  it('builds a dark stacked text shadow from the slider', () => {
-    expect(lyricTextShadow(0)).toBe('none')
-    const mid = lyricTextShadow(60)
-    expect(mid).toContain('rgba(0,0,0,0.968)')
-    expect(mid).toContain('rgba(0,0,0,0.920)')
-    expect(mid.split(',').length).toBeGreaterThanOrEqual(4)
-    expect(lyricTextShadow(100)).toContain('rgba(0,0,0,1.000)')
+  it('builds a colored lyric stroke from the preset and weight slider', () => {
+    expect(lyricTextShadow(0, 'black')).toBe('none')
+    expect(lyricTextShadow(60, 'off')).not.toContain('var(--present-stroke-')
+    expect(lyricTextShadow(60, 'off')).toContain('rgba(0,0,0,')
+    const navy = lyricTextShadow(60, 'navy')
+    expect(navy).toContain('var(--present-stroke-navy)')
+    expect(navy.split(',').length).toBeGreaterThanOrEqual(8)
+    expect(lyricTextShadow(40, 'white')).toContain('var(--present-stroke-white)')
+    expect(lyricTextShadow(40, 'sky')).toContain('var(--present-stroke-sky)')
+  })
+
+  it('keeps stroke presets and falls back to black', () => {
+    expect(PRESENT_STROKES.map((stroke) => stroke.id)).toEqual(['off', 'black', 'white', 'navy', 'sky'])
+    expect(findPresentStroke('missing').id).toBe('black')
+    memory.set(
+      'setflow.presentSettings',
+      JSON.stringify({ fontSize: 52, lineWidth: 72, shadow: 20, fontId: 'helvetica', strokeId: 'navy' }),
+    )
+    expect(loadPresentSettings().strokeId).toBe('navy')
   })
 
   it('offers several present-mode typefaces and falls back to Helvetica Neue Bold', () => {

@@ -21,12 +21,14 @@ import {
   LINE_WIDTH_MAX,
   LINE_WIDTH_MIN,
   PRESENT_FONTS,
+  PRESENT_STROKES,
   coarseFontSize,
   findPresentFont,
   fittedFontSize,
   lyricTextShadow,
   presentFontFamily,
   type PresentFontId,
+  type PresentStrokeId,
 } from '../lib/presentSettings.ts'
 import './presentFonts.css'
 
@@ -352,7 +354,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
               letterSpacing: findPresentFont(presentSettings.fontId).tracking ?? 'normal',
               color: 'var(--present-lyric)',
               fontWeight: findPresentFont(presentSettings.fontId).weight,
-              textShadow: lyricTextShadow(presentSettings.shadow),
+              textShadow: lyricTextShadow(presentSettings.shadow, presentSettings.strokeId),
             }}
           >
             {lyrics.length > 0 ? (
@@ -384,10 +386,12 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
           fontSize={presentSettings.fontSize}
           lineWidth={presentSettings.lineWidth}
           shadow={presentSettings.shadow}
+          strokeId={presentSettings.strokeId}
           onFontId={(fontId) => setPresentSettings({ fontId })}
           onFontSize={applyFontSize}
           onLineWidth={(lineWidth) => setPresentSettings({ lineWidth })}
           onShadow={(shadow) => setPresentSettings({ shadow })}
+          onStrokeId={(strokeId) => setPresentSettings({ strokeId })}
         />
       ) : null}
 
@@ -489,19 +493,23 @@ function PresentSettingsPanel({
   fontSize,
   lineWidth,
   shadow,
+  strokeId,
   onFontId,
   onFontSize,
   onLineWidth,
   onShadow,
+  onStrokeId,
 }: {
   fontId: PresentFontId
   fontSize: number
   lineWidth: number
   shadow: number
+  strokeId: PresentStrokeId
   onFontId: (id: PresentFontId) => void
   onFontSize: (n: number) => void
   onLineWidth: (n: number) => void
   onShadow: (n: number) => void
+  onStrokeId: (id: PresentStrokeId) => void
 }) {
   return (
     <div
@@ -547,6 +555,44 @@ function PresentSettingsPanel({
           )
         })}
       </div>
+      <div className="mb-2 text-label" style={{ color: 'var(--text-muted)' }}>
+        Stroke
+      </div>
+      <div className="mb-2 flex gap-2 overflow-x-auto pb-1">
+        {PRESENT_STROKES.map((stroke) => {
+          const selected = stroke.id === strokeId
+          return (
+            <button
+              key={stroke.id}
+              type="button"
+              onClick={() => onStrokeId(stroke.id)}
+              className="flex shrink-0 flex-col items-center gap-1 rounded-[8px] px-2 py-1.5"
+              style={{
+                width: 64,
+                border: selected ? '2px solid var(--border-strong)' : '2px solid var(--border)',
+                background: selected ? 'var(--surface-3)' : 'var(--canvas)',
+              }}
+              aria-pressed={selected}
+              aria-label={`${stroke.label} stroke`}
+            >
+              <span
+                className="block h-6 w-6 rounded-full"
+                style={{
+                  background: stroke.id === 'off' ? 'transparent' : stroke.fill,
+                  border: stroke.id === 'white' || stroke.id === 'off' ? '1px solid var(--border-strong)' : '1px solid transparent',
+                  backgroundImage:
+                    stroke.id === 'off'
+                      ? 'linear-gradient(135deg, transparent 46%, var(--danger) 46%, var(--danger) 54%, transparent 54%)'
+                      : undefined,
+                }}
+              />
+              <span className="text-caption" style={{ color: 'var(--text-secondary)' }}>
+                {stroke.label}
+              </span>
+            </button>
+          )
+        })}
+      </div>
       <PresentSlider
         label="Size"
         value={fontSize}
@@ -562,7 +608,7 @@ function PresentSettingsPanel({
         suffix="%"
         onChange={onLineWidth}
       />
-      <PresentSlider label="Text shadow" value={shadow} min={0} max={100} onChange={onShadow} />
+      <PresentSlider label="Stroke weight" value={shadow} min={0} max={100} onChange={onShadow} />
     </div>
   )
 }

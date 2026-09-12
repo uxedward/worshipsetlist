@@ -29,11 +29,30 @@ export const PRESENT_FONTS: PresentFont[] = [
 export const DEFAULT_PRESENT_FONT_ID: PresentFontId = 'helvetica'
 export const PRESENT_FONT = PRESENT_FONTS[0].family
 
+export type PresentStrokeId = 'off' | 'black' | 'white' | 'navy' | 'sky'
+
+export type PresentStroke = {
+  id: PresentStrokeId
+  label: string
+  fill: string
+}
+
+export const PRESENT_STROKES: PresentStroke[] = [
+  { id: 'off', label: 'None', fill: 'transparent' },
+  { id: 'black', label: 'Black', fill: 'var(--present-stroke-black)' },
+  { id: 'white', label: 'White', fill: 'var(--present-stroke-white)' },
+  { id: 'navy', label: 'Navy', fill: 'var(--present-stroke-navy)' },
+  { id: 'sky', label: 'Sky', fill: 'var(--present-stroke-sky)' },
+]
+
+export const DEFAULT_PRESENT_STROKE_ID: PresentStrokeId = 'black'
+
 export type PresentSettings = {
   fontSize: number
   lineWidth: number
   shadow: number
   fontId: PresentFontId
+  strokeId: PresentStrokeId
 }
 
 export const FONT_MIN = 48
@@ -49,6 +68,7 @@ export const DEFAULT_PRESENT_SETTINGS: PresentSettings = {
   lineWidth: LINE_WIDTH_DEFAULT,
   shadow: SHADOW_DEFAULT,
   fontId: DEFAULT_PRESENT_FONT_ID,
+  strokeId: DEFAULT_PRESENT_STROKE_ID,
 }
 
 const STORAGE_KEY = 'setflow.presentSettings'
@@ -59,6 +79,10 @@ export function findPresentFont(id: string | null | undefined): PresentFont {
 
 export function presentFontFamily(id: string | null | undefined): string {
   return findPresentFont(id).family
+}
+
+export function findPresentStroke(id: string | null | undefined): PresentStroke {
+  return PRESENT_STROKES.find((stroke) => stroke.id === id) ?? PRESENT_STROKES[1]
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -73,6 +97,7 @@ export function clampPresentSettings(partial: Partial<PresentSettings> | null | 
     lineWidth: clamp(src.lineWidth ?? LINE_WIDTH_DEFAULT, LINE_WIDTH_MIN, LINE_WIDTH_MAX),
     shadow: clamp(src.shadow ?? SHADOW_DEFAULT, 0, 100),
     fontId: findPresentFont(src.fontId).id,
+    strokeId: findPresentStroke(src.strokeId).id,
   }
 }
 
@@ -110,22 +135,30 @@ export function fittedFontSize(
   return Math.max(minSize, Math.floor(max * (containerWidth / longestLineWidth)))
 }
 
-export function lyricTextShadow(shadow: number): string {
+export function lyricTextShadow(shadow: number, strokeId: PresentStrokeId = DEFAULT_PRESENT_STROKE_ID): string {
   const t = clamp(shadow, 0, 100) / 100
   if (t <= 0) return 'none'
-  const outline = (1 + t * 1.5).toFixed(1)
+  const stroke = findPresentStroke(strokeId)
+  const outline = (1 + t * 2).toFixed(1)
   const y = (2 + t * 3).toFixed(1)
   const blur = (3 + t * 10).toFixed(1)
   const glow = (4 + t * 12).toFixed(1)
-  const aEdge = (0.92 + t * 0.08).toFixed(3)
-  const aDrop = (0.8 + t * 0.2).toFixed(3)
-  const aGlow = (0.7 + t * 0.25).toFixed(3)
-  return [
-    `-${outline}px 0 0 rgba(0,0,0,${aEdge})`,
-    `${outline}px 0 0 rgba(0,0,0,${aEdge})`,
-    `0 ${outline}px 0 rgba(0,0,0,${aEdge})`,
-    `0 -${outline}px 0 rgba(0,0,0,${aEdge})`,
-    `0 ${y}px ${blur}px rgba(0,0,0,${aDrop})`,
-    `0 0 ${glow}px rgba(0,0,0,${aGlow})`,
-  ].join(', ')
+  const aDrop = (0.45 + t * 0.35).toFixed(3)
+  const aGlow = (0.35 + t * 0.3).toFixed(3)
+  const parts: string[] = []
+  if (stroke.id !== 'off') {
+    const color = stroke.fill
+    parts.push(
+      `-${outline}px 0 0 ${color}`,
+      `${outline}px 0 0 ${color}`,
+      `0 ${outline}px 0 ${color}`,
+      `0 -${outline}px 0 ${color}`,
+      `-${outline}px -${outline}px 0 ${color}`,
+      `${outline}px -${outline}px 0 ${color}`,
+      `-${outline}px ${outline}px 0 ${color}`,
+      `${outline}px ${outline}px 0 ${color}`,
+    )
+  }
+  parts.push(`0 ${y}px ${blur}px rgba(0,0,0,${aDrop})`, `0 0 ${glow}px rgba(0,0,0,${aGlow})`)
+  return parts.join(', ')
 }

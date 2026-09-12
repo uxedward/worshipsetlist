@@ -38,7 +38,7 @@ export function ChordChart({
                   {!lyricsOnly && line.chords?.trim() ? (
                     <pre
                       className="m-0 font-mono text-label"
-                      style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-mono)', fontWeight: 500 }}
+                      style={{ color: 'var(--chart-chord)', fontFamily: 'var(--font-mono)', fontWeight: 500 }}
                     >
                       {transposeChordLine(line.chords, semitones ?? 0, preferFlats ?? false)}
                     </pre>

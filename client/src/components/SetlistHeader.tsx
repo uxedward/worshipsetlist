@@ -1,6 +1,6 @@
-import { Copy, Download, MoreHorizontal, Pencil, Play, Plus } from 'lucide-react'
+import { Pencil, Play, Plus } from 'lucide-react'
 import type { Setlist, SetlistSong } from '@shared/types.ts'
-import { formatDate, formatDurationLong } from '@shared/duration.ts'
+import { formatDate } from '@shared/duration.ts'
 import { soundingKey } from '@shared/transpose.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations } from '../hooks/useQueries.ts'
@@ -11,8 +11,6 @@ import { useEffect, useRef, useState } from 'react'
 export function SetlistHeader({ setlist, songs }: { setlist: Setlist; songs: SetlistSong[] }) {
   const openPresentation = useAppStore((s) => s.openPresentation)
   const openSetlistModal = useAppStore((s) => s.openSetlistModal)
-  const setContextMenu = useAppStore((s) => s.setContextMenu)
-  const setExportOpen = useAppStore((s) => s.setExportOpen)
   const { patchSetlist } = useMutations()
 
   const [editing, setEditing] = useState(false)
@@ -30,12 +28,6 @@ export function SetlistHeader({ setlist, songs }: { setlist: Setlist; songs: Set
   const keys = Array.from(
     new Set(songs.map((s) => soundingKey(s.song.key, s.transposedKey))),
   )
-  const total = songs.reduce((sum, s) => sum + (s.song.durationSeconds ?? 0), 0)
-
-  const copyPlain = async () => {
-    const { buildSetlistPlain } = await import('../lib/setlistPlain.ts')
-    await navigator.clipboard.writeText(buildSetlistPlain(songs))
-  }
 
   return (
     <div className="flex gap-5 px-6 pt-5 pb-4">
@@ -96,7 +88,7 @@ export function SetlistHeader({ setlist, songs }: { setlist: Setlist; songs: Set
           {[setlist.serviceName, formatDate(setlist.date)].filter(Boolean).join(' · ') || 'No service details'}
         </div>
         <div className="mt-1 text-label" style={{ color: 'var(--text-secondary)' }}>
-          {songs.length} {songs.length === 1 ? 'song' : 'songs'} · {formatDurationLong(total)}
+          {songs.length} {songs.length === 1 ? 'song' : 'songs'}
           {keys.length ? ` · Keys: ${keys.join(', ')}` : ''}
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -106,25 +98,6 @@ export function SetlistHeader({ setlist, songs }: { setlist: Setlist; songs: Set
           <Btn onClick={() => useAppStore.getState().setAddPickerOpen(true)}>
             <Plus size={14} /> Add song
           </Btn>
-          <Btn onClick={() => void copyPlain()}>
-            <Copy size={14} /> Copy
-          </Btn>
-          <Btn onClick={() => setExportOpen(true)}>
-            <Download size={14} /> Export setlist
-          </Btn>
-          <button
-            type="button"
-            className="flex h-9 w-9 items-center justify-center rounded-[8px]"
-            style={{ color: 'var(--text-secondary)' }}
-            title="Setlist actions"
-            aria-label="Setlist actions"
-            onClick={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect()
-              setContextMenu({ id: setlist.id, x: rect.left, y: rect.bottom + 4 })
-            }}
-          >
-            <MoreHorizontal size={18} />
-          </button>
         </div>
       </div>
     </div>

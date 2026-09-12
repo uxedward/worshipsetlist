@@ -82,8 +82,14 @@
   --arc-4: #6ba8e5;
   --arc-5: #a5d0f5;
 
+  --chart-chord: var(--accent-text);
+
   --present-scrim: rgba(14, 19, 25, 0.55);
   --present-lyric: #ffffff;
+  --present-stroke-black: #0a0c10;
+  --present-stroke-white: #ffffff;
+  --present-stroke-navy: #10243a;
+  --present-stroke-sky: #8fc0ef;
   --present-dusk: radial-gradient(ellipse at center, var(--arc-2) 0%, var(--surface-2) 40%, var(--surface-1) 70%, var(--canvas) 100%);
   /* Stage LED-wall sunsets — sampled from worship stage photography, not chrome. */
   --present-horizon: radial-gradient(ellipse 140% 62% at 50% 108%, #c4544c 0%, transparent 58%),
@@ -155,8 +161,14 @@
   --arc-4: #3e6d9c;
   --arc-5: #1b4b7e;
 
+  --chart-chord: var(--accent-text);
+
   --present-scrim: rgba(14, 19, 25, 0.55);
   --present-lyric: #ffffff;
+  --present-stroke-black: #0a0c10;
+  --present-stroke-white: #ffffff;
+  --present-stroke-navy: #10243a;
+  --present-stroke-sky: #8fc0ef;
   --present-dusk: radial-gradient(ellipse at center, var(--arc-2) 0%, var(--surface-2) 40%, var(--surface-1) 70%, var(--canvas) 100%);
   /* Stage LED-wall sunsets — sampled from worship stage photography, not chrome. */
   --present-horizon: radial-gradient(ellipse 140% 62% at 50% 108%, #c4544c 0%, transparent 58%),

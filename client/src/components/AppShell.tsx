@@ -1,6 +1,5 @@
 import type { Setlist, SetlistSong } from '@shared/types.ts'
 import { keyJump, soundingKey } from '@shared/transpose.ts'
-import { formatDurationLong } from '@shared/duration.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useIsDesktop, useIsMobile, useIsTablet } from '../hooks/useMediaQuery.ts'
 import { Sidebar } from './Sidebar.tsx'
@@ -44,7 +43,6 @@ export function AppShell({
     if (i === 0) return false
     return keyJump(soundingKey(songs[i - 1].song.key, songs[i - 1].transposedKey), soundingKey(ss.song.key, ss.transposedKey)) > 3
   }).length
-  const total = songs.reduce((s, x) => s + (x.song.durationSeconds ?? 0), 0)
   const keys = Array.from(new Set(songs.map((s) => soundingKey(s.song.key, s.transposedKey))))
 
   const mainSetlist = setlist ? (
@@ -53,7 +51,6 @@ export function AppShell({
       {isMobile ? (
         <div className="mx-4 mb-3 flex flex-wrap gap-2 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
           <span>{songs.length} songs</span>
-          <span>{formatDurationLong(total)}</span>
           <span>{keys.join(', ') || 'No keys'}</span>
           {warnings > 0 ? <span style={{ color: 'var(--warning)' }}>{warnings} key warnings</span> : null}
         </div>

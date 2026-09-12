@@ -11,7 +11,6 @@ import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } 
 import { CSS } from '@dnd-kit/utilities'
 import { AlertTriangle, GripVertical, Minus, Plus, X } from 'lucide-react'
 import type { SetlistSong } from '@shared/types.ts'
-import { formatDuration } from '@shared/duration.ts'
 import { keyJump, soundingKey, transposeKey, semitonesFromKeys } from '@shared/transpose.ts'
 import { TRANSPOSE_MAX, TRANSPOSE_MIN } from '@shared/types.ts'
 import type { Setlist } from '@shared/types.ts'
@@ -77,9 +76,9 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
       <div
         className="grid px-3 pb-3 text-label"
         style={{
-          gridTemplateColumns: '24px 40px 1fr 56px 72px 88px 48px 36px',
+          gridTemplateColumns: '24px 40px 1fr 56px 72px 36px',
           color: 'var(--text-muted)',
-          minWidth: 560,
+          minWidth: 420,
         }}
       >
         <span />
@@ -87,8 +86,6 @@ export function SongTable({ setlistId, songs }: { setlistId: string; songs: Setl
         <span>Title</span>
         <span>Key</span>
         <span>BPM</span>
-        <span>Tag</span>
-        <span>Time</span>
         <span />
       </div>
       <p className="px-3 pb-4 text-caption" style={{ color: 'var(--text-muted)' }}>
@@ -197,7 +194,7 @@ function SortableRow({
         borderBottom: '1px solid var(--border)',
         color: 'var(--text-primary)',
         opacity: isDragging ? 0.7 : 1,
-        minWidth: 560,
+        minWidth: 420,
       }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -205,7 +202,7 @@ function SortableRow({
     >
       <div
         className="grid items-center"
-        style={{ gridTemplateColumns: '24px 40px 1fr 56px 72px 88px 48px 36px' }}
+        style={{ gridTemplateColumns: '24px 40px 1fr 56px 72px 36px' }}
       >
         <button
           type="button"
@@ -281,19 +278,6 @@ function SortableRow({
         <span className="inline-flex items-center gap-1 text-caption tabular" style={{ color: 'var(--text-secondary)' }}>
           <EnergyArc bpm={ss.song.bpm} />
           {ss.song.bpm}
-        </span>
-        <span
-          className="w-fit px-2 py-0.5 text-caption"
-          style={{
-            background: 'var(--surface-2)',
-            color: 'var(--text-secondary)',
-            borderRadius: 'var(--radius-sm)',
-          }}
-        >
-          {ss.song.tag}
-        </span>
-        <span className="text-caption tabular" style={{ color: 'var(--text-secondary)' }}>
-          {formatDuration(ss.song.durationSeconds)}
         </span>
         <button
           type="button"
