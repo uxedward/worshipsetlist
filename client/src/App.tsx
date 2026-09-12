@@ -126,7 +126,7 @@ function AppInner() {
     return () => window.clearInterval(iv)
   }, [playing, activeSsId, setlistSongs, setElapsed, setPlaying])
 
-  const loading = !boot.data
+  const loading = !boot.data && !boot.isError
   const loadError = boot.isError && !boot.data
 
   if (loading) {

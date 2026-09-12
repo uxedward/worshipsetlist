@@ -66,7 +66,8 @@ export function useBootstrap() {
     queryKey: ['bootstrap'],
     staleTime: 60_000,
     retry: 1,
-    refetchOnMount: false,
+    // Cached initialData paints immediately. updatedAt 0 marks it stale so
+    // the default refetchOnMount:true still pulls a fresh copy in the background.
     initialData: cachedBootstrap ?? undefined,
     initialDataUpdatedAt: cachedBootstrap ? 0 : undefined,
     queryFn: async () => {
