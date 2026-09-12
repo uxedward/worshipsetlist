@@ -34,7 +34,7 @@ export const FONT_DEFAULT = 52
 export const LINE_WIDTH_MIN = 58
 export const LINE_WIDTH_MAX = 94
 export const LINE_WIDTH_DEFAULT = 80
-export const SHADOW_DEFAULT = 86
+export const SHADOW_DEFAULT = 24
 
 export const DEFAULT_PRESENT_SETTINGS: PresentSettings = {
   fontSize: FONT_DEFAULT,
