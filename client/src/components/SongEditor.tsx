@@ -145,9 +145,12 @@ export function SongEditor() {
       })),
     }
     setSaving(true)
+    const started = Date.now()
     try {
       if (songId) await patchSong.mutateAsync({ id: songId, body })
       else await createSong.mutateAsync(body)
+      const wait = Math.max(0, 400 - (Date.now() - started))
+      if (wait) await new Promise((resolve) => window.setTimeout(resolve, wait))
       closeEditor()
     } finally {
       setSaving(false)

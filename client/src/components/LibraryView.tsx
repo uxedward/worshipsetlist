@@ -87,6 +87,7 @@ export function LibraryView({
       next.add(song.id)
       return next
     })
+    const started = Date.now()
     addSong.mutate(
       { setlistId: targetSetlistId, songId: song.id },
       {
@@ -94,11 +95,14 @@ export function LibraryView({
           setAddError(err instanceof Error ? err.message : 'Could not add that song.')
         },
         onSettled: () => {
-          setAddingIds((prev) => {
-            const next = new Set(prev)
-            next.delete(song.id)
-            return next
-          })
+          const wait = Math.max(0, 400 - (Date.now() - started))
+          window.setTimeout(() => {
+            setAddingIds((prev) => {
+              const next = new Set(prev)
+              next.delete(song.id)
+              return next
+            })
+          }, wait)
         },
       },
     )
