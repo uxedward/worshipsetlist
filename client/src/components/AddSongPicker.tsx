@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, Plus, Search, X } from 'lucide-react'
-import type { Setlist, SetlistSong, Song } from '@shared/types.ts'
+import type { Song } from '@shared/types.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSetlist, useSongs } from '../hooks/useQueries.ts'
 import { Btn, KeyBadge } from './ui.tsx'
-import { useQueryClient } from '@tanstack/react-query'
 
 export function AddSongPicker() {
   const open = useAppStore((s) => s.addPickerOpen)
@@ -13,10 +12,8 @@ export function AddSongPicker() {
   const { data: setlist } = useSetlist(open ? setlistId : null)
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [addingId, setAddingId] = useState<string | null>(null)
   const { data: songs = [], isLoading } = useSongs({ search, sort: 'title' }, open)
   const { addSong } = useMutations()
-  const qc = useQueryClient()
 
   const inSetlist = useMemo(
     () => new Set((setlist?.songs ?? []).map((s) => s.songId)),
@@ -42,23 +39,11 @@ export function AddSongPicker() {
     }
     if (inSetlist.has(song.id)) return
     setError(null)
-    setAddingId(song.id)
     addSong.mutate(
       { setlistId, songId: song.id },
       {
-        onSuccess: (row) => {
-          qc.setQueryData<Setlist>(['setlist', setlistId], (prev) => {
-            if (!prev) return prev
-            const songsOnList = prev.songs ?? []
-            if (songsOnList.some((s) => s.id === row.id || s.songId === song.id)) return prev
-            return { ...prev, songs: [...songsOnList, row as SetlistSong] }
-          })
-          void qc.invalidateQueries({ queryKey: ['setlists'] })
-          setAddingId(null)
-        },
         onError: (err) => {
           setError(err instanceof Error ? err.message : 'Could not add that song.')
-          setAddingId(null)
         },
       },
     )
@@ -132,7 +117,7 @@ export function AddSongPicker() {
                   </div>
                   <button
                     type="button"
-                    disabled={added || addingId === song.id || !setlistId}
+                    disabled={added || !setlistId}
                     onClick={() => add(song)}
                     className="flex h-8 items-center gap-1 rounded-[8px] px-2 text-caption"
                     style={{

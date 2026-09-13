@@ -49,9 +49,10 @@ export function SetlistEditModal({ setlists }: { setlists: Setlist[] }) {
     if (id === 'new') {
       const created = (await createSetlist.mutateAsync(body)) as Setlist
       if (created?.id) setActive(created.id)
-    } else {
-      await patchSetlist.mutateAsync({ id, body })
+      close()
+      return
     }
+    patchSetlist.mutate({ id, body })
     close()
   }
 

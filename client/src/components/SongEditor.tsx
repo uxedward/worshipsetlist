@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Clipboard, X } from 'lucide-react'
+import { Clipboard, Trash2, X } from 'lucide-react'
 import { BPM_MAX, BPM_MIN, KEYS, TAGS, TIME_SIGNATURES } from '@shared/types.ts'
 import type { SongInput } from '@shared/types.ts'
 import { parseChart, chartToText, hasValidChart } from '@shared/chartParser.ts'
@@ -37,7 +37,7 @@ export function SongEditor() {
   const closeEditor = useAppStore((s) => s.closeEditor)
   const askConfirm = useAppStore((s) => s.askConfirm)
   const { data: existing } = useSong(songId)
-  const { createSong, patchSong } = useMutations()
+  const { createSong, patchSong, deleteSong } = useMutations()
 
   const [form, setForm] = useState(emptyForm)
   const [baseline, setBaseline] = useState(emptyForm)
@@ -148,6 +148,17 @@ export function SongEditor() {
     closeEditor()
   }
 
+  const requestDelete = () => {
+    if (!songId) return
+    askConfirm({
+      title: `Delete ${form.title || 'this song'}?`,
+      message: 'This removes it from the library and every setlist.',
+      danger: true,
+      confirmLabel: 'Delete',
+      onConfirm: () => deleteSong.mutate(songId),
+    })
+  }
+
   const pasteChart = async () => {
     try {
       const text = await navigator.clipboard.readText()
@@ -175,6 +186,13 @@ export function SongEditor() {
           <div className="text-title">{form.title || 'Untitled'}</div>
         </div>
         <div className="flex items-center gap-2">
+          {songId ? (
+            <Btn ghost onClick={requestDelete}>
+              <span className="inline-flex items-center gap-1" style={{ color: 'var(--danger)' }}>
+                <Trash2 size={14} /> Delete
+              </span>
+            </Btn>
+          ) : null}
           <Btn ghost onClick={close}>
             Cancel
           </Btn>
