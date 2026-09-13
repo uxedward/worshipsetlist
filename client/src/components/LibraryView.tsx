@@ -1,13 +1,12 @@
 import { useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Check, Pencil, Plus, Search, Trash2 } from 'lucide-react'
-import { TAGS } from '@shared/types.ts'
 import { displaySongMeta } from '@shared/bulkFormat.ts'
 import type { SetlistSong, Song } from '@shared/types.ts'
 import { cn } from '../lib/cn.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSongs } from '../hooks/useQueries.ts'
-import { Btn, KeyBadge, Pill } from './ui.tsx'
+import { Btn, KeyBadge } from './ui.tsx'
 
 type Row =
   | { type: 'header'; id: string; artist: string; count: number }
@@ -21,8 +20,6 @@ export function LibraryView({
   setlistSongs: SetlistSong[]
 }) {
   const [search, setSearch] = useState('')
-  const [artist, setArtist] = useState('')
-  const [tag, setTag] = useState('')
   const [sort, setSort] = useState<'artist' | 'title' | 'bpm'>('artist')
   const openEditor = useAppStore((s) => s.openEditor)
   const setBulkImportOpen = useAppStore((s) => s.setBulkImportOpen)
@@ -31,17 +28,13 @@ export function LibraryView({
   const targetSetlistId = setlistId ?? storeSetlistId
   const [addError, setAddError] = useState<string | null>(null)
   const { addSong, deleteSong } = useMutations()
-  const { data: songs = [], isLoading } = useSongs({ search, artist, tag, sort })
+  const { data: songs = [], isLoading } = useSongs({ search, sort })
 
   const inSetlist = useMemo(() => new Set(setlistSongs.map((s) => s.songId)), [setlistSongs])
-  const artists = useMemo(() => {
-    const set = new Set(songs.map((s) => s.artist).filter(Boolean))
-    return Array.from(set).sort((a, b) => a.localeCompare(b))
-  }, [songs])
 
   const grouped = useMemo(() => {
     const rows: Row[] = []
-    const unfiltered = !artist && !tag && !search && sort === 'artist'
+    const unfiltered = !search && sort === 'artist'
     if (unfiltered) {
       let current = ''
       let count = 0
@@ -63,7 +56,7 @@ export function LibraryView({
       for (const song of songs) rows.push({ type: 'song', id: song.id, song })
     }
     return rows
-  }, [songs, artist, tag, search, sort])
+  }, [songs, search, sort])
 
   const parentRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -139,24 +132,6 @@ export function LibraryView({
             className="h-full w-full bg-transparent text-[13px] outline-none"
           />
         </div>
-      </div>
-
-      <div className="mt-3 flex gap-1.5 overflow-x-auto px-6">
-        <Pill active={!artist} onClick={() => setArtist('')}>
-          All artists
-        </Pill>
-        {artists.map((a) => (
-          <Pill key={a} active={artist === a} onClick={() => setArtist(artist === a ? '' : a)}>
-            {a}
-          </Pill>
-        ))}
-      </div>
-      <div className="mt-2 flex gap-1.5 overflow-x-auto px-6">
-        {TAGS.map((t) => (
-          <Pill key={t} active={tag === t} onClick={() => setTag(tag === t ? '' : t)}>
-            {t}
-          </Pill>
-        ))}
       </div>
 
       <div className="mt-3 flex items-center justify-end px-6">
