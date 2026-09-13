@@ -4,7 +4,7 @@ import { displayKey } from '@shared/bulkFormat.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useRetrySave } from '../hooks/useQueries.ts'
 import { energyLevel, energyToken } from '../lib/energyArc.ts'
-import { Moon, Sun, X } from 'lucide-react'
+import { Loader2, Moon, Sun, X } from 'lucide-react'
 
 const COVER_COUNT = 5
 
@@ -80,6 +80,10 @@ export function EnergyArc({ bpm }: { bpm: number | null | undefined }) {
   )
 }
 
+export function Spinner({ size = 14 }: { size?: number }) {
+  return <Loader2 size={size} className="animate-spin" aria-hidden />
+}
+
 export function EqualizerBars() {
   return (
     <div className="flex h-4 items-end gap-[2px]" aria-hidden>
@@ -130,6 +134,7 @@ export function Btn({
   ghost,
   type = 'button',
   disabled,
+  busy,
   className,
 }: {
   children: ReactNode
@@ -138,16 +143,18 @@ export function Btn({
   ghost?: boolean
   type?: 'button' | 'submit'
   disabled?: boolean
+  busy?: boolean
   className?: string
 }) {
   return (
     <button
       type={type}
-      disabled={disabled}
+      disabled={disabled || busy}
       onClick={onClick}
       className={cn(accent ? 'btn-primary' : 'btn-secondary', className)}
       style={ghost && !accent ? { borderColor: 'transparent' } : undefined}
     >
+      {busy ? <Spinner size={14} /> : null}
       {children}
     </button>
   )

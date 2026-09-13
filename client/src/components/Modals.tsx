@@ -114,6 +114,7 @@ export function BulkImportModal() {
                   </Btn>
                   <Btn
                     accent
+                    busy={busy}
                     disabled={!spotifyLink || busy}
                     onClick={async () => {
                       setBusy(true)
@@ -191,6 +192,7 @@ export function BulkImportModal() {
                     </Btn>
                     <Btn
                       accent
+                      busy={busy}
                       disabled={ready.length === 0 || busy}
                       onClick={async () => {
                         setBusy(true)

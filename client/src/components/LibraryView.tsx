@@ -1,13 +1,12 @@
 import { useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Check, Pencil, Plus, Search, Trash2 } from 'lucide-react'
-import { TAGS } from '@shared/types.ts'
 import { displaySongMeta } from '@shared/bulkFormat.ts'
 import type { SetlistSong, Song } from '@shared/types.ts'
 import { cn } from '../lib/cn.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSongs } from '../hooks/useQueries.ts'
-import { Btn, KeyBadge, Pill } from './ui.tsx'
+import { Btn, KeyBadge, Spinner } from './ui.tsx'
 
 type Row =
   | { type: 'header'; id: string; artist: string; count: number }
@@ -21,8 +20,6 @@ export function LibraryView({
   setlistSongs: SetlistSong[]
 }) {
   const [search, setSearch] = useState('')
-  const [artist, setArtist] = useState('')
-  const [tag, setTag] = useState('')
   const [sort, setSort] = useState<'artist' | 'title' | 'bpm'>('artist')
   const openEditor = useAppStore((s) => s.openEditor)
   const setBulkImportOpen = useAppStore((s) => s.setBulkImportOpen)
@@ -30,23 +27,30 @@ export function LibraryView({
   const storeSetlistId = useAppStore((s) => s.activeSetlistId)
   const targetSetlistId = setlistId ?? storeSetlistId
   const [addError, setAddError] = useState<string | null>(null)
+  const [addingIds, setAddingIds] = useState<Set<string>>(() => new Set())
   const { addSong, deleteSong } = useMutations()
-  const { data: songs = [], isLoading } = useSongs({ search, artist, tag, sort })
+  const { data: songs = [], isLoading } = useSongs({ search, sort })
 
   const inSetlist = useMemo(() => new Set(setlistSongs.map((s) => s.songId)), [setlistSongs])
-  const artists = useMemo(() => {
-    const set = new Set(songs.map((s) => s.artist).filter(Boolean))
-    return Array.from(set).sort((a, b) => a.localeCompare(b))
-  }, [songs])
+  const visibleSongs = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return songs
+    return songs.filter((s) => {
+      const album = s.album ?? ''
+      return (
+        s.title.toLowerCase().includes(q) ||
+        s.artist.toLowerCase().includes(q) ||
+        album.toLowerCase().includes(q)
+      )
+    })
+  }, [songs, search])
 
   const grouped = useMemo(() => {
     const rows: Row[] = []
-    const unfiltered = !artist && !tag && !search && sort === 'artist'
+    const unfiltered = !search && sort === 'artist'
     if (unfiltered) {
-      let current = ''
-      let count = 0
       const byArtist = new Map<string, Song[]>()
-      for (const s of songs) {
+      for (const s of visibleSongs) {
         const list = byArtist.get(s.artist) ?? []
         list.push(s)
         byArtist.set(s.artist, list)
@@ -54,26 +58,22 @@ export function LibraryView({
       for (const [name, list] of byArtist) {
         rows.push({ type: 'header', id: `h-${name}`, artist: name, count: list.length })
         for (const song of list) rows.push({ type: 'song', id: song.id, song })
-        current = name
-        count += list.length
       }
-      void current
-      void count
     } else {
-      for (const song of songs) rows.push({ type: 'song', id: song.id, song })
+      for (const song of visibleSongs) rows.push({ type: 'song', id: song.id, song })
     }
     return rows
-  }, [songs, artist, tag, search, sort])
+  }, [visibleSongs, search, sort])
 
   const parentRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
     count: grouped.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: (i) => (grouped[i]?.type === 'header' ? 36 : 56),
+    estimateSize: (i) => (grouped[i]?.type === 'header' ? 52 : 56),
     overscan: 10,
   })
 
-  const addedCount = songs.filter((s) => inSetlist.has(s.id)).length
+  const addedCount = visibleSongs.filter((s) => inSetlist.has(s.id)).length
   const useVirtual = grouped.length > 80
 
   const addToSetlist = (song: Song) => {
@@ -82,11 +82,27 @@ export function LibraryView({
       return
     }
     setAddError(null)
+    setAddingIds((prev) => {
+      const next = new Set(prev)
+      next.add(song.id)
+      return next
+    })
+    const started = Date.now()
     addSong.mutate(
       { setlistId: targetSetlistId, songId: song.id },
       {
         onError: (err) => {
           setAddError(err instanceof Error ? err.message : 'Could not add that song.')
+        },
+        onSettled: () => {
+          const wait = Math.max(0, 400 - (Date.now() - started))
+          window.setTimeout(() => {
+            setAddingIds((prev) => {
+              const next = new Set(prev)
+              next.delete(song.id)
+              return next
+            })
+          }, wait)
         },
       },
     )
@@ -141,24 +157,6 @@ export function LibraryView({
         </div>
       </div>
 
-      <div className="mt-3 flex gap-1.5 overflow-x-auto px-6">
-        <Pill active={!artist} onClick={() => setArtist('')}>
-          All artists
-        </Pill>
-        {artists.map((a) => (
-          <Pill key={a} active={artist === a} onClick={() => setArtist(artist === a ? '' : a)}>
-            {a}
-          </Pill>
-        ))}
-      </div>
-      <div className="mt-2 flex gap-1.5 overflow-x-auto px-6">
-        {TAGS.map((t) => (
-          <Pill key={t} active={tag === t} onClick={() => setTag(tag === t ? '' : t)}>
-            {t}
-          </Pill>
-        ))}
-      </div>
-
       <div className="mt-3 flex items-center justify-end px-6">
         <select
           value={sort}
@@ -209,16 +207,13 @@ export function LibraryView({
                   }}
                 >
                   {row.type === 'header' ? (
-                    <div
-                      className="px-2 pt-3 text-label"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                  {row.artist} · {row.count} {row.count === 1 ? 'song' : 'songs'}
-                    </div>
+                    <ArtistHeader artist={row.artist} count={row.count} first={v.index === 0} />
                   ) : (
                     <LibraryRow
                       song={row.song}
                       added={inSetlist.has(row.song.id)}
+                      adding={addingIds.has(row.song.id)}
+                      hideArtist={!search && sort === 'artist'}
                       onAdd={() => addToSetlist(row.song)}
                       onEdit={() => openEditor(row.song.id)}
                       onDelete={() => requestDelete(row.song)}
@@ -229,20 +224,16 @@ export function LibraryView({
             })}
           </div>
         ) : (
-          grouped.map((row) =>
+          grouped.map((row, i) =>
             row.type === 'header' ? (
-              <div
-                key={row.id}
-                className="px-2 pt-3 text-label"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                {row.artist} · {row.count} {row.count === 1 ? 'song' : 'songs'}
-              </div>
+              <ArtistHeader key={row.id} artist={row.artist} count={row.count} first={i === 0} />
             ) : (
               <LibraryRow
                 key={row.id}
                 song={row.song}
                 added={inSetlist.has(row.song.id)}
+                adding={addingIds.has(row.song.id)}
+                hideArtist={!search && sort === 'artist'}
                 onAdd={() => addToSetlist(row.song)}
                 onEdit={() => openEditor(row.song.id)}
                 onDelete={() => requestDelete(row.song)}
@@ -253,8 +244,32 @@ export function LibraryView({
       </div>
 
       <div className="px-6 py-3 text-[12px]" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-        {songs.length} songs · {addedCount} in setlist
+        {visibleSongs.length} songs · {addedCount} in setlist
       </div>
+    </div>
+  )
+}
+
+function ArtistHeader({
+  artist,
+  count,
+  first,
+}: {
+  artist: string
+  count: number
+  first?: boolean
+}) {
+  return (
+    <div
+      className={cn('flex items-end justify-between gap-3 px-2 pb-2', first ? 'pt-1' : 'pt-4')}
+      style={first ? undefined : { borderTop: '1px solid var(--border)' }}
+    >
+      <h2 className="min-w-0 truncate text-[16px] font-medium" style={{ color: 'var(--text-primary)' }}>
+        {artist}
+      </h2>
+      <span className="shrink-0 text-caption tabular" style={{ color: 'var(--text-muted)' }}>
+        {count} {count === 1 ? 'song' : 'songs'}
+      </span>
     </div>
   )
 }
@@ -262,12 +277,16 @@ export function LibraryView({
 function LibraryRow({
   song,
   added,
+  adding,
+  hideArtist,
   onAdd,
   onEdit,
   onDelete,
 }: {
   song: Song
   added: boolean
+  adding?: boolean
+  hideArtist?: boolean
   onAdd: () => void
   onEdit: () => void
   onDelete: () => void
@@ -275,13 +294,15 @@ function LibraryRow({
   const meta = displaySongMeta(song)
   return (
     <div
-      className={cn('flex h-14 items-center gap-3 rounded-[8px] px-2', added && 'opacity-55')}
+      className={cn('flex h-14 items-center gap-3 rounded-[8px] px-2', added && !adding && 'opacity-55')}
     >
       <div className="min-w-0 flex-1">
         <div className="truncate text-[14px]">{song.title}</div>
-        <div className="truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>
-          {song.artist}
-        </div>
+        {hideArtist ? null : (
+          <div className="truncate text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+            {song.artist}
+          </div>
+        )}
       </div>
       <KeyBadge value={meta.key} size="sm" />
       <span className="hidden w-10 shrink-0 text-center text-caption tabular sm:inline" style={{ color: 'var(--text-secondary)' }}>
@@ -313,17 +334,23 @@ function LibraryRow({
         type="button"
         onClick={(e) => {
           e.stopPropagation()
+          if (added || adding) return
           onAdd()
         }}
-        disabled={added}
+        disabled={added || adding}
+        aria-busy={adding || undefined}
         className="flex h-8 shrink-0 items-center gap-1 rounded-[8px] px-2 text-[12px]"
         style={{
-          background: added ? 'transparent' : 'var(--surface-2)',
+          background: added || adding ? 'transparent' : 'var(--surface-2)',
           color: 'var(--text-primary)',
           border: '1px solid var(--border-strong)',
         }}
       >
-        {added ? (
+        {adding ? (
+          <>
+            <Spinner size={12} /> Adding
+          </>
+        ) : added ? (
           <>
             <Check size={12} /> Added
           </>

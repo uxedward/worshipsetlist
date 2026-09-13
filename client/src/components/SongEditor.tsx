@@ -8,7 +8,7 @@ import { parseDuration, formatDuration } from '@shared/duration.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSong } from '../hooks/useQueries.ts'
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback.ts'
-import { Btn, Field, inputClass, inputStyle } from './ui.tsx'
+import { Btn, Field, Spinner, inputClass, inputStyle } from './ui.tsx'
 import { ChordChart } from './ChordChart.tsx'
 
 const PLACEHOLDER = `Verse 1
@@ -36,7 +36,7 @@ export function SongEditor() {
   const songId = useAppStore((s) => s.editorSongId)
   const closeEditor = useAppStore((s) => s.closeEditor)
   const askConfirm = useAppStore((s) => s.askConfirm)
-  const { data: existing } = useSong(songId)
+  const { data: existing, isLoading: songLoading } = useSong(songId)
   const { createSong, patchSong, deleteSong } = useMutations()
 
   const [form, setForm] = useState(emptyForm)
@@ -44,6 +44,7 @@ export function SongEditor() {
   const [previewText, setPreviewText] = useState('')
   const [tried, setTried] = useState(false)
   const [keyLocked, setKeyLocked] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -127,7 +128,7 @@ export function SongEditor() {
 
   const save = async () => {
     setTried(true)
-    if (!valid) return
+    if (!valid || saving) return
     const body: SongInput = {
       title: form.title.trim(),
       artist: form.artist.trim(),
@@ -143,9 +144,17 @@ export function SongEditor() {
         lines: s.lines.map((l) => ({ chords: l.chords, lyric: l.lyric, order: l.order })),
       })),
     }
-    if (songId) await patchSong.mutateAsync({ id: songId, body })
-    else await createSong.mutateAsync(body)
-    closeEditor()
+    setSaving(true)
+    const started = Date.now()
+    try {
+      if (songId) await patchSong.mutateAsync({ id: songId, body })
+      else await createSong.mutateAsync(body)
+      const wait = Math.max(0, 400 - (Date.now() - started))
+      if (wait) await new Promise((resolve) => window.setTimeout(resolve, wait))
+      closeEditor()
+    } finally {
+      setSaving(false)
+    }
   }
 
   const requestDelete = () => {
@@ -168,6 +177,8 @@ export function SongEditor() {
       /* clipboard denied */
     }
   }
+
+  const loadingExisting = Boolean(songId) && songLoading && !existing
 
   if (!open) return null
 
@@ -196,14 +207,23 @@ export function SongEditor() {
           <Btn ghost onClick={close}>
             Cancel
           </Btn>
-          <Btn accent disabled={!valid} onClick={() => void save()}>
-            Save song
+          <Btn accent disabled={!valid || saving || loadingExisting} busy={saving} onClick={() => void save()}>
+            {saving ? 'Saving…' : 'Save song'}
           </Btn>
           <button type="button" onClick={close} aria-label="Close" style={{ color: 'var(--text-secondary)' }}>
             <X size={18} />
           </button>
         </div>
       </div>
+
+      {loadingExisting ? (
+        <div
+          className="flex items-center gap-2 px-5 py-3 text-[13px]"
+          style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border)' }}
+        >
+          <Spinner size={14} /> Loading song…
+        </div>
+      ) : null}
 
       <div className="grid min-h-0 flex-1 md:grid-cols-[340px_1fr]">
         <div className="scrollbar-thin space-y-3 overflow-y-auto p-5" style={{ borderRight: '1px solid var(--border)' }}>
