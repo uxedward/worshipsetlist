@@ -31,15 +31,25 @@ export function LibraryView({
   const { data: songs = [], isLoading } = useSongs({ search, sort })
 
   const inSetlist = useMemo(() => new Set(setlistSongs.map((s) => s.songId)), [setlistSongs])
+  const visibleSongs = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return songs
+    return songs.filter((s) => {
+      const album = s.album ?? ''
+      return (
+        s.title.toLowerCase().includes(q) ||
+        s.artist.toLowerCase().includes(q) ||
+        album.toLowerCase().includes(q)
+      )
+    })
+  }, [songs, search])
 
   const grouped = useMemo(() => {
     const rows: Row[] = []
     const unfiltered = !search && sort === 'artist'
     if (unfiltered) {
-      let current = ''
-      let count = 0
       const byArtist = new Map<string, Song[]>()
-      for (const s of songs) {
+      for (const s of visibleSongs) {
         const list = byArtist.get(s.artist) ?? []
         list.push(s)
         byArtist.set(s.artist, list)
@@ -47,16 +57,12 @@ export function LibraryView({
       for (const [name, list] of byArtist) {
         rows.push({ type: 'header', id: `h-${name}`, artist: name, count: list.length })
         for (const song of list) rows.push({ type: 'song', id: song.id, song })
-        current = name
-        count += list.length
       }
-      void current
-      void count
     } else {
-      for (const song of songs) rows.push({ type: 'song', id: song.id, song })
+      for (const song of visibleSongs) rows.push({ type: 'song', id: song.id, song })
     }
     return rows
-  }, [songs, search, sort])
+  }, [visibleSongs, search, sort])
 
   const parentRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
@@ -66,7 +72,7 @@ export function LibraryView({
     overscan: 10,
   })
 
-  const addedCount = songs.filter((s) => inSetlist.has(s.id)).length
+  const addedCount = visibleSongs.filter((s) => inSetlist.has(s.id)).length
   const useVirtual = grouped.length > 80
 
   const addToSetlist = (song: Song) => {
@@ -228,7 +234,7 @@ export function LibraryView({
       </div>
 
       <div className="px-6 py-3 text-[12px]" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-        {songs.length} songs · {addedCount} in setlist
+        {visibleSongs.length} songs · {addedCount} in setlist
       </div>
     </div>
   )
