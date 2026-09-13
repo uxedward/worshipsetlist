@@ -261,7 +261,7 @@ function ArtistHeader({
 }) {
   return (
     <div
-      className={cn('flex h-full items-end justify-between gap-3 px-2 pb-2', first ? 'pt-1' : 'pt-4')}
+      className={cn('flex items-end justify-between gap-3 px-2 pb-2', first ? 'pt-1' : 'pt-4')}
       style={first ? undefined : { borderTop: '1px solid var(--border)' }}
     >
       <h2 className="min-w-0 truncate text-[16px] font-medium" style={{ color: 'var(--text-primary)' }}>
