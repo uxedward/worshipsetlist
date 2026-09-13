@@ -226,4 +226,14 @@ export const endpoints = {
       method: 'POST',
       json: { songs },
     }),
+  backgrounds: () =>
+    api<{ backgrounds: import('../lib/presentBackgrounds.ts').PresentBackground[]; blobEnabled: boolean }>(
+      '/api/backgrounds',
+    ),
+  createBackground: (body: { id?: string; label: string; src: string; poster?: string }) =>
+    api<import('../lib/presentBackgrounds.ts').PresentBackground>('/api/backgrounds', {
+      method: 'POST',
+      json: body,
+    }),
+  deleteBackground: (id: string) => api(`/api/backgrounds/${id}`, { method: 'DELETE' }),
 }

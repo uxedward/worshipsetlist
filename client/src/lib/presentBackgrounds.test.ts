@@ -64,10 +64,26 @@ describe('present backgrounds', () => {
     expect(findPresentBackground('canyon').fill).toBe('var(--present-canyon)')
   })
 
-  it('persists a chosen background', () => {
+  it('persists a chosen background, including custom ids', () => {
     savePresentBackgroundId('ocean-live')
     expect(loadPresentBackgroundId()).toBe('ocean-live')
-    savePresentBackgroundId('not-real')
-    expect(loadPresentBackgroundId()).toBe('ocean-live')
+    savePresentBackgroundId('custom-sunset')
+    expect(loadPresentBackgroundId()).toBe('custom-sunset')
+    savePresentBackgroundId('')
+    expect(loadPresentBackgroundId()).toBe('custom-sunset')
+  })
+
+  it('resolves custom backgrounds from extras', () => {
+    const extras = [
+      {
+        id: 'custom-sunset',
+        label: 'Sunset',
+        kind: 'video' as const,
+        group: 'motion' as const,
+        src: 'blob:test',
+        custom: true,
+      },
+    ]
+    expect(findPresentBackground('custom-sunset', extras).label).toBe('Sunset')
   })
 })

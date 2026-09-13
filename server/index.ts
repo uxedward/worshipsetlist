@@ -4,6 +4,7 @@ import type { IncomingMessage } from 'node:http'
 import { songsRouter } from './routes/songs.js'
 import { setlistsRouter } from './routes/setlists.js'
 import { preferencesRouter } from './routes/preferences.js'
+import { backgroundsRouter } from './routes/backgrounds.js'
 import { databaseBackend, durableDatabase, isPoolTimeout, prisma, releasePrisma } from './db.js'
 import { databaseVendor } from './hostedDatabase.js'
 import { loadBootstrap } from './bootstrap.js'
@@ -83,6 +84,7 @@ app.get('/api/bootstrap', async (_req, res) => {
 app.use('/api/songs', songsRouter)
 app.use('/api/setlists', setlistsRouter)
 app.use('/api/preferences', preferencesRouter)
+app.use('/api/backgrounds', backgroundsRouter)
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const message = err instanceof Error ? err.message : String(err)

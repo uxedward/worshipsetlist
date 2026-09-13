@@ -56,6 +56,15 @@ export const SCHEMA_STATEMENTS = [
     "lastSetlistId" TEXT,
     CONSTRAINT "Preference_pkey" PRIMARY KEY ("id")
   )`,
+  `CREATE TABLE IF NOT EXISTS "CustomBackground" (
+    "id" TEXT NOT NULL,
+    "label" TEXT NOT NULL,
+    "kind" TEXT NOT NULL DEFAULT 'video',
+    "src" TEXT NOT NULL,
+    "poster" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CustomBackground_pkey" PRIMARY KEY ("id")
+  )`,
   `CREATE INDEX IF NOT EXISTS "Section_songId_idx" ON "Section"("songId")`,
   `CREATE INDEX IF NOT EXISTS "Line_sectionId_idx" ON "Line"("sectionId")`,
   `CREATE INDEX IF NOT EXISTS "SetlistSong_setlistId_idx" ON "SetlistSong"("setlistId")`,

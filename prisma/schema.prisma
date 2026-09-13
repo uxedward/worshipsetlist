@@ -78,3 +78,12 @@ model Preference {
   presentationFontSize String  @default("medium")
   lastSetlistId        String?
 }
+
+model CustomBackground {
+  id        String   @id
+  label     String
+  kind      String   @default("video")
+  src       String
+  poster    String?
+  createdAt DateTime @default(now())
+}
