@@ -85,6 +85,8 @@ export async function uploadPresentVideoFile(file: File): Promise<PresentBackgro
 
   const saved = await endpoints.createBackground({ id, label, src, poster })
   const hosted = asSharedVideo(saved, saved.src ?? src)
-  await rememberRemoteBackground(hosted)
+  await rememberRemoteBackground(hosted).catch(() => {
+    /* shared upload already succeeded */
+  })
   return hosted
 }

@@ -44,10 +44,19 @@ export function readCustomBackgroundMeta(): CustomBackgroundMeta[] {
 
 function writeCustomBackgroundMeta(items: CustomBackgroundMeta[]) {
   if (!canUseStorage()) return
-  localStorage.setItem(CUSTOM_BG_META_KEY, JSON.stringify(items))
+  try {
+    localStorage.setItem(CUSTOM_BG_META_KEY, JSON.stringify(items))
+  } catch {
+    /* optional cache */
+  }
+}
+
+function canUseIdb() {
+  return typeof indexedDB !== 'undefined'
 }
 
 function openDb(): Promise<IDBDatabase> {
+  if (!canUseIdb()) return Promise.reject(new Error('IndexedDB is unavailable.'))
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, 1)
     req.onupgradeneeded = () => {
@@ -83,14 +92,18 @@ async function idbGet(id: string): Promise<File | undefined> {
 }
 
 async function idbDel(id: string) {
-  const db = await openDb()
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE, 'readwrite')
-    tx.objectStore(IDB_STORE).delete(id)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-  db.close()
+  try {
+    const db = await openDb()
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite')
+      tx.objectStore(IDB_STORE).delete(id)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  } catch {
+    /* local cache is optional once the video is hosted */
+  }
 }
 
 function revokeUrl(id: string) {
@@ -251,7 +264,9 @@ export async function rememberRemoteBackground(bg: PresentBackground) {
   }
   writeCustomBackgroundMeta([...readCustomBackgroundMeta().filter((item) => item.id !== meta.id), meta])
   revokeUrl(meta.id)
-  await idbDel(meta.id)
+  await idbDel(meta.id).catch(() => {
+    /* hosted URL is already saved */
+  })
 }
 
 export async function deleteCustomBackground(id: string) {

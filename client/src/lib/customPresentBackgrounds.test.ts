@@ -8,6 +8,7 @@ import {
   labelFromVideoName,
   mergeCustomBackgrounds,
   readCustomBackgroundMeta,
+  rememberRemoteBackground,
 } from './customPresentBackgrounds.ts'
 
 const memory = new Map<string, string>()
@@ -73,5 +74,27 @@ describe('custom present backgrounds', () => {
   it('treats http(s) files as shared across browsers', () => {
     expect(isHostedBackgroundSrc('https://cdn.example/clip.mp4')).toBe(true)
     expect(isHostedBackgroundSrc('blob:http://localhost/1')).toBe(false)
+  })
+
+  it('keeps a hosted upload even if IndexedDB cleanup fails', async () => {
+    Object.defineProperty(globalThis, 'indexedDB', {
+      configurable: true,
+      value: {
+        open() {
+          throw new Error('IndexedDB blocked')
+        },
+      },
+    })
+    await expect(
+      rememberRemoteBackground({
+        id: `${CUSTOM_BG_PREFIX}a`,
+        label: 'Sunrise',
+        kind: 'video',
+        group: 'motion',
+        src: 'https://example.com/sunrise.mp4',
+        custom: true,
+      }),
+    ).resolves.toBeUndefined()
+    expect(readCustomBackgroundMeta()[0]?.src).toBe('https://example.com/sunrise.mp4')
   })
 })
