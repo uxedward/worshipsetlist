@@ -428,6 +428,106 @@ button:disabled {
   border-radius: var(--radius-md);
 }
 
+.boot-splash {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  background: var(--canvas);
+  color: var(--text-primary);
+}
+
+.boot-splash-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.boot-splash-mark {
+  display: flex;
+  height: 56px;
+  width: 56px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  animation: boot-mark 1.6s ease-in-out infinite;
+}
+
+.boot-splash-name {
+  margin-top: 18px;
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1.2;
+  font-weight: 400;
+}
+
+.boot-splash-tag {
+  margin-top: 6px;
+  color: var(--text-secondary);
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.boot-splash-eq {
+  display: flex;
+  height: 18px;
+  align-items: flex-end;
+  gap: 4px;
+  margin-top: 22px;
+}
+
+.boot-splash-eq span {
+  width: 4px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--accent);
+  transform-origin: bottom;
+  animation: boot-eq 0.9s ease-in-out infinite;
+}
+
+.boot-splash-eq span:nth-child(1) {
+  height: 12px;
+}
+
+.boot-splash-eq span:nth-child(2) {
+  height: 18px;
+  animation-delay: 0.16s;
+}
+
+.boot-splash-eq span:nth-child(3) {
+  height: 11px;
+  animation-delay: 0.3s;
+}
+
+@keyframes boot-mark {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.96);
+    opacity: 0.82;
+  }
+}
+
+@keyframes boot-eq {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -437,7 +537,9 @@ button:disabled {
     transition-duration: 0.01ms !important;
   }
 
-  .eq-bar {
+  .eq-bar,
+  .boot-splash-eq span,
+  .boot-splash-mark {
     animation: none;
   }
 
