@@ -1,22 +1,22 @@
 import { useMemo, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Check, Pencil, Plus, Search, Trash2 } from 'lucide-react'
+import { Pencil, Plus, Search, Trash2 } from 'lucide-react'
 import { displaySongMeta } from '@shared/bulkFormat.ts'
 import type { SetlistSong, Song } from '@shared/types.ts'
 import { cn } from '../lib/cn.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSongs } from '../hooks/useQueries.ts'
 import { Btn, KeyBadge, Spinner } from './ui.tsx'
+import { AddToSetlistModal } from './AddToSetlistModal.tsx'
 
 type Row =
   | { type: 'header'; id: string; artist: string; count: number }
   | { type: 'song'; id: string; song: Song }
 
 export function LibraryView({
-  setlistId,
   setlistSongs,
 }: {
-  setlistId: string | null
+  setlistId?: string | null
   setlistSongs: SetlistSong[]
 }) {
   const [search, setSearch] = useState('')
@@ -24,11 +24,10 @@ export function LibraryView({
   const openEditor = useAppStore((s) => s.openEditor)
   const setBulkImportOpen = useAppStore((s) => s.setBulkImportOpen)
   const askConfirm = useAppStore((s) => s.askConfirm)
-  const storeSetlistId = useAppStore((s) => s.activeSetlistId)
-  const targetSetlistId = setlistId ?? storeSetlistId
+  const [pendingSong, setPendingSong] = useState<Song | null>(null)
   const [addError, setAddError] = useState<string | null>(null)
   const [addingIds, setAddingIds] = useState<Set<string>>(() => new Set())
-  const { addSong, deleteSong } = useMutations()
+  const { deleteSong } = useMutations()
   const { data: songs = [], isLoading } = useSongs({ search, sort })
 
   const inSetlist = useMemo(() => new Set(setlistSongs.map((s) => s.songId)), [setlistSongs])
@@ -77,35 +76,8 @@ export function LibraryView({
   const useVirtual = grouped.length > 80
 
   const addToSetlist = (song: Song) => {
-    if (!targetSetlistId) {
-      setAddError('Open a setlist, then add songs to it.')
-      return
-    }
     setAddError(null)
-    setAddingIds((prev) => {
-      const next = new Set(prev)
-      next.add(song.id)
-      return next
-    })
-    const started = Date.now()
-    addSong.mutate(
-      { setlistId: targetSetlistId, songId: song.id },
-      {
-        onError: (err) => {
-          setAddError(err instanceof Error ? err.message : 'Could not add that song.')
-        },
-        onSettled: () => {
-          const wait = Math.max(0, 400 - (Date.now() - started))
-          window.setTimeout(() => {
-            setAddingIds((prev) => {
-              const next = new Set(prev)
-              next.delete(song.id)
-              return next
-            })
-          }, wait)
-        },
-      },
-    )
+    setPendingSong(song)
   }
 
   const requestDelete = (song: Song) => {
@@ -211,7 +183,6 @@ export function LibraryView({
                   ) : (
                     <LibraryRow
                       song={row.song}
-                      added={inSetlist.has(row.song.id)}
                       adding={addingIds.has(row.song.id)}
                       hideArtist={!search && sort === 'artist'}
                       onAdd={() => addToSetlist(row.song)}
@@ -231,7 +202,6 @@ export function LibraryView({
               <LibraryRow
                 key={row.id}
                 song={row.song}
-                added={inSetlist.has(row.song.id)}
                 adding={addingIds.has(row.song.id)}
                 hideArtist={!search && sort === 'artist'}
                 onAdd={() => addToSetlist(row.song)}
@@ -244,8 +214,24 @@ export function LibraryView({
       </div>
 
       <div className="px-6 py-3 text-[12px]" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-        {visibleSongs.length} songs · {addedCount} in setlist
+        {visibleSongs.length} {visibleSongs.length === 1 ? 'song' : 'songs'}
+        {addedCount ? ` · ${addedCount} in the current setlist` : ''}
       </div>
+      {pendingSong ? (
+        <AddToSetlistModal
+          song={pendingSong}
+          onClose={() => setPendingSong(null)}
+          onBusy={(busy) => {
+            const id = pendingSong.id
+            setAddingIds((prev) => {
+              const next = new Set(prev)
+              if (busy) next.add(id)
+              else next.delete(id)
+              return next
+            })
+          }}
+        />
+      ) : null}
     </div>
   )
 }
@@ -276,7 +262,6 @@ function ArtistHeader({
 
 function LibraryRow({
   song,
-  added,
   adding,
   hideArtist,
   onAdd,
@@ -284,7 +269,6 @@ function LibraryRow({
   onDelete,
 }: {
   song: Song
-  added: boolean
   adding?: boolean
   hideArtist?: boolean
   onAdd: () => void
@@ -294,7 +278,7 @@ function LibraryRow({
   const meta = displaySongMeta(song)
   return (
     <div
-      className={cn('flex h-14 items-center gap-3 rounded-[8px] px-2', added && !adding && 'opacity-55')}
+      className={cn('flex h-14 items-center gap-3 rounded-[8px] px-2')}
     >
       <div className="min-w-0 flex-1">
         <div className="truncate text-[14px]">{song.title}</div>
@@ -334,14 +318,14 @@ function LibraryRow({
         type="button"
         onClick={(e) => {
           e.stopPropagation()
-          if (added || adding) return
+          if (adding) return
           onAdd()
         }}
-        disabled={added || adding}
+        disabled={adding}
         aria-busy={adding || undefined}
         className="flex h-8 shrink-0 items-center gap-1 rounded-[8px] px-2 text-[12px]"
         style={{
-          background: added || adding ? 'transparent' : 'var(--surface-2)',
+          background: adding ? 'transparent' : 'var(--surface-2)',
           color: 'var(--text-primary)',
           border: '1px solid var(--border-strong)',
         }}
@@ -349,10 +333,6 @@ function LibraryRow({
         {adding ? (
           <>
             <Spinner size={12} /> Adding
-          </>
-        ) : added ? (
-          <>
-            <Check size={12} /> Added
           </>
         ) : (
           <>
