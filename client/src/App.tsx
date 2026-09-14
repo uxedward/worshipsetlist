@@ -72,6 +72,7 @@ function AppInner() {
   const { patchPrefs } = useMutations()
   const lastPrefWrite = useRef<string | null>(null)
   const hydratedPrefs = useRef(false)
+  const publishedLocalVideos = useRef(false)
 
   useEffect(() => {
     if (!prefs.data) return
@@ -140,6 +141,21 @@ function AppInner() {
     }, 1000)
     return () => window.clearInterval(iv)
   }, [playing, activeSsId, setlistSongs, setElapsed, setPlaying])
+
+  useEffect(() => {
+    if (!ready || publishedLocalVideos.current) return
+    publishedLocalVideos.current = true
+    void (async () => {
+      try {
+        const { endpoints } = await import('./lib/api.ts')
+        const { publishLocalPresentVideos } = await import('./lib/uploadPresentVideo.ts')
+        const remote = await endpoints.backgrounds()
+        await publishLocalPresentVideos(remote.backgrounds ?? [])
+      } catch {
+        publishedLocalVideos.current = false
+      }
+    })()
+  }, [ready])
 
   const loading = !boot.data && !boot.isError
   const loadError = boot.isError && !boot.data

@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../db.js'
 import { deleteBackgroundMedia, readBackgroundRange } from '../backgroundMedia.js'
 import {
+  createSupabaseUpload,
   deleteLocalMedia,
   deleteSupabaseObject,
   findLocalMedia,
@@ -40,6 +41,7 @@ backgroundsRouter.get('/', async (_req, res) => {
       backgrounds: ready.map(toClient),
       storedCount: rows.length,
       readyCount: ready.length,
+      pending: rows.filter((row) => !isPlayable(row)).map((row) => ({ id: row.id, label: row.label, sizeBytes: row.sizeBytes })),
       ...hosting,
     })
   } catch (err) {
@@ -47,6 +49,23 @@ backgroundsRouter.get('/', async (_req, res) => {
       backgrounds: [],
       ...hosting,
       error: err instanceof Error ? err.message : 'Could not load uploaded videos.',
+    })
+  }
+})
+
+backgroundsRouter.post('/upload', async (req, res) => {
+  const id = typeof req.body?.id === 'string' ? req.body.id.trim() : ''
+  const filename = typeof req.body?.filename === 'string' ? req.body.filename.trim() : ''
+  if (!id || !filename) {
+    res.status(400).json({ error: 'A video id and filename are required.' })
+    return
+  }
+  try {
+    const session = await createSupabaseUpload(id, filename)
+    res.json(session)
+  } catch (err) {
+    res.status(400).json({
+      error: err instanceof Error ? err.message : 'Could not start the video upload.',
     })
   }
 })

@@ -22,6 +22,11 @@ function asSharedVideo(bg: PresentBackground, src: string): PresentBackground {
   }
 }
 
+function trimPoster(poster?: string) {
+  if (!poster || poster.length > 180_000) return undefined
+  return poster
+}
+
 async function putVideoChunk(id: string, file: File, chunkIndex: number, chunkCount: number) {
   const blob = file.slice(
     chunkIndex * PRESENT_VIDEO_CHUNK_BYTES,
@@ -51,12 +56,37 @@ async function putVideoChunk(id: string, file: File, chunkIndex: number, chunkCo
 }
 
 async function saveBackgroundRecord(body: { id: string; label: string; src: string; poster?: string }) {
+  const poster = trimPoster(body.poster)
   try {
-    return await endpoints.createBackground(body)
+    return await endpoints.createBackground({ ...body, poster })
   } catch (err) {
-    if (!body.poster) throw err
+    if (!poster) throw err
     return await endpoints.createBackground({ id: body.id, label: body.label, src: body.src })
   }
+}
+
+async function uploadToSupabase(id: string, file: File): Promise<string> {
+  const session = await endpoints.createBackgroundUpload({
+    id,
+    filename: file.name,
+    contentType: file.type || 'video/mp4',
+  })
+  const headers: Record<string, string> = {
+    'Content-Type': file.type || 'video/mp4',
+    'x-upsert': 'true',
+  }
+  if (session.token) headers.authorization = `Bearer ${session.token}`
+  const put = await fetch(session.uploadUrl, { method: 'PUT', headers, body: file })
+  if (!put.ok) throw new Error('Could not upload that video to storage.')
+  return session.publicUrl
+}
+
+async function uploadToDatabase(id: string, file: File): Promise<string> {
+  const chunkCount = presentVideoChunkCount(file.size)
+  for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
+    await putVideoChunk(id, file, chunkIndex, chunkCount)
+  }
+  return presentVideoSrc(id)
 }
 
 export async function uploadPresentVideoFile(
@@ -70,11 +100,16 @@ export async function uploadPresentVideoFile(
   const id = existingId?.startsWith(CUSTOM_BG_PREFIX) ? existingId : `${CUSTOM_BG_PREFIX}${crypto.randomUUID()}`
   const label = labelFromVideoName(file.name)
   const poster = extras?.poster ?? (await posterFromVideoFile(file))
-  const chunkCount = presentVideoChunkCount(file.size)
-  for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
-    await putVideoChunk(id, file, chunkIndex, chunkCount)
+  const caps = await endpoints.backgrounds()
+  let src: string | null = null
+  if (caps.supabaseEnabled) {
+    try {
+      src = await uploadToSupabase(id, file)
+    } catch {
+      src = null
+    }
   }
-  const src = presentVideoSrc(id)
+  if (!src) src = await uploadToDatabase(id, file)
   const saved = await saveBackgroundRecord({ id, label, src, poster })
   const hosted = asSharedVideo(saved, saved.src ?? src)
   await rememberRemoteBackground(hosted).catch(() => {
