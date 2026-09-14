@@ -193,32 +193,30 @@ function nextSetlistOrder(qc: ReturnType<typeof useQueryClient>, setlistId: stri
   return (current?.songs ?? []).reduce((max, row) => Math.max(max, row.order), -1) + 1
 }
 
+function withSetlistSong(setlist: Setlist, row: SetlistSong): Setlist {
+  const songs = setlist.songs ?? []
+  if (songs.some((s) => s.id === row.id || s.songId === row.songId)) {
+    return { ...setlist, _count: { songs: songs.length } }
+  }
+  const nextSongs = [...songs, row]
+  return { ...setlist, songs: nextSongs, _count: { songs: nextSongs.length } }
+}
+
 function putSetlistSong(
   qc: ReturnType<typeof useQueryClient>,
   setlistId: string,
   row: SetlistSong,
 ) {
   appendSetlistSong(setlistId, row)
-  let added = false
   qc.setQueryData<Setlist>(['setlist', setlistId], (prev) => {
     if (!prev) return prev
-    const songs = prev.songs ?? []
-    if (songs.some((s) => s.id === row.id || s.songId === row.songId)) return prev
-    added = true
-    const next = { ...prev, songs: [...songs, row], _count: { songs: songs.length + 1 } }
+    const next = withSetlistSong(prev, row)
     rememberSetlist(next)
     return next
   })
-  if (!added) return
-  const detail = qc.getQueryData<Setlist>(['setlist', setlistId])
-  const nextCount = detail?.songs?.length
-  const listed = qc.getQueryData<Setlist[]>(['setlists'])
-  if (listed && typeof nextCount === 'number') {
-    qc.setQueryData<Setlist[]>(
-      ['setlists'],
-      listed.map((s) => (s.id === setlistId ? { ...s, _count: { songs: nextCount } } : s)),
-    )
-  }
+  qc.setQueryData<Setlist[]>(['setlists'], (prev) =>
+    prev?.map((s) => (s.id === setlistId ? withSetlistSong(s, row) : s)),
+  )
 }
 
 function replaceSetlistSong(
