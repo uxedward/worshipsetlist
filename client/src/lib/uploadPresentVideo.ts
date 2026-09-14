@@ -9,7 +9,13 @@ import {
   rememberRemoteBackground,
 } from './customPresentBackgrounds.ts'
 import type { PresentBackground } from './presentBackgrounds.ts'
-import { PRESENT_VIDEO_CHUNK_BYTES, presentVideoChunkCount, presentVideoSrc } from '@shared/presentVideo.ts'
+import {
+  PRESENT_VIDEO_CHUNK_BYTES,
+  PRESENT_VIDEO_STORAGE_CHUNK_BYTES,
+  presentVideoChunkCount,
+  presentVideoSrc,
+  presentVideoStorageChunkCount,
+} from '@shared/presentVideo.ts'
 
 function asSharedVideo(bg: PresentBackground, src: string): PresentBackground {
   return {
@@ -25,6 +31,18 @@ function asSharedVideo(bg: PresentBackground, src: string): PresentBackground {
 function trimPoster(poster?: string) {
   if (!poster || poster.length > 180_000) return undefined
   return poster
+}
+
+async function runPool(count: number, limit: number, worker: (index: number) => Promise<void>) {
+  let next = 0
+  await Promise.all(
+    Array.from({ length: Math.min(limit, count) }, async () => {
+      while (next < count) {
+        const index = next++
+        await worker(index)
+      }
+    }),
+  )
 }
 
 async function putVideoChunk(id: string, file: File, chunkIndex: number, chunkCount: number) {
@@ -55,30 +73,67 @@ async function putVideoChunk(id: string, file: File, chunkIndex: number, chunkCo
   throw new Error(lastError)
 }
 
-async function saveBackgroundRecord(body: { id: string; label: string; src: string; poster?: string }) {
+async function saveBackgroundRecord(body: {
+  id: string
+  label: string
+  src: string
+  poster?: string
+  sizeBytes?: number
+  mimeType?: string
+}) {
   const poster = trimPoster(body.poster)
+  const payload = {
+    id: body.id,
+    label: body.label,
+    src: body.src,
+    sizeBytes: body.sizeBytes,
+    mimeType: body.mimeType,
+  }
   try {
-    return await endpoints.createBackground({ ...body, poster })
+    return await endpoints.createBackground({ ...payload, poster })
   } catch (err) {
     if (!poster) throw err
-    return await endpoints.createBackground({ id: body.id, label: body.label, src: body.src })
+    return await endpoints.createBackground(payload)
   }
 }
 
-async function uploadToSupabase(id: string, file: File): Promise<string> {
-  const session = await endpoints.createBackgroundUpload({
-    id,
-    filename: file.name,
-    contentType: file.type || 'video/mp4',
-  })
-  const headers: Record<string, string> = {
-    'Content-Type': file.type || 'video/mp4',
-    'x-upsert': 'true',
+async function putSignedStorageChunk(id: string, file: File, chunkIndex: number, chunkBytes: number) {
+  const blob = file.slice(chunkIndex * chunkBytes, (chunkIndex + 1) * chunkBytes)
+  let lastError = 'Could not upload that video to storage.'
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const session = await endpoints.createBackgroundUpload({
+      id,
+      filename: file.name,
+      contentType: file.type || 'video/mp4',
+      chunkIndex,
+    })
+    const headers: Record<string, string> = {
+      'Content-Type': file.type || 'video/mp4',
+      'x-upsert': 'true',
+    }
+    if (session.token) headers.authorization = `Bearer ${session.token}`
+    const put = await fetch(session.uploadUrl, { method: 'PUT', headers, body: blob })
+    if (put.ok) return
+    let detail = `Storage upload failed (${put.status}).`
+    try {
+      const data = (await put.json()) as { error?: string; message?: string }
+      if (data.message || data.error) detail = data.message || data.error || detail
+    } catch {
+      /* keep status text */
+    }
+    lastError = detail
+    if (put.status === 413) break
+    await new Promise((resolve) => setTimeout(resolve, 400 * 2 ** attempt))
   }
-  if (session.token) headers.authorization = `Bearer ${session.token}`
-  const put = await fetch(session.uploadUrl, { method: 'PUT', headers, body: file })
-  if (!put.ok) throw new Error('Could not upload that video to storage.')
-  return session.publicUrl
+  throw new Error(lastError)
+}
+
+async function uploadToSupabase(id: string, file: File): Promise<string> {
+  const chunkCount = presentVideoStorageChunkCount(file.size)
+  await runPool(chunkCount, 4, (chunkIndex) =>
+    putSignedStorageChunk(id, file, chunkIndex, PRESENT_VIDEO_STORAGE_CHUNK_BYTES),
+  )
+  return presentVideoSrc(id)
 }
 
 async function uploadToDatabase(id: string, file: File): Promise<string> {
@@ -102,15 +157,29 @@ export async function uploadPresentVideoFile(
   const poster = extras?.poster ?? (await posterFromVideoFile(file))
   const caps = await endpoints.backgrounds()
   let src: string | null = null
+  let lastError: Error | null = null
   if (caps.supabaseEnabled) {
     try {
       src = await uploadToSupabase(id, file)
-    } catch {
-      src = null
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error('Could not upload that video to storage.')
     }
   }
-  if (!src) src = await uploadToDatabase(id, file)
-  const saved = await saveBackgroundRecord({ id, label, src, poster })
+  if (!src) {
+    try {
+      src = await uploadToDatabase(id, file)
+    } catch (err) {
+      throw lastError ?? (err instanceof Error ? err : new Error('Could not save that video.'))
+    }
+  }
+  const saved = await saveBackgroundRecord({
+    id,
+    label,
+    src,
+    poster,
+    sizeBytes: file.size,
+    mimeType: file.type || 'video/mp4',
+  })
   const hosted = asSharedVideo(saved, saved.src ?? src)
   await rememberRemoteBackground(hosted).catch(() => {
     /* shared database row already succeeded */

@@ -1,6 +1,16 @@
 import type { IncomingMessage } from 'node:http'
 import { prisma } from './db.ts'
-import { localPublicSrc, sanitizeBackgroundId, sanitizeFilename } from './videoHosting.ts'
+import {
+  deleteSupabasePrefix,
+  downloadStorageObject,
+  localPublicSrc,
+  sanitizeBackgroundId,
+  sanitizeFilename,
+  storageChunkObjectPath,
+  storageObjectSize,
+  supabaseConfig,
+  uploadSupabaseObject,
+} from './videoHosting.ts'
 import { PRESENT_VIDEO_CHUNK_BYTES, PRESENT_VIDEO_RANGE_MAX_BYTES } from '../shared/presentVideo.ts'
 
 export { PRESENT_VIDEO_CHUNK_BYTES, PRESENT_VIDEO_RANGE_MAX_BYTES }
@@ -104,6 +114,28 @@ export async function saveBackgroundChunk(options: {
     },
   })
 
+  if (supabaseConfig()) {
+    if (chunkIndex === 0) {
+      await deleteSupabasePrefix(id)
+      await prisma.backgroundChunk.deleteMany({ where: { backgroundId: id } }).catch(() => {
+        /* BYTEA leftovers are optional */
+      })
+    }
+    await uploadSupabaseObject(storageChunkObjectPath(id, chunkIndex), options.data, mimeType)
+    if (chunkIndex === chunkCount - 1) {
+      let sizeBytes = options.data.length
+      if (chunkCount > 1) {
+        const firstSize = await storageObjectSize(storageChunkObjectPath(id, 0))
+        if (firstSize && firstSize > 0) sizeBytes = firstSize * (chunkCount - 1) + options.data.length
+      }
+      await prisma.customBackground.update({
+        where: { id },
+        data: { sizeBytes, src, mimeType },
+      })
+    }
+    return { src, src4k: src, chunkIndex, chunkCount }
+  }
+
   if (chunkIndex === 0) {
     await prisma.backgroundChunk.deleteMany({ where: { backgroundId: id } })
   }
@@ -133,10 +165,27 @@ export async function saveBackgroundChunk(options: {
 export async function deleteBackgroundMedia(id: string) {
   try {
     const safeId = sanitizeBackgroundId(id)
+    await deleteSupabasePrefix(safeId)
     await prisma.backgroundChunk.deleteMany({ where: { backgroundId: safeId } })
   } catch {
     /* row may already be gone */
   }
+}
+
+async function readStoredRange(id: string, start: number, end: number, size: number) {
+  if (!supabaseConfig()) return null
+  const firstSize = await storageObjectSize(storageChunkObjectPath(id, 0))
+  if (!firstSize || firstSize <= 0) return null
+  const chunkSize = firstSize >= size ? size : firstSize
+  const first = Math.floor(start / chunkSize)
+  const last = Math.floor(end / chunkSize)
+  const parts: Array<{ index: number; data: Buffer }> = []
+  for (let index = first; index <= last; index++) {
+    const data = await downloadStorageObject(storageChunkObjectPath(id, index))
+    if (!data) return null
+    parts.push({ index, data })
+  }
+  return sliceChunkRange(parts, start, end, chunkSize)
 }
 
 export async function readBackgroundRange(id: string, rangeHeader?: string) {
@@ -155,6 +204,18 @@ export async function readBackgroundRange(id: string, rangeHeader?: string) {
     end = Math.min(end, start + PRESENT_VIDEO_RANGE_MAX_BYTES - 1)
   } else {
     end = Math.min(end, start + PRESENT_VIDEO_RANGE_MAX_BYTES - 1)
+  }
+
+  const stored = await readStoredRange(safeId, start, end, size)
+  if (stored) {
+    return {
+      body: stored,
+      start,
+      end,
+      size,
+      mimeType: row.mimeType || 'video/mp4',
+      partial: start !== 0 || end !== size - 1,
+    }
   }
 
   const chunkSize = PRESENT_VIDEO_CHUNK_BYTES

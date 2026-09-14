@@ -145,16 +145,40 @@ function AppInner() {
   useEffect(() => {
     if (!ready || publishedLocalVideos.current) return
     publishedLocalVideos.current = true
-    void (async () => {
+    let cancelled = false
+    void (async function publish(attempt = 0) {
       try {
         const { endpoints } = await import('./lib/api.ts')
         const { publishLocalPresentVideos } = await import('./lib/uploadPresentVideo.ts')
         const remote = await endpoints.backgrounds()
-        await publishLocalPresentVideos(remote.backgrounds ?? [])
+        if (cancelled) return
+        const result = await publishLocalPresentVideos(remote.backgrounds ?? [])
+        if (cancelled) return
+        if (result.errors.length && attempt < 8) {
+          publishedLocalVideos.current = false
+          await new Promise((resolve) => setTimeout(resolve, 8000))
+          if (cancelled) return
+          publishedLocalVideos.current = true
+          await publish(attempt + 1)
+          return
+        }
+        if (result.errors.length) publishedLocalVideos.current = false
       } catch {
+        if (cancelled) return
+        if (attempt < 8) {
+          publishedLocalVideos.current = false
+          await new Promise((resolve) => setTimeout(resolve, 8000))
+          if (cancelled) return
+          publishedLocalVideos.current = true
+          await publish(attempt + 1)
+          return
+        }
         publishedLocalVideos.current = false
       }
     })()
+    return () => {
+      cancelled = true
+    }
   }, [ready])
 
   const loading = !boot.data && !boot.isError
