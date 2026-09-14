@@ -4,6 +4,7 @@ import {
   CUSTOM_BG_PREFIX,
   isAllowedVideoFile,
   isCustomBackgroundId,
+  isHostedBackgroundSrc,
   labelFromVideoName,
   mergeCustomBackgrounds,
   readCustomBackgroundMeta,
@@ -60,11 +61,17 @@ describe('custom present backgrounds', () => {
     ])
     expect(merged).toHaveLength(1)
     expect(merged[0].src).toBe('https://example.com/sunrise.mp4')
+    expect(merged[0].src4k).toBe('https://example.com/sunrise.mp4')
     expect(merged[0].label).toBe('Sunrise')
   })
 
   it('marks uploaded ids as custom', () => {
     expect(isCustomBackgroundId(`${CUSTOM_BG_PREFIX}abc`)).toBe(true)
     expect(isCustomBackgroundId('ocean-live')).toBe(false)
+  })
+
+  it('treats http(s) files as shared across browsers', () => {
+    expect(isHostedBackgroundSrc('https://cdn.example/clip.mp4')).toBe(true)
+    expect(isHostedBackgroundSrc('blob:http://localhost/1')).toBe(false)
   })
 })

@@ -28,13 +28,19 @@ describe('present backgrounds', () => {
     memory.clear()
   })
 
-  it('includes still photos and live motion clips', () => {
+  it('keeps ocean live as the only built-in video and has no still photos', () => {
     const kinds = new Set(PRESENT_BACKGROUNDS.map((bg) => bg.kind))
-    expect(kinds).toEqual(new Set(['gradient', 'photo', 'video']))
-    expect(PRESENT_BACKGROUNDS.filter((bg) => bg.group === 'still').length).toBeGreaterThanOrEqual(5)
-    expect(PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'video')).toHaveLength(4)
-    expect(PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'video').every((bg) => bg.src4k?.includes('-4k.mp4'))).toBe(true)
-    expect(PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'photo').every((bg) => bg.src?.includes('.jpg'))).toBe(true)
+    expect(kinds).toEqual(new Set(['gradient', 'video']))
+    expect(PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'video').map((bg) => bg.id)).toEqual(['ocean-live'])
+    expect(PRESENT_BACKGROUNDS.find((bg) => bg.id === 'ocean-live')?.src4k).toContain('ocean-4k.mp4')
+    expect(PRESENT_BACKGROUNDS.some((bg) => bg.kind === 'photo')).toBe(false)
+  })
+
+  it('maps retired stills and extra live clips to ocean live', () => {
+    expect(findPresentBackground('ocean').id).toBe('ocean-live')
+    expect(findPresentBackground('sky').id).toBe('ocean-live')
+    expect(findPresentBackground('mountains-live').id).toBe('ocean-live')
+    expect(findPresentBackground('lake-live').id).toBe('ocean-live')
   })
 
   it('picks 4K video on retina / projector canvases and 1080p on phones', () => {
@@ -42,6 +48,20 @@ describe('present backgrounds', () => {
     expect(pickPresentVideoSrc(ocean, { width: 390, height: 844, dpr: 3 })).toBe(ocean.src)
     expect(pickPresentVideoSrc(ocean, { width: 1920, height: 1080, dpr: 1 })).toBe(ocean.src4k)
     expect(pickPresentVideoSrc(ocean, { width: 1440, height: 900, dpr: 2 })).toBe(ocean.src4k)
+  })
+
+  it('keeps uploaded videos at full 4K resolution on every canvas', () => {
+    const custom = {
+      id: 'custom-sunrise',
+      label: 'Sunrise',
+      kind: 'video' as const,
+      group: 'motion' as const,
+      src: 'https://cdn.example/sunrise.mp4',
+      src4k: 'https://cdn.example/sunrise.mp4',
+      custom: true,
+    }
+    expect(pickPresentVideoSrc(custom, { width: 390, height: 844, dpr: 3 })).toBe(custom.src)
+    expect(pickPresentVideoSrc(custom, { width: 1920, height: 1080, dpr: 1 })).toBe(custom.src4k)
   })
 
   it('falls back to horizon for unknown ids', () => {

@@ -16,9 +16,19 @@ export type PresentBackground = {
 export const DEFAULT_PRESENT_BACKGROUND = 'horizon'
 const STORAGE_KEY = 'setflow.presentBackground'
 const ASSET_V = '4'
+const RETIRED_BACKGROUND_IDS = new Set([
+  'ocean',
+  'mountains',
+  'forest',
+  'lake',
+  'sky',
+  'mountains-live',
+  'forest-live',
+  'lake-live',
+])
 
-// Live clips are muted looping 4K camera footage. Stills are 4K frames.
-// Sources and licenses: client/public/backgrounds/CREDITS.txt
+// Ocean live is muted looping 4K camera footage.
+// Source and license: client/public/backgrounds/CREDITS.txt
 export const PRESENT_BACKGROUNDS: PresentBackground[] = [
   { id: 'horizon', label: 'Horizon', kind: 'gradient', group: 'still', fill: 'var(--present-horizon)' },
   { id: 'afterglow', label: 'Afterglow', kind: 'gradient', group: 'still', fill: 'var(--present-afterglow)' },
@@ -27,11 +37,6 @@ export const PRESENT_BACKGROUNDS: PresentBackground[] = [
   { id: 'violet', label: 'Violet hour', kind: 'gradient', group: 'still', fill: 'var(--present-violet)' },
   { id: 'blush', label: 'Blush', kind: 'gradient', group: 'still', fill: 'var(--present-blush)' },
   { id: 'dusk', label: 'Dusk', kind: 'gradient', group: 'still', fill: 'var(--present-dusk)' },
-  { id: 'ocean', label: 'Ocean', kind: 'photo', group: 'still', src: `/backgrounds/ocean.jpg?v=${ASSET_V}` },
-  { id: 'mountains', label: 'Mountains', kind: 'photo', group: 'still', src: `/backgrounds/mountains.jpg?v=${ASSET_V}` },
-  { id: 'forest', label: 'Forest', kind: 'photo', group: 'still', src: `/backgrounds/forest.jpg?v=${ASSET_V}` },
-  { id: 'lake', label: 'Lake', kind: 'photo', group: 'still', src: `/backgrounds/lake.jpg?v=${ASSET_V}` },
-  { id: 'sky', label: 'Sunset sky', kind: 'photo', group: 'still', src: `/backgrounds/sky.jpg?v=${ASSET_V}` },
   {
     id: 'ocean-live',
     label: 'Ocean live',
@@ -41,39 +46,15 @@ export const PRESENT_BACKGROUNDS: PresentBackground[] = [
     src4k: `/backgrounds/ocean-4k.mp4?v=${ASSET_V}`,
     poster: `/backgrounds/ocean.jpg?v=${ASSET_V}`,
   },
-  {
-    id: 'mountains-live',
-    label: 'Mountains live',
-    kind: 'video',
-    group: 'motion',
-    src: `/backgrounds/mountains.mp4?v=${ASSET_V}`,
-    src4k: `/backgrounds/mountains-4k.mp4?v=${ASSET_V}`,
-    poster: `/backgrounds/mountains.jpg?v=${ASSET_V}`,
-  },
-  {
-    id: 'forest-live',
-    label: 'Forest live',
-    kind: 'video',
-    group: 'motion',
-    src: `/backgrounds/forest.mp4?v=${ASSET_V}`,
-    src4k: `/backgrounds/forest-4k.mp4?v=${ASSET_V}`,
-    poster: `/backgrounds/forest.jpg?v=${ASSET_V}`,
-  },
-  {
-    id: 'lake-live',
-    label: 'Lake live',
-    kind: 'video',
-    group: 'motion',
-    src: `/backgrounds/lake.mp4?v=${ASSET_V}`,
-    src4k: `/backgrounds/lake-4k.mp4?v=${ASSET_V}`,
-    poster: `/backgrounds/lake.jpg?v=${ASSET_V}`,
-  },
 ]
 
 export function findPresentBackground(
   id: string | null | undefined,
   extras: PresentBackground[] = [],
 ): PresentBackground {
+  if (id && RETIRED_BACKGROUND_IDS.has(id)) {
+    return PRESENT_BACKGROUNDS.find((bg) => bg.id === 'ocean-live') ?? PRESENT_BACKGROUNDS[0]
+  }
   return extras.find((bg) => bg.id === id) ?? PRESENT_BACKGROUNDS.find((bg) => bg.id === id) ?? PRESENT_BACKGROUNDS[0]
 }
 
@@ -81,12 +62,13 @@ export function presentBackgroundFill(background: PresentBackground): string {
   return background.fill ?? 'var(--present-dusk)'
 }
 
-/** Retina / projector canvases get the 4K file; phones keep the 1080p loop. */
+/** Retina / projector canvases get the 4K file; phones keep the 1080p loop. Uploaded clips stay at full resolution. */
 export function pickPresentVideoSrc(
   background: PresentBackground,
   viewport: { width: number; height: number; dpr: number } = currentViewport(),
 ): string | undefined {
   if (background.kind !== 'video') return background.src
+  if (background.custom) return background.src4k ?? background.src
   const longEdge = Math.max(viewport.width, viewport.height) * Math.min(viewport.dpr, 2)
   const wants4k = Boolean(background.src4k) && longEdge >= 1800
   return wants4k ? background.src4k : background.src

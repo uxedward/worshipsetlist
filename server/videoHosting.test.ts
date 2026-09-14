@@ -1,0 +1,69 @@
+import { Readable } from 'node:stream'
+import { describe, expect, it } from 'vitest'
+import {
+  deleteLocalMedia,
+  findLocalMedia,
+  isBlobUploadBody,
+  saveLocalMedia,
+  supabaseConfig,
+  videoHostingStatus,
+} from './videoHosting.ts'
+
+describe('present video hosting', () => {
+  it('prefers Vercel Blob when a token is present', () => {
+    expect(
+      videoHostingStatus({
+        BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_test',
+        SUPABASE_URL: 'https://example.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'key',
+        VERCEL: '1',
+      }),
+    ).toMatchObject({ provider: 'blob', blobEnabled: true, hostingEnabled: true })
+  })
+
+  it('uses Supabase storage on Vercel when Blob is missing', () => {
+    expect(
+      videoHostingStatus({
+        SUPABASE_URL: 'https://example.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'key',
+        VERCEL: '1',
+      }),
+    ).toMatchObject({ provider: 'supabase', supabaseEnabled: true, hostingEnabled: true })
+  })
+
+  it('uses local disk hosting off Vercel', () => {
+    expect(videoHostingStatus({})).toMatchObject({ provider: 'local', hostingEnabled: true })
+  })
+
+  it('is disabled on Vercel without Blob or Supabase', () => {
+    expect(videoHostingStatus({ VERCEL: '1' })).toMatchObject({
+      provider: 'none',
+      hostingEnabled: false,
+    })
+  })
+
+  it('reads supabase config from common env names', () => {
+    expect(
+      supabaseConfig({
+        NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co/',
+        SUPABASE_ANON_KEY: 'anon',
+      }),
+    ).toEqual({ url: 'https://example.supabase.co', key: 'anon' })
+    expect(supabaseConfig({})).toBeNull()
+  })
+
+  it('detects Vercel Blob client upload bodies', () => {
+    expect(isBlobUploadBody({ type: 'blob.generate-client-token', payload: {} })).toBe(true)
+    expect(isBlobUploadBody({ id: 'custom-1', filename: 'clip.mp4' })).toBe(false)
+  })
+
+  it('stores a local video file under its custom id', async () => {
+    const id = 'custom-hosting-test'
+    deleteLocalMedia(id)
+    const src = await saveLocalMedia(id, 'clip.mp4', Readable.from(Buffer.from('fake-mp4-bytes')) as never)
+    expect(src).toBe('/api/backgrounds/media/custom-hosting-test')
+    expect(findLocalMedia(id)).toBeTruthy()
+    deleteLocalMedia(id)
+    expect(findLocalMedia(id)).toBeNull()
+  })
+})

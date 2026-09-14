@@ -18,12 +18,11 @@ import {
   type PresentBackground,
 } from '../lib/presentBackgrounds.ts'
 import {
-  addCustomBackgroundFile,
   deleteCustomBackground,
-  loadCustomBackgrounds,
+  hydrateCustomBackgrounds,
   mergeCustomBackgrounds,
-  promoteCustomBackgroundSrc,
 } from '../lib/customPresentBackgrounds.ts'
+import { uploadPresentVideoFile } from '../lib/uploadPresentVideo.ts'
 import {
   FONT_MAX,
   FONT_MIN,
@@ -62,6 +61,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const [chromeVisible, setChromeVisible] = useState(true)
   const [fittedSize, setFittedSize] = useState(presentSettings.fontSize)
   const [customBackgrounds, setCustomBackgrounds] = useState<PresentBackground[]>([])
+  const [hostingEnabled, setHostingEnabled] = useState(true)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploading, setUploading] = useState<{ current: number; total: number } | null>(null)
   const touchX = useRef<number | null>(null)
@@ -71,14 +71,15 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const local = await loadCustomBackgrounds()
+      const local = await hydrateCustomBackgrounds()
       if (!cancelled) setCustomBackgrounds(local)
       try {
         const remote = await endpoints.backgrounds()
         if (cancelled) return
+        setHostingEnabled(remote.hostingEnabled)
         setCustomBackgrounds(mergeCustomBackgrounds(local, remote.backgrounds))
       } catch {
-        /* local uploads still work without the API */
+        /* local cache still works without the API */
       }
     })()
     return () => {
@@ -408,6 +409,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
         <BackgroundPicker
           selectedId={background.id}
           customItems={customBackgrounds}
+          hostingEnabled={hostingEnabled}
           uploading={uploading}
           error={uploadError}
           onSelect={setBackgroundId}
@@ -420,31 +422,9 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
               const file = files[i]!
               setUploading({ current: i + 1, total: files.length })
               try {
-                const created = await addCustomBackgroundFile(file)
+                const created = await uploadPresentVideoFile(file)
                 lastId = created.id
                 setCustomBackgrounds((prev) => [...prev.filter((bg) => bg.id !== created.id), created])
-                try {
-                  const remote = await endpoints.backgrounds()
-                  if (remote.blobEnabled) {
-                    const { upload } = await import('@vercel/blob/client')
-                    const blob = await upload(file.name, file, {
-                      access: 'public',
-                      handleUploadUrl: '/api/backgrounds/upload',
-                    })
-                    const saved = await endpoints.createBackground({
-                      id: created.id,
-                      label: created.label,
-                      src: blob.url,
-                      poster: created.poster,
-                    })
-                    await promoteCustomBackgroundSrc(created.id, saved.src ?? blob.url)
-                    setCustomBackgrounds((prev) =>
-                      prev.map((bg) => (bg.id === created.id ? { ...bg, ...saved, src: saved.src ?? blob.url } : bg)),
-                    )
-                  }
-                } catch {
-                  /* keep the local copy if remote hosting is unavailable */
-                }
               } catch (err) {
                 const reason = err instanceof Error ? err.message : 'Could not add that video.'
                 failed.push(`${file.name}: ${reason}`)
@@ -457,7 +437,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
           onDelete={(id) => {
             useAppStore.getState().askConfirm({
               title: 'Delete this background?',
-              message: 'This removes the uploaded video from Present mode.',
+              message: 'This removes the uploaded video from Present mode on every browser.',
               danger: true,
               confirmLabel: 'Delete',
               onConfirm: () => {
@@ -749,6 +729,7 @@ function PresentSlider({
 function BackgroundPicker({
   selectedId,
   customItems,
+  hostingEnabled,
   uploading,
   error,
   onSelect,
@@ -757,6 +738,7 @@ function BackgroundPicker({
 }: {
   selectedId: string
   customItems: PresentBackground[]
+  hostingEnabled: boolean
   uploading: { current: number; total: number } | null
   error: string | null
   onSelect: (id: string) => void
@@ -765,15 +747,22 @@ function BackgroundPicker({
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const gradients = PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'gradient')
-  const stills = PRESENT_BACKGROUNDS.filter((bg) => bg.group === 'still' && bg.kind !== 'gradient')
-  const motion = PRESENT_BACKGROUNDS.filter((bg) => bg.group === 'motion')
+  const videos = PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'video')
   return (
     <div
       className="relative z-20 mx-4 mb-3 rounded-[12px] px-4 py-3"
       style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
       onClick={(e) => e.stopPropagation()}
     >
-      <BackgroundRow title="Your videos" selectedId={selectedId} onSelect={onSelect}>
+      <BackgroundRow title="Videos" selectedId={selectedId} onSelect={onSelect}>
+        {videos.map((bg) => (
+          <BackgroundThumb
+            key={bg.id}
+            background={bg}
+            selected={bg.id === selectedId}
+            onSelect={() => onSelect(bg.id)}
+          />
+        ))}
         {customItems.map((bg) => (
           <BackgroundThumb
             key={bg.id}
@@ -786,11 +775,12 @@ function BackgroundPicker({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          disabled={Boolean(uploading)}
+          disabled={Boolean(uploading) || !hostingEnabled}
           className="flex h-[86px] w-[104px] shrink-0 flex-col items-center justify-center gap-1 rounded-[10px] text-caption"
           style={{
             border: '2px dashed var(--border-strong)',
             color: 'var(--text-secondary)',
+            opacity: hostingEnabled ? 1 : 0.6,
           }}
         >
           <Plus size={16} />
@@ -817,10 +807,16 @@ function BackgroundPicker({
         <p className="mt-2 text-[12px]" style={{ color: 'var(--warning)' }}>
           {error}
         </p>
-      ) : null}
+      ) : hostingEnabled ? (
+        <p className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
+          Uploaded 4K videos are shared on every browser.
+        </p>
+      ) : (
+        <p className="mt-2 text-[12px]" style={{ color: 'var(--warning)' }}>
+          Video hosting is off, so new uploads cannot appear on other browsers.
+        </p>
+      )}
       <BackgroundRow title="Gradients" items={gradients} selectedId={selectedId} onSelect={onSelect} />
-      <BackgroundRow title="Stills" items={stills} selectedId={selectedId} onSelect={onSelect} />
-      <BackgroundRow title="Live HD" items={motion} selectedId={selectedId} onSelect={onSelect} />
     </div>
   )
 }
@@ -894,7 +890,7 @@ function BackgroundRow({
   children?: ReactNode
 }) {
   return (
-    <div className={title === 'Your videos' ? undefined : 'mt-3'}>
+    <div className={title === 'Videos' ? undefined : 'mt-3'}>
       <div className="mb-2 text-label" style={{ color: 'var(--text-muted)' }}>
         {title}
       </div>
