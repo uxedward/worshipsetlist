@@ -63,7 +63,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const [fittedSize, setFittedSize] = useState(presentSettings.fontSize)
   const [customBackgrounds, setCustomBackgrounds] = useState<PresentBackground[]>([])
   const [uploadError, setUploadError] = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
+  const [uploading, setUploading] = useState<{ current: number; total: number } | null>(null)
   const touchX = useRef<number | null>(null)
   const lyricsBoxRef = useRef<HTMLDivElement>(null)
   const background = findPresentBackground(backgroundId, customBackgrounds)
@@ -411,40 +411,48 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
           uploading={uploading}
           error={uploadError}
           onSelect={setBackgroundId}
-          onUpload={async (file) => {
+          onUpload={async (files) => {
+            if (!files.length) return
             setUploadError(null)
-            setUploading(true)
-            try {
-              const created = await addCustomBackgroundFile(file)
-              setCustomBackgrounds((prev) => [...prev.filter((bg) => bg.id !== created.id), created])
-              setBackgroundId(created.id)
+            const failed: string[] = []
+            let lastId: string | null = null
+            for (let i = 0; i < files.length; i++) {
+              const file = files[i]!
+              setUploading({ current: i + 1, total: files.length })
               try {
-                const remote = await endpoints.backgrounds()
-                if (remote.blobEnabled) {
-                  const { upload } = await import('@vercel/blob/client')
-                  const blob = await upload(file.name, file, {
-                    access: 'public',
-                    handleUploadUrl: '/api/backgrounds/upload',
-                  })
-                  const saved = await endpoints.createBackground({
-                    id: created.id,
-                    label: created.label,
-                    src: blob.url,
-                    poster: created.poster,
-                  })
-                  await promoteCustomBackgroundSrc(created.id, saved.src ?? blob.url)
-                  setCustomBackgrounds((prev) =>
-                    prev.map((bg) => (bg.id === created.id ? { ...bg, ...saved, src: saved.src ?? blob.url } : bg)),
-                  )
+                const created = await addCustomBackgroundFile(file)
+                lastId = created.id
+                setCustomBackgrounds((prev) => [...prev.filter((bg) => bg.id !== created.id), created])
+                try {
+                  const remote = await endpoints.backgrounds()
+                  if (remote.blobEnabled) {
+                    const { upload } = await import('@vercel/blob/client')
+                    const blob = await upload(file.name, file, {
+                      access: 'public',
+                      handleUploadUrl: '/api/backgrounds/upload',
+                    })
+                    const saved = await endpoints.createBackground({
+                      id: created.id,
+                      label: created.label,
+                      src: blob.url,
+                      poster: created.poster,
+                    })
+                    await promoteCustomBackgroundSrc(created.id, saved.src ?? blob.url)
+                    setCustomBackgrounds((prev) =>
+                      prev.map((bg) => (bg.id === created.id ? { ...bg, ...saved, src: saved.src ?? blob.url } : bg)),
+                    )
+                  }
+                } catch {
+                  /* keep the local copy if remote hosting is unavailable */
                 }
-              } catch {
-                /* keep the local copy if remote hosting is unavailable */
+              } catch (err) {
+                const reason = err instanceof Error ? err.message : 'Could not add that video.'
+                failed.push(`${file.name}: ${reason}`)
               }
-            } catch (err) {
-              setUploadError(err instanceof Error ? err.message : 'Could not add that video.')
-            } finally {
-              setUploading(false)
             }
+            if (lastId) setBackgroundId(lastId)
+            setUploadError(failed.length ? failed.join(' ') : null)
+            setUploading(null)
           }}
           onDelete={(id) => {
             useAppStore.getState().askConfirm({
@@ -749,10 +757,10 @@ function BackgroundPicker({
 }: {
   selectedId: string
   customItems: PresentBackground[]
-  uploading: boolean
+  uploading: { current: number; total: number } | null
   error: string | null
   onSelect: (id: string) => void
-  onUpload: (file: File) => void
+  onUpload: (files: File[]) => void
   onDelete: (id: string) => void
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
@@ -778,7 +786,7 @@ function BackgroundPicker({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          disabled={uploading}
+          disabled={Boolean(uploading)}
           className="flex h-[86px] w-[104px] shrink-0 flex-col items-center justify-center gap-1 rounded-[10px] text-caption"
           style={{
             border: '2px dashed var(--border-strong)',
@@ -786,17 +794,22 @@ function BackgroundPicker({
           }}
         >
           <Plus size={16} />
-          {uploading ? 'Uploading…' : 'Add video'}
+          {uploading
+            ? uploading.total > 1
+              ? `Uploading ${uploading.current}/${uploading.total}`
+              : 'Uploading…'
+            : 'Add videos'}
         </button>
         <input
           ref={fileRef}
           type="file"
           accept="video/mp4,video/webm,video/quicktime,video/x-m4v,.mp4,.webm,.mov,.m4v"
+          multiple
           className="hidden"
           onChange={(e) => {
-            const file = e.target.files?.[0]
+            const files = e.target.files ? Array.from(e.target.files) : []
             e.target.value = ''
-            if (file) onUpload(file)
+            if (files.length) onUpload(files)
           }}
         />
       </BackgroundRow>
