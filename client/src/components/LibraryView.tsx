@@ -12,6 +12,8 @@ type Row =
   | { type: 'header'; id: string; artist: string; count: number }
   | { type: 'song'; id: string; song: Song }
 
+type ArtistGroup = { artist: string; songs: Song[] }
+
 export function LibraryView({
   setlistId,
   setlistSongs,
@@ -45,31 +47,38 @@ export function LibraryView({
     })
   }, [songs, search])
 
+  const artistGroups = useMemo((): ArtistGroup[] | null => {
+    if (search || sort !== 'artist') return null
+    const byArtist = new Map<string, Song[]>()
+    for (const s of visibleSongs) {
+      const list = byArtist.get(s.artist) ?? []
+      list.push(s)
+      byArtist.set(s.artist, list)
+    }
+    return [...byArtist.entries()].map(([artist, songs]) => ({ artist, songs }))
+  }, [visibleSongs, search, sort])
+
   const grouped = useMemo(() => {
     const rows: Row[] = []
-    const unfiltered = !search && sort === 'artist'
-    if (unfiltered) {
-      const byArtist = new Map<string, Song[]>()
-      for (const s of visibleSongs) {
-        const list = byArtist.get(s.artist) ?? []
-        list.push(s)
-        byArtist.set(s.artist, list)
-      }
-      for (const [name, list] of byArtist) {
-        rows.push({ type: 'header', id: `h-${name}`, artist: name, count: list.length })
-        for (const song of list) rows.push({ type: 'song', id: song.id, song })
+    if (artistGroups) {
+      for (const group of artistGroups) {
+        rows.push({ type: 'header', id: `h-${group.artist}`, artist: group.artist, count: group.songs.length })
+        for (const song of group.songs) rows.push({ type: 'song', id: song.id, song })
       }
     } else {
       for (const song of visibleSongs) rows.push({ type: 'song', id: song.id, song })
     }
     return rows
-  }, [visibleSongs, search, sort])
+  }, [artistGroups, visibleSongs])
 
   const parentRef = useRef<HTMLDivElement>(null)
   const virtualizer = useVirtualizer({
     count: grouped.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: (i) => (grouped[i]?.type === 'header' ? 52 : 56),
+    estimateSize: (i) => {
+      if (grouped[i]?.type !== 'header') return 56
+      return i === 0 ? 56 : 80
+    },
     overscan: 10,
   })
 
@@ -223,28 +232,81 @@ export function LibraryView({
               )
             })}
           </div>
-        ) : (
-          grouped.map((row, i) =>
-            row.type === 'header' ? (
-              <ArtistHeader key={row.id} artist={row.artist} count={row.count} first={i === 0} />
-            ) : (
-              <LibraryRow
-                key={row.id}
-                song={row.song}
-                added={inSetlist.has(row.song.id)}
-                adding={addingIds.has(row.song.id)}
-                hideArtist={!search && sort === 'artist'}
-                onAdd={() => addToSetlist(row.song)}
-                onEdit={() => openEditor(row.song.id)}
-                onDelete={() => requestDelete(row.song)}
+        ) : artistGroups ? (
+          <div className="flex flex-col gap-4 p-1 pb-4">
+            {artistGroups.map((group) => (
+              <ArtistGroupCard
+                key={group.artist}
+                artist={group.artist}
+                songs={group.songs}
+                inSetlist={inSetlist}
+                addingIds={addingIds}
+                onAdd={addToSetlist}
+                onEdit={(song) => openEditor(song.id)}
+                onDelete={requestDelete}
               />
-            ),
-          )
+            ))}
+          </div>
+        ) : (
+          visibleSongs.map((song) => (
+            <LibraryRow
+              key={song.id}
+              song={song}
+              added={inSetlist.has(song.id)}
+              adding={addingIds.has(song.id)}
+              hideArtist={false}
+              onAdd={() => addToSetlist(song)}
+              onEdit={() => openEditor(song.id)}
+              onDelete={() => requestDelete(song)}
+            />
+          ))
         )}
       </div>
 
       <div className="px-6 py-3 text-[12px]" style={{ borderTop: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
         {visibleSongs.length} songs · {addedCount} in setlist
+      </div>
+    </div>
+  )
+}
+
+function artistInitial(name: string) {
+  const trimmed = name.trim()
+  return trimmed ? trimmed[0]!.toUpperCase() : '?'
+}
+
+function artistMarkStyle(name: string) {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0
+  const tone = (hash % 4) + 2
+  return {
+    background: 'var(--surface-3)',
+    color: `var(--arc-${tone})`,
+    border: '1px solid var(--border-strong)',
+  }
+}
+
+function ArtistMark({ artist }: { artist: string }) {
+  return (
+    <span
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-[15px] font-medium"
+      style={artistMarkStyle(artist)}
+      aria-hidden
+    >
+      {artistInitial(artist)}
+    </span>
+  )
+}
+
+function ArtistHeading({ artist, count }: { artist: string; count: number }) {
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-3">
+      <ArtistMark artist={artist} />
+      <div className="min-w-0 flex-1">
+        <h2 className="truncate text-heading">{artist}</h2>
+        <p className="text-caption tabular" style={{ color: 'var(--text-muted)' }}>
+          {count} {count === 1 ? 'song' : 'songs'}
+        </p>
       </div>
     </div>
   )
@@ -260,17 +322,60 @@ function ArtistHeader({
   first?: boolean
 }) {
   return (
-    <div
-      className={cn('flex items-end justify-between gap-3 px-2 pb-2', first ? 'pt-1' : 'pt-4')}
-      style={first ? undefined : { borderTop: '1px solid var(--border)' }}
-    >
-      <h2 className="min-w-0 truncate text-[16px] font-medium" style={{ color: 'var(--text-primary)' }}>
-        {artist}
-      </h2>
-      <span className="shrink-0 text-caption tabular" style={{ color: 'var(--text-muted)' }}>
-        {count} {count === 1 ? 'song' : 'songs'}
-      </span>
+    <div className={cn('px-1', first ? 'pt-1' : 'pt-5')}>
+      <div
+        className="flex items-center rounded-[10px] px-3 py-2.5"
+        style={{ background: 'var(--surface-2)', border: '1px solid var(--border-strong)' }}
+      >
+        <ArtistHeading artist={artist} count={count} />
+      </div>
     </div>
+  )
+}
+
+function ArtistGroupCard({
+  artist,
+  songs,
+  inSetlist,
+  addingIds,
+  onAdd,
+  onEdit,
+  onDelete,
+}: {
+  artist: string
+  songs: Song[]
+  inSetlist: Set<string>
+  addingIds: Set<string>
+  onAdd: (song: Song) => void
+  onEdit: (song: Song) => void
+  onDelete: (song: Song) => void
+}) {
+  return (
+    <section
+      className="overflow-hidden rounded-[12px]"
+      style={{ background: 'var(--surface-1)', border: '1px solid var(--border-strong)' }}
+    >
+      <header
+        className="flex items-center px-3 py-3"
+        style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border-strong)' }}
+      >
+        <ArtistHeading artist={artist} count={songs.length} />
+      </header>
+      <div className="px-1 py-1">
+        {songs.map((song) => (
+          <LibraryRow
+            key={song.id}
+            song={song}
+            added={inSetlist.has(song.id)}
+            adding={addingIds.has(song.id)}
+            hideArtist
+            onAdd={() => onAdd(song)}
+            onEdit={() => onEdit(song)}
+            onDelete={() => onDelete(song)}
+          />
+        ))}
+      </div>
+    </section>
   )
 }
 
