@@ -3,7 +3,7 @@ import { Check, Plus, X } from 'lucide-react'
 import { formatDate } from '@shared/duration.ts'
 import type { Setlist, Song } from '@shared/types.ts'
 import { useAppStore } from '../store/useAppStore.ts'
-import { useMutations, useSetlist, useSetlists } from '../hooks/useQueries.ts'
+import { useMutations, useSetlists } from '../hooks/useQueries.ts'
 import { Btn, SetlistThumb, Spinner } from './ui.tsx'
 
 export function AddToSetlistModal({
@@ -156,10 +156,9 @@ function SetlistChoice({
   disabled: boolean
   onPick: () => void
 }) {
-  const { data: detail } = useSetlist(setlist.id)
-  const songs = detail?.songs ?? setlist.songs ?? []
+  const songs = setlist.songs ?? []
   const already = songs.some((row) => row.songId === songId)
-  const count = detail?._count?.songs ?? detail?.songs?.length ?? setlist._count?.songs ?? setlist.songs?.length ?? 0
+  const count = setlist._count?.songs ?? songs.length
 
   return (
     <button
