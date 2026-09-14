@@ -4,6 +4,7 @@ import {
   deleteLocalMedia,
   findLocalMedia,
   isBlobUploadBody,
+  presentVideoBucketCreateBody,
   saveLocalMedia,
   supabaseConfig,
   videoHostingStatus,
@@ -34,6 +35,15 @@ describe('present video hosting', () => {
       }),
     ).toEqual({ url: 'https://example.supabase.co', key: 'anon' })
     expect(supabaseConfig({})).toBeNull()
+  })
+
+  it('creates a public present-videos bucket without a 1GB file cap that Supabase rejects', () => {
+    expect(presentVideoBucketCreateBody()).toEqual({
+      id: 'present-videos',
+      name: 'present-videos',
+      public: true,
+    })
+    expect(presentVideoBucketCreateBody()).not.toHaveProperty('file_size_limit')
   })
 
   it('detects Vercel Blob client upload bodies', () => {

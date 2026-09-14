@@ -123,6 +123,14 @@ async function supabaseFetch(cfg: SupabaseCfg, pathname: string, init: RequestIn
   return fetch(`${cfg.url}/storage/v1${pathname}`, { ...init, headers })
 }
 
+export function presentVideoBucketCreateBody() {
+  return {
+    id: PRESENT_VIDEO_BUCKET,
+    name: PRESENT_VIDEO_BUCKET,
+    public: true,
+  }
+}
+
 export async function ensurePresentVideoBucket(env: Env = process.env) {
   const cfg = supabaseConfig(env)
   if (!cfg) return
@@ -131,16 +139,13 @@ export async function ensurePresentVideoBucket(env: Env = process.env) {
   const created = await supabaseFetch(cfg, '/bucket', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      id: PRESENT_VIDEO_BUCKET,
-      name: PRESENT_VIDEO_BUCKET,
-      public: true,
-      file_size_limit: MAX_PRESENT_VIDEO_BYTES,
-    }),
+    body: JSON.stringify(presentVideoBucketCreateBody()),
   })
   if (!created.ok && created.status !== 409) {
     const detail = await created.text()
-    throw new Error(detail || 'Could not create the present-videos storage bucket.')
+    if (!/already exists|duplicate|taken/i.test(detail)) {
+      console.error('Could not create the present-videos storage bucket', detail)
+    }
   }
 }
 
