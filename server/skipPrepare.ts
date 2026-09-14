@@ -1,8 +1,7 @@
 export function skipDatabasePrepare(method: string | undefined, url: string | undefined) {
   const path = (url || '').split('?')[0]
   if (path === '/api/health') return true
-  const verb = (method || 'GET').toUpperCase()
-  if (verb === 'GET' && /^\/api\/backgrounds\/media\/[^/]+$/.test(path)) return true
+  if (path === '/api/backgrounds' || path.startsWith('/api/backgrounds/')) return true
   return false
 }
 
