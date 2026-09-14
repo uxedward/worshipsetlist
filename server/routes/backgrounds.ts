@@ -35,7 +35,13 @@ backgroundsRouter.get('/', async (_req, res) => {
   const hosting = hostingPayload()
   try {
     const rows = await prisma.customBackground.findMany({ orderBy: { createdAt: 'asc' } })
-    res.json({ backgrounds: rows.filter(isPlayable).map(toClient), ...hosting })
+    const ready = rows.filter(isPlayable)
+    res.json({
+      backgrounds: ready.map(toClient),
+      storedCount: rows.length,
+      readyCount: ready.length,
+      ...hosting,
+    })
   } catch (err) {
     res.status(500).json({
       backgrounds: [],
