@@ -10,7 +10,7 @@ import {
 } from './videoHosting.ts'
 
 describe('present video hosting', () => {
-  it('prefers Vercel Blob when a token is present', () => {
+  it('always hosts uploads in the Postgres database', () => {
     expect(
       videoHostingStatus({
         BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_test',
@@ -18,28 +18,12 @@ describe('present video hosting', () => {
         SUPABASE_SERVICE_ROLE_KEY: 'key',
         VERCEL: '1',
       }),
-    ).toMatchObject({ provider: 'blob', blobEnabled: true, hostingEnabled: true })
-  })
-
-  it('uses Supabase storage on Vercel when Blob is missing', () => {
-    expect(
-      videoHostingStatus({
-        SUPABASE_URL: 'https://example.supabase.co',
-        SUPABASE_SERVICE_ROLE_KEY: 'key',
-        VERCEL: '1',
-      }),
-    ).toMatchObject({ provider: 'supabase', supabaseEnabled: true, hostingEnabled: true })
-  })
-
-  it('uses local disk hosting off Vercel', () => {
-    expect(videoHostingStatus({})).toMatchObject({ provider: 'local', hostingEnabled: true })
-  })
-
-  it('is disabled on Vercel without Blob or Supabase', () => {
+    ).toMatchObject({ provider: 'database', hostingEnabled: true, blobEnabled: true, supabaseEnabled: true })
     expect(videoHostingStatus({ VERCEL: '1' })).toMatchObject({
-      provider: 'none',
-      hostingEnabled: false,
+      provider: 'database',
+      hostingEnabled: true,
     })
+    expect(videoHostingStatus({})).toMatchObject({ provider: 'database', hostingEnabled: true })
   })
 
   it('reads supabase config from common env names', () => {

@@ -27,7 +27,9 @@ export function isCustomBackgroundId(id: string) {
 }
 
 export function isHostedBackgroundSrc(src?: string) {
-  return Boolean(src && /^https?:\/\//i.test(src))
+  return Boolean(
+    src && (/^https?:\/\//i.test(src) || src.startsWith('/api/backgrounds/media/')),
+  )
 }
 
 export function readCustomBackgroundMeta(): CustomBackgroundMeta[] {
@@ -229,6 +231,22 @@ export async function hydrateCustomBackgrounds(): Promise<PresentBackground[]> {
     }
   }
   return hydrated
+}
+
+export async function listLocalCustomVideos(): Promise<
+  Array<{ id: string; meta: CustomBackgroundMeta; file?: File }>
+> {
+  const metas = readCustomBackgroundMeta()
+  const out: Array<{ id: string; meta: CustomBackgroundMeta; file?: File }> = []
+  for (const meta of metas) {
+    try {
+      const file = await idbGet(meta.id)
+      out.push({ id: meta.id, meta, file })
+    } catch {
+      out.push({ id: meta.id, meta })
+    }
+  }
+  return out
 }
 
 export async function saveCustomVideoFile(file: File): Promise<PresentBackground> {

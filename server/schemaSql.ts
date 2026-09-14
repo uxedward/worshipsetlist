@@ -62,9 +62,22 @@ export const SCHEMA_STATEMENTS = [
     "kind" TEXT NOT NULL DEFAULT 'video',
     "src" TEXT NOT NULL,
     "poster" TEXT,
+    "mimeType" TEXT NOT NULL DEFAULT 'video/mp4',
+    "sizeBytes" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "CustomBackground_pkey" PRIMARY KEY ("id")
   )`,
+  `ALTER TABLE "CustomBackground" ADD COLUMN IF NOT EXISTS "mimeType" TEXT NOT NULL DEFAULT 'video/mp4'`,
+  `ALTER TABLE "CustomBackground" ADD COLUMN IF NOT EXISTS "sizeBytes" INTEGER NOT NULL DEFAULT 0`,
+  `CREATE TABLE IF NOT EXISTS "BackgroundChunk" (
+    "id" TEXT NOT NULL,
+    "backgroundId" TEXT NOT NULL,
+    "index" INTEGER NOT NULL,
+    "data" BYTEA NOT NULL,
+    CONSTRAINT "BackgroundChunk_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "BackgroundChunk_backgroundId_index_key" ON "BackgroundChunk"("backgroundId", "index")`,
+  `CREATE INDEX IF NOT EXISTS "BackgroundChunk_backgroundId_idx" ON "BackgroundChunk"("backgroundId")`,
   `CREATE INDEX IF NOT EXISTS "Section_songId_idx" ON "Section"("songId")`,
   `CREATE INDEX IF NOT EXISTS "Line_sectionId_idx" ON "Line"("sectionId")`,
   `CREATE INDEX IF NOT EXISTS "SetlistSong_setlistId_idx" ON "SetlistSong"("setlistId")`,

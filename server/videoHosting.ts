@@ -6,7 +6,7 @@ import type { IncomingMessage } from 'node:http'
 export const PRESENT_VIDEO_BUCKET = 'present-videos'
 export const MAX_PRESENT_VIDEO_BYTES = 1024 * 1024 * 1024
 
-export type VideoHostingProvider = 'blob' | 'supabase' | 'local' | 'none'
+export type VideoHostingProvider = 'database' | 'blob' | 'supabase' | 'local' | 'none'
 
 export type VideoHostingStatus = {
   provider: VideoHostingProvider
@@ -30,19 +30,11 @@ export function supabaseConfig(env: Env = process.env) {
 export function videoHostingStatus(env: Env = process.env): VideoHostingStatus {
   const blobEnabled = Boolean(env.BLOB_READ_WRITE_TOKEN)
   const supabaseEnabled = Boolean(supabaseConfig(env))
-  const localEnabled = !env.VERCEL
-  const provider: VideoHostingProvider = blobEnabled
-    ? 'blob'
-    : supabaseEnabled
-      ? 'supabase'
-      : localEnabled
-        ? 'local'
-        : 'none'
   return {
-    provider,
+    provider: 'database',
     blobEnabled,
     supabaseEnabled,
-    hostingEnabled: provider !== 'none',
+    hostingEnabled: true,
   }
 }
 

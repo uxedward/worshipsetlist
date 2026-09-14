@@ -80,10 +80,24 @@ model Preference {
 }
 
 model CustomBackground {
-  id        String   @id
+  id        String            @id
   label     String
-  kind      String   @default("video")
+  kind      String            @default("video")
   src       String
   poster    String?
-  createdAt DateTime @default(now())
+  mimeType  String            @default("video/mp4")
+  sizeBytes Int               @default(0)
+  createdAt DateTime          @default(now())
+  chunks    BackgroundChunk[]
+}
+
+model BackgroundChunk {
+  id           String           @id @default(cuid())
+  backgroundId String
+  background   CustomBackground @relation(fields: [backgroundId], references: [id], onDelete: Cascade)
+  index        Int
+  data         Bytes
+
+  @@unique([backgroundId, index])
+  @@index([backgroundId])
 }

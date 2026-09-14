@@ -66,13 +66,41 @@ describe('custom present backgrounds', () => {
     expect(merged[0].label).toBe('Sunrise')
   })
 
+  it('keeps a database-hosted video over a local blob copy', () => {
+    const merged = mergeCustomBackgrounds(
+      [
+        {
+          id: `${CUSTOM_BG_PREFIX}a`,
+          label: 'Local',
+          kind: 'video',
+          group: 'motion',
+          src: 'blob:http://localhost/1',
+          custom: true,
+        },
+      ],
+      [
+        {
+          id: `${CUSTOM_BG_PREFIX}a`,
+          label: 'Shared',
+          kind: 'video',
+          group: 'motion',
+          src: '/api/backgrounds/media/custom-a',
+          custom: true,
+        },
+      ],
+    )
+    expect(merged[0].src).toBe('/api/backgrounds/media/custom-a')
+    expect(merged[0].src4k).toBe('/api/backgrounds/media/custom-a')
+  })
+
   it('marks uploaded ids as custom', () => {
     expect(isCustomBackgroundId(`${CUSTOM_BG_PREFIX}abc`)).toBe(true)
     expect(isCustomBackgroundId('ocean-live')).toBe(false)
   })
 
-  it('treats http(s) files as shared across browsers', () => {
+  it('treats database media paths as shared across browsers', () => {
     expect(isHostedBackgroundSrc('https://cdn.example/clip.mp4')).toBe(true)
+    expect(isHostedBackgroundSrc('/api/backgrounds/media/custom-a')).toBe(true)
     expect(isHostedBackgroundSrc('blob:http://localhost/1')).toBe(false)
   })
 

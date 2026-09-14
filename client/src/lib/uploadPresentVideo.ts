@@ -2,11 +2,14 @@ import { endpoints } from './api.ts'
 import {
   CUSTOM_BG_PREFIX,
   isAllowedVideoFile,
+  isHostedBackgroundSrc,
   labelFromVideoName,
+  listLocalCustomVideos,
   posterFromVideoFile,
   rememberRemoteBackground,
 } from './customPresentBackgrounds.ts'
 import type { PresentBackground } from './presentBackgrounds.ts'
+import { PRESENT_VIDEO_CHUNK_BYTES, presentVideoChunkCount, presentVideoSrc } from '@shared/presentVideo.ts'
 
 function asSharedVideo(bg: PresentBackground, src: string): PresentBackground {
   return {
@@ -19,74 +22,84 @@ function asSharedVideo(bg: PresentBackground, src: string): PresentBackground {
   }
 }
 
-export async function uploadPresentVideoFile(file: File): Promise<PresentBackground> {
+async function putVideoChunk(id: string, file: File, chunkIndex: number, chunkCount: number) {
+  const blob = file.slice(
+    chunkIndex * PRESENT_VIDEO_CHUNK_BYTES,
+    (chunkIndex + 1) * PRESENT_VIDEO_CHUNK_BYTES,
+  )
+  const put = await fetch(
+    `/api/backgrounds/media/${encodeURIComponent(id)}?chunk=${chunkIndex}&chunks=${chunkCount}&name=${encodeURIComponent(file.name)}&type=${encodeURIComponent(file.type || 'video/mp4')}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: blob,
+    },
+  )
+  if (!put.ok) {
+    let message = 'Could not store that video in the database.'
+    try {
+      const data = (await put.json()) as { error?: string }
+      if (data.error) message = data.error
+    } catch {
+      /* keep default */
+    }
+    throw new Error(message)
+  }
+}
+
+async function saveBackgroundRecord(body: { id: string; label: string; src: string; poster?: string }) {
+  try {
+    return await endpoints.createBackground(body)
+  } catch (err) {
+    if (!body.poster) throw err
+    return await endpoints.createBackground({ id: body.id, label: body.label, src: body.src })
+  }
+}
+
+export async function uploadPresentVideoFile(file: File, existingId?: string): Promise<PresentBackground> {
   if (!isAllowedVideoFile(file)) {
     throw new Error('Choose an MP4, WebM, or MOV video under 1 GB.')
   }
-  const caps = await endpoints.backgrounds()
-  const provider = caps.provider ?? (caps.blobEnabled ? 'blob' : caps.supabaseEnabled ? 'supabase' : 'none')
-  const hostingEnabled = caps.hostingEnabled ?? provider !== 'none'
-  if (!hostingEnabled) {
-    throw new Error('Video hosting is not enabled, so uploads cannot appear in other browsers.')
-  }
-  const id = `${CUSTOM_BG_PREFIX}${crypto.randomUUID()}`
+  const id = existingId?.startsWith(CUSTOM_BG_PREFIX) ? existingId : `${CUSTOM_BG_PREFIX}${crypto.randomUUID()}`
   const label = labelFromVideoName(file.name)
   const poster = await posterFromVideoFile(file)
-  const contentType = file.type || 'video/mp4'
-  let src: string
-
-  if (provider === 'blob' || caps.blobEnabled) {
-    const { upload } = await import('@vercel/blob/client')
-    const blob = await upload(`present-videos/${id}/${file.name}`, file, {
-      access: 'public',
-      handleUploadUrl: '/api/backgrounds/upload',
-      contentType,
-      multipart: true,
-    })
-    src = blob.url
-  } else if (provider === 'supabase' || caps.supabaseEnabled) {
-    const session = await endpoints.createBackgroundUpload({
-      id,
-      filename: file.name,
-      contentType,
-    })
-    const headers: Record<string, string> = {
-      'Content-Type': contentType,
-      'x-upsert': 'true',
-    }
-    if (session.token) headers.authorization = `Bearer ${session.token}`
-    const put = await fetch(session.uploadUrl, { method: 'PUT', headers, body: file })
-    if (!put.ok) throw new Error('Could not upload that 4K video.')
-    src = session.publicUrl
-  } else if (provider === 'local') {
-    const put = await fetch(
-      `/api/backgrounds/media/${encodeURIComponent(id)}?name=${encodeURIComponent(file.name)}`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': contentType },
-        body: file,
-      },
-    )
-    if (!put.ok) {
-      let message = 'Could not upload that video.'
-      try {
-        const data = (await put.json()) as { error?: string }
-        if (data.error) message = data.error
-      } catch {
-        /* keep default */
-      }
-      throw new Error(message)
-    }
-    const saved = (await put.json()) as { src?: string }
-    src = saved.src || `/api/backgrounds/media/${encodeURIComponent(id)}`
-  } else {
-    throw new Error('Video hosting is not enabled, so uploads cannot appear in other browsers.')
+  const chunkCount = presentVideoChunkCount(file.size)
+  for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
+    await putVideoChunk(id, file, chunkIndex, chunkCount)
   }
-
-  const saved = await endpoints.createBackground({ id, label, src, poster })
+  const src = presentVideoSrc(id)
+  const saved = await saveBackgroundRecord({ id, label, src, poster })
   const hosted = asSharedVideo(saved, saved.src ?? src)
   await rememberRemoteBackground(hosted).catch(() => {
-    /* shared upload already succeeded */
+    /* shared database row already succeeded */
   })
   return hosted
+}
+
+export async function publishLocalPresentVideos(remote: PresentBackground[]): Promise<PresentBackground[]> {
+  const remoteById = new Map(remote.map((bg) => [bg.id, bg]))
+  const local = await listLocalCustomVideos()
+  const published: PresentBackground[] = []
+  for (const item of local) {
+    try {
+      const already = remoteById.get(item.id)
+      if (already && isHostedBackgroundSrc(already.src)) continue
+      if (item.file) {
+        published.push(await uploadPresentVideoFile(item.file, item.id))
+        continue
+      }
+      if (item.meta.src && isHostedBackgroundSrc(item.meta.src) && !already) {
+        const saved = await saveBackgroundRecord({
+          id: item.id,
+          label: item.meta.label,
+          src: item.meta.src,
+          poster: item.meta.poster,
+        })
+        published.push(asSharedVideo(saved, saved.src ?? item.meta.src))
+      }
+    } catch {
+      /* keep publishing the rest */
+    }
+  }
+  return published
 }

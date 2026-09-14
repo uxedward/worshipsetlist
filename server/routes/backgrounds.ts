@@ -1,11 +1,10 @@
 import { Router } from 'express'
 import { prisma } from '../db.js'
+import { deleteBackgroundMedia, readBackgroundRange } from '../backgroundMedia.js'
 import {
-  createSupabaseUpload,
   deleteLocalMedia,
   deleteSupabaseObject,
   findLocalMedia,
-  isBlobUploadBody,
   videoHostingStatus,
 } from '../videoHosting.js'
 
@@ -24,6 +23,10 @@ function toClient(row: { id: string; label: string; kind: string; src: string; p
   }
 }
 
+function isPlayable(row: { src: string; sizeBytes: number }) {
+  return row.sizeBytes > 0 || /^https?:\/\//i.test(row.src)
+}
+
 function hostingPayload() {
   return videoHostingStatus()
 }
@@ -32,77 +35,54 @@ backgroundsRouter.get('/', async (_req, res) => {
   const hosting = hostingPayload()
   try {
     const rows = await prisma.customBackground.findMany({ orderBy: { createdAt: 'asc' } })
-    res.json({ backgrounds: rows.map(toClient), ...hosting })
+    res.json({ backgrounds: rows.filter(isPlayable).map(toClient), ...hosting })
+  } catch (err) {
+    res.status(500).json({
+      backgrounds: [],
+      ...hosting,
+      error: err instanceof Error ? err.message : 'Could not load uploaded videos.',
+    })
+  }
+})
+
+backgroundsRouter.get('/media/:id', async (req, res) => {
+  try {
+    const media = await readBackgroundRange(req.params.id, req.headers.range)
+    if (media) {
+      res.status(media.partial ? 206 : 200)
+      res.setHeader('Accept-Ranges', 'bytes')
+      res.setHeader('Content-Type', media.mimeType)
+      res.setHeader('Content-Length', String(media.body.length))
+      if (media.partial) {
+        res.setHeader('Content-Range', `bytes ${media.start}-${media.end}/${media.size}`)
+      }
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      res.end(media.body)
+      return
+    }
   } catch {
-    res.json({ backgrounds: [], ...hosting })
+    /* fall through to local / remote URL */
   }
-})
 
-backgroundsRouter.post('/upload', async (req, res) => {
-  const hosting = hostingPayload()
-  if (isBlobUploadBody(req.body) || hosting.provider === 'blob') {
-    if (!hosting.blobEnabled) {
-      res.status(501).json({ error: 'Video hosting is not configured on this server.' })
-      return
-    }
-    try {
-      const { handleUpload } = await import('@vercel/blob/client')
-      const json = await handleUpload({
-        body: req.body,
-        request: req as never,
-        onBeforeGenerateToken: async () => ({
-          allowedContentTypes: [
-            'video/mp4',
-            'video/webm',
-            'video/quicktime',
-            'video/x-m4v',
-            'video/mpeg',
-            'application/octet-stream',
-          ],
-          addRandomSuffix: true,
-          maximumSizeInBytes: 1024 * 1024 * 1024,
-        }),
-      })
-      res.json(json)
-    } catch (err) {
-      res.status(400).json({
-        error: err instanceof Error ? err.message : 'Could not start the video upload.',
-      })
-    }
-    return
-  }
-  if (hosting.provider === 'supabase') {
-    const id = typeof req.body?.id === 'string' ? req.body.id.trim() : ''
-    const filename = typeof req.body?.filename === 'string' ? req.body.filename.trim() : ''
-    if (!id || !filename) {
-      res.status(400).json({ error: 'A video id and filename are required.' })
-      return
-    }
-    try {
-      const session = await createSupabaseUpload(id, filename)
-      res.json(session)
-    } catch (err) {
-      res.status(400).json({
-        error: err instanceof Error ? err.message : 'Could not start the video upload.',
-      })
-    }
-    return
-  }
-  res.status(501).json({
-    error: 'Video hosting is not configured, so uploads cannot appear in other browsers.',
-  })
-})
-
-backgroundsRouter.get('/media/:id', (req, res) => {
   const file = findLocalMedia(req.params.id)
-  if (!file) {
-    res.status(404).json({ error: 'Video not found.' })
+  if (file) {
+    res.sendFile(file, {
+      maxAge: '365d',
+      headers: { 'Cache-Control': 'public, max-age=31536000, immutable' },
+    })
     return
   }
-  res.sendFile(file, {
-    maxAge: '365d',
-    headers: { 'Cache-Control': 'public, max-age=31536000, immutable' },
-  })
+
+  try {
+    const row = await prisma.customBackground.findUnique({ where: { id: req.params.id } })
+    if (row?.src && /^https?:\/\//i.test(row.src)) {
+      res.redirect(302, row.src)
+      return
+    }
+  } catch {
+    /* not found */
+  }
+  res.status(404).json({ error: 'Video not found.' })
 })
 
 backgroundsRouter.post('/', async (req, res) => {
@@ -125,6 +105,19 @@ backgroundsRouter.post('/', async (req, res) => {
     })
     res.status(201).json(toClient(row))
   } catch (err) {
+    if (poster) {
+      try {
+        const row = await prisma.customBackground.upsert({
+          where: { id },
+          create: { id, label, src, poster: null, kind: 'video' },
+          update: { label, src },
+        })
+        res.status(201).json(toClient(row))
+        return
+      } catch {
+        /* use original error */
+      }
+    }
     res.status(500).json({
       error: err instanceof Error ? err.message : 'Could not save that background.',
     })
@@ -135,6 +128,8 @@ backgroundsRouter.delete('/:id', async (req, res) => {
   const id = req.params.id
   try {
     const existing = await prisma.customBackground.findUnique({ where: { id } })
+    await deleteBackgroundMedia(id)
+    deleteLocalMedia(id)
     if (existing?.src) {
       if (existing.src.includes('vercel-storage.com') && hostingPayload().blobEnabled) {
         try {
@@ -149,11 +144,7 @@ backgroundsRouter.delete('/:id', async (req, res) => {
         } catch {
           /* keep deleting the row */
         }
-      } else if (existing.src.startsWith('/api/backgrounds/media/')) {
-        deleteLocalMedia(id)
       }
-    } else {
-      deleteLocalMedia(id)
     }
     if (existing) await prisma.customBackground.delete({ where: { id } })
     res.json({ ok: true })
