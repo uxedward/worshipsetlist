@@ -139,6 +139,10 @@ export function presentVideoBucketUpdateBody() {
   }
 }
 
+export function presentVideoSignHeaders() {
+  return { 'Content-Type': 'application/json', 'x-upsert': 'true' }
+}
+
 export function storageChunkObjectPath(id: string, chunkIndex: number) {
   return `${sanitizeBackgroundId(id)}/${Math.max(0, Math.floor(chunkIndex))}`
 }
@@ -209,7 +213,7 @@ export async function createSupabaseUpload(
       : `${sanitizeBackgroundId(id)}/${sanitizeFilename(filename)}`
   const signed = await supabaseFetch(cfg, `/object/upload/sign/${PRESENT_VIDEO_BUCKET}/${objectPath}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: presentVideoSignHeaders(),
     body: JSON.stringify({ expiresIn: 3600, upsert: true }),
   })
   if (!signed.ok) {

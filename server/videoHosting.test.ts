@@ -6,6 +6,7 @@ import {
   isBlobUploadBody,
   presentVideoBucketCreateBody,
   presentVideoBucketUpdateBody,
+  presentVideoSignHeaders,
   saveLocalMedia,
   storageChunkObjectPath,
   supabaseConfig,
@@ -48,6 +49,7 @@ describe('present video hosting', () => {
     expect(presentVideoBucketCreateBody()).not.toHaveProperty('file_size_limit')
     expect(presentVideoBucketUpdateBody()).toEqual({ public: true, file_size_limit: 52_428_800 })
     expect(presentVideoBucketUpdateBody().file_size_limit).toBeLessThan(100 * 1024 * 1024)
+    expect(presentVideoSignHeaders()).toMatchObject({ 'x-upsert': 'true' })
   })
 
   it('stores each 4K part under the video id so other browsers can stream it', () => {
