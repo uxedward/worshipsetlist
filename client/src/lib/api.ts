@@ -227,9 +227,18 @@ export const endpoints = {
       json: { songs },
     }),
   backgrounds: () =>
-    api<{ backgrounds: import('../lib/presentBackgrounds.ts').PresentBackground[]; blobEnabled: boolean }>(
-      '/api/backgrounds',
-    ),
+    api<{
+      backgrounds: import('../lib/presentBackgrounds.ts').PresentBackground[]
+      hostingEnabled: boolean
+      blobEnabled: boolean
+      supabaseEnabled: boolean
+      provider: 'blob' | 'supabase' | 'local' | 'none'
+    }>('/api/backgrounds'),
+  createBackgroundUpload: (body: { id: string; filename: string; contentType: string }) =>
+    api<{ uploadUrl: string; publicUrl: string; token?: string }>('/api/backgrounds/upload', {
+      method: 'POST',
+      json: body,
+    }),
   createBackground: (body: { id?: string; label: string; src: string; poster?: string }) =>
     api<import('../lib/presentBackgrounds.ts').PresentBackground>('/api/backgrounds', {
       method: 'POST',

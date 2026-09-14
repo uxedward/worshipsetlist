@@ -26,14 +26,17 @@ export function isCustomBackgroundId(id: string) {
   return id.startsWith(CUSTOM_BG_PREFIX)
 }
 
+export function isHostedBackgroundSrc(src?: string) {
+  return Boolean(src && /^https?:\/\//i.test(src))
+}
+
 export function readCustomBackgroundMeta(): CustomBackgroundMeta[] {
   if (!canUseStorage()) return []
   try {
     const raw = localStorage.getItem(CUSTOM_BG_META_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw) as CustomBackgroundMeta[]
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter((item) => item?.id && item.kind === 'video')
+    return Array.isArray(parsed) ? parsed.filter((item) => item?.custom && item.id) : []
   } catch {
     return []
   }
@@ -41,64 +44,81 @@ export function readCustomBackgroundMeta(): CustomBackgroundMeta[] {
 
 function writeCustomBackgroundMeta(items: CustomBackgroundMeta[]) {
   if (!canUseStorage()) return
-  localStorage.setItem(CUSTOM_BG_META_KEY, JSON.stringify(items))
+  try {
+    localStorage.setItem(CUSTOM_BG_META_KEY, JSON.stringify(items))
+  } catch {
+    /* optional cache */
+  }
 }
 
-function openDb(): Promise<IDBDatabase | null> {
-  if (typeof indexedDB === 'undefined') return Promise.resolve(null)
-  return new Promise((resolve) => {
+function canUseIdb() {
+  return typeof indexedDB !== 'undefined'
+}
+
+function openDb(): Promise<IDBDatabase> {
+  if (!canUseIdb()) return Promise.reject(new Error('IndexedDB is unavailable.'))
+  return new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, 1)
     req.onupgradeneeded = () => {
-      if (!req.result.objectStoreNames.contains(IDB_STORE)) {
-        req.result.createObjectStore(IDB_STORE)
-      }
+      const db = req.result
+      if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE)
     }
     req.onsuccess = () => resolve(req.result)
-    req.onerror = () => resolve(null)
+    req.onerror = () => reject(req.error)
   })
 }
 
-async function idbPut(id: string, blob: Blob) {
+async function idbPut(id: string, file: File) {
   const db = await openDb()
-  if (!db) return
-  await new Promise<void>((resolve) => {
+  await new Promise<void>((resolve, reject) => {
     const tx = db.transaction(IDB_STORE, 'readwrite')
-    tx.objectStore(IDB_STORE).put(blob, id)
+    tx.objectStore(IDB_STORE).put(file, id)
     tx.oncomplete = () => resolve()
-    tx.onerror = () => resolve()
+    tx.onerror = () => reject(tx.error)
   })
   db.close()
 }
 
-async function idbGet(id: string): Promise<Blob | undefined> {
+async function idbGet(id: string): Promise<File | undefined> {
   const db = await openDb()
-  if (!db) return undefined
-  const blob = await new Promise<Blob | undefined>((resolve) => {
+  const file = await new Promise<File | undefined>((resolve, reject) => {
     const tx = db.transaction(IDB_STORE, 'readonly')
     const req = tx.objectStore(IDB_STORE).get(id)
-    req.onsuccess = () => resolve(req.result as Blob | undefined)
-    req.onerror = () => resolve(undefined)
+    req.onsuccess = () => resolve(req.result as File | undefined)
+    req.onerror = () => reject(req.error)
   })
   db.close()
-  return blob
+  return file
 }
 
 async function idbDel(id: string) {
-  const db = await openDb()
-  if (!db) return
-  await new Promise<void>((resolve) => {
-    const tx = db.transaction(IDB_STORE, 'readwrite')
-    tx.objectStore(IDB_STORE).delete(id)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => resolve()
-  })
-  db.close()
+  try {
+    const db = await openDb()
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite')
+      tx.objectStore(IDB_STORE).delete(id)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+    db.close()
+  } catch {
+    /* local cache is optional once the video is hosted */
+  }
 }
 
 function revokeUrl(id: string) {
-  const url = objectUrls.get(id)
-  if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
-  objectUrls.delete(id)
+  const existing = objectUrls.get(id)
+  if (existing) {
+    URL.revokeObjectURL(existing)
+    objectUrls.delete(id)
+  }
+}
+
+export function isAllowedVideoFile(file: File) {
+  if (file.size <= 0 || file.size > MAX_CUSTOM_VIDEO_BYTES) return false
+  const type = file.type.toLowerCase()
+  if (type.startsWith('video/')) return true
+  return /\.(mp4|webm|mov|m4v)$/i.test(file.name)
 }
 
 export function labelFromVideoName(name: string) {
@@ -107,88 +127,111 @@ export function labelFromVideoName(name: string) {
   return base.replace(/\b\w/g, (ch) => ch.toUpperCase())
 }
 
-export function isAllowedVideoFile(file: File) {
-  if (file.size <= 0 || file.size > MAX_CUSTOM_VIDEO_BYTES) return false
-  if (file.type.startsWith('video/')) return true
-  return /\.(mp4|webm|mov|m4v)$/i.test(file.name)
-}
-
 export async function posterFromVideoFile(file: File): Promise<string | undefined> {
-  if (typeof document === 'undefined') return undefined
   const url = URL.createObjectURL(file)
   try {
-    const poster = await new Promise<string | undefined>((resolve) => {
-      const video = document.createElement('video')
-      video.muted = true
-      video.playsInline = true
-      video.preload = 'metadata'
-      const finish = (value?: string) => {
-        video.src = ''
-        resolve(value)
-      }
-      video.onerror = () => finish(undefined)
-      video.onloadeddata = () => {
-        try {
-          video.currentTime = Math.min(0.4, Number.isFinite(video.duration) ? video.duration * 0.05 : 0.4)
-        } catch {
-          finish(undefined)
-        }
-      }
-      video.onseeked = () => {
-        try {
-          const canvas = document.createElement('canvas')
-          canvas.width = 320
-          canvas.height = 180
-          const ctx = canvas.getContext('2d')
-          if (!ctx) return finish(undefined)
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-          finish(canvas.toDataURL('image/jpeg', 0.72))
-        } catch {
-          finish(undefined)
-        }
-      }
-      video.src = url
+    const video = document.createElement('video')
+    video.muted = true
+    video.playsInline = true
+    video.src = url
+    await new Promise<void>((resolve, reject) => {
+      video.onloadeddata = () => resolve()
+      video.onerror = () => reject(new Error('Could not read that video.'))
+      video.load()
     })
-    return poster
+    video.currentTime = Math.min(0.4, Number.isFinite(video.duration) ? video.duration / 4 : 0.4)
+    await new Promise<void>((resolve) => {
+      video.onseeked = () => resolve()
+      setTimeout(resolve, 800)
+    })
+    const canvas = document.createElement('canvas')
+    const w = video.videoWidth || 1280
+    const h = video.videoHeight || 720
+    const scale = Math.min(1, 640 / Math.max(w, h))
+    canvas.width = Math.max(1, Math.round(w * scale))
+    canvas.height = Math.max(1, Math.round(h * scale))
+    canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL('image/jpeg', 0.72)
+  } catch {
+    return undefined
   } finally {
     URL.revokeObjectURL(url)
   }
 }
 
-export async function hydrateCustomBackground(meta: CustomBackgroundMeta): Promise<PresentBackground> {
-  if (meta.src && !meta.src.startsWith('blob:')) {
-    return { ...meta, group: 'motion', kind: 'video' }
+function asHostedVideo(bg: PresentBackground | CustomBackgroundMeta): PresentBackground {
+  const src = bg.src
+  return {
+    id: bg.id,
+    label: bg.label,
+    kind: 'video',
+    group: 'motion',
+    poster: bg.poster,
+    src,
+    src4k: ('src4k' in bg && bg.src4k) || src,
+    custom: true,
   }
-  const existing = objectUrls.get(meta.id)
-  if (existing) return { ...meta, src: existing, group: 'motion', kind: 'video' }
-  const blob = await idbGet(meta.id)
-  if (!blob) return { ...meta, group: 'motion', kind: 'video' }
-  const url = URL.createObjectURL(blob)
-  objectUrls.set(meta.id, url)
-  return { ...meta, src: url, group: 'motion', kind: 'video' }
 }
 
-export async function loadCustomBackgrounds(): Promise<PresentBackground[]> {
-  const metas = readCustomBackgroundMeta()
-  const out: PresentBackground[] = []
-  for (const meta of metas) out.push(await hydrateCustomBackground(meta))
-  return out
-}
-
+/** Remote hosted videos win so every browser sees the same 4K files. */
 export function mergeCustomBackgrounds(
-  local: PresentBackground[],
+  local: Array<PresentBackground | CustomBackgroundMeta>,
   remote: PresentBackground[],
 ): PresentBackground[] {
   const byId = new Map<string, PresentBackground>()
-  for (const bg of local) byId.set(bg.id, bg)
+  for (const bg of local) byId.set(bg.id, asHostedVideo(bg))
   for (const bg of remote) {
-    const current = byId.get(bg.id)
-    if (!current || (bg.src && !bg.src.startsWith('blob:'))) byId.set(bg.id, { ...current, ...bg, custom: true, group: 'motion', kind: 'video' })
+    const hosted = asHostedVideo(bg)
+    const existing = byId.get(hosted.id)
+    if (!existing || isHostedBackgroundSrc(hosted.src)) {
+      if (existing?.src?.startsWith('blob:')) revokeUrl(hosted.id)
+      byId.set(hosted.id, hosted)
+    }
   }
-  return Array.from(byId.values())
+  return [...byId.values()]
 }
 
-export async function addCustomBackgroundFile(file: File): Promise<PresentBackground> {
+export async function hydrateCustomBackgrounds(): Promise<PresentBackground[]> {
+  const metas = readCustomBackgroundMeta()
+  const hydrated: PresentBackground[] = []
+  for (const meta of metas) {
+    if (isHostedBackgroundSrc(meta.src)) {
+      hydrated.push({
+        id: meta.id,
+        label: meta.label,
+        kind: 'video',
+        group: 'motion',
+        poster: meta.poster,
+        src: meta.src,
+        src4k: meta.src,
+        custom: true,
+      })
+      continue
+    }
+    try {
+      const file = await idbGet(meta.id)
+      if (!file) continue
+      revokeUrl(meta.id)
+      const src = URL.createObjectURL(file)
+      objectUrls.set(meta.id, src)
+      hydrated.push({
+        id: meta.id,
+        label: meta.label,
+        kind: 'video',
+        group: 'motion',
+        poster: meta.poster,
+        src,
+        src4k: src,
+        custom: true,
+      })
+    } catch {
+      /* skip unreadable local files */
+    }
+  }
+  return hydrated
+}
+
+export async function saveCustomVideoFile(file: File): Promise<PresentBackground> {
   if (!isAllowedVideoFile(file)) {
     throw new Error('Choose an MP4, WebM, or MOV video under 1 GB.')
   }
@@ -206,7 +249,7 @@ export async function addCustomBackgroundFile(file: File): Promise<PresentBackgr
     custom: true,
   }
   writeCustomBackgroundMeta([...readCustomBackgroundMeta().filter((item) => item.id !== id), meta])
-  return { ...meta, src }
+  return { ...meta, src, src4k: src }
 }
 
 export async function rememberRemoteBackground(bg: PresentBackground) {
@@ -220,18 +263,14 @@ export async function rememberRemoteBackground(bg: PresentBackground) {
     custom: true,
   }
   writeCustomBackgroundMeta([...readCustomBackgroundMeta().filter((item) => item.id !== meta.id), meta])
+  revokeUrl(meta.id)
+  await idbDel(meta.id).catch(() => {
+    /* hosted URL is already saved */
+  })
 }
 
 export async function deleteCustomBackground(id: string) {
   revokeUrl(id)
   await idbDel(id)
   writeCustomBackgroundMeta(readCustomBackgroundMeta().filter((item) => item.id !== id))
-}
-
-export async function promoteCustomBackgroundSrc(id: string, src: string) {
-  revokeUrl(id)
-  await idbDel(id)
-  writeCustomBackgroundMeta(
-    readCustomBackgroundMeta().map((item) => (item.id === id ? { ...item, src } : item)),
-  )
 }

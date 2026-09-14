@@ -8,6 +8,7 @@ import { backgroundsRouter } from './routes/backgrounds.js'
 import { databaseBackend, durableDatabase, isPoolTimeout, prisma, releasePrisma } from './db.js'
 import { databaseVendor } from './hostedDatabase.js'
 import { loadBootstrap } from './bootstrap.js'
+import { saveLocalMedia, videoHostingStatus } from './videoHosting.js'
 
 export const app = express()
 
@@ -37,6 +38,24 @@ app.use((req, _res, next) => {
 })
 
 app.use(cors())
+
+app.put('/api/backgrounds/media/:id', async (req, res) => {
+  const hosting = videoHostingStatus()
+  if (hosting.provider !== 'local') {
+    res.status(501).json({ error: 'Local video files are only stored on this development server.' })
+    return
+  }
+  const filename = typeof req.query.name === 'string' ? req.query.name : `${req.params.id}.mp4`
+  try {
+    const src = await saveLocalMedia(req.params.id, filename, req)
+    res.json({ src, src4k: src })
+  } catch (err) {
+    res.status(400).json({
+      error: err instanceof Error ? err.message : 'Could not save that video.',
+    })
+  }
+})
+
 app.use(express.json({ limit: '10mb' }))
 
 function requestPath(req: { url?: string }) {
@@ -58,6 +77,7 @@ app.get('/api/health', async (_req, res) => {
       durable: durableDatabase,
       backend: databaseBackend,
       vendor: databaseVendor(process.env.DATABASE_URL || ''),
+      ...videoHostingStatus(),
     })
   } catch (err) {
     if (isPoolTimeout(err)) await releasePrisma()
