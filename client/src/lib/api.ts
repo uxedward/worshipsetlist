@@ -234,12 +234,19 @@ export const endpoints = {
       supabaseEnabled: boolean
       provider: 'database' | 'blob' | 'supabase' | 'local' | 'none'
     }>('/api/backgrounds'),
-  createBackgroundUpload: (body: { id: string; filename: string; contentType: string }) =>
+  createBackgroundUpload: (body: { id: string; filename: string; contentType: string; chunkIndex?: number }) =>
     api<{ uploadUrl: string; publicUrl: string; token?: string }>('/api/backgrounds/upload', {
       method: 'POST',
       json: body,
     }),
-  createBackground: (body: { id?: string; label: string; src: string; poster?: string }) =>
+  createBackground: (body: {
+    id?: string
+    label: string
+    src: string
+    poster?: string
+    sizeBytes?: number
+    mimeType?: string
+  }) =>
     api<import('../lib/presentBackgrounds.ts').PresentBackground>('/api/backgrounds', {
       method: 'POST',
       json: body,

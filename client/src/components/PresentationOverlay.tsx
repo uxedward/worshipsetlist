@@ -816,7 +816,7 @@ function BackgroundPicker({
         </p>
       ) : hostingEnabled ? (
         <p className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-          Uploaded videos are stored in the library database and appear on every browser.
+          Uploaded videos are saved to the shared library. Keep this browser open after a 4K upload so other browsers can load them.
         </p>
       ) : (
         <p className="mt-2 text-[12px]" style={{ color: 'var(--warning)' }}>

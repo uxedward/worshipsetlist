@@ -56,12 +56,24 @@ backgroundsRouter.get('/', async (_req, res) => {
 backgroundsRouter.post('/upload', async (req, res) => {
   const id = typeof req.body?.id === 'string' ? req.body.id.trim() : ''
   const filename = typeof req.body?.filename === 'string' ? req.body.filename.trim() : ''
+  const chunkIndexRaw = req.body?.chunkIndex
+  const chunkIndex =
+    typeof chunkIndexRaw === 'number'
+      ? chunkIndexRaw
+      : typeof chunkIndexRaw === 'string' && chunkIndexRaw.trim()
+        ? Number(chunkIndexRaw)
+        : undefined
   if (!id || !filename) {
     res.status(400).json({ error: 'A video id and filename are required.' })
     return
   }
   try {
-    const session = await createSupabaseUpload(id, filename)
+    const session = await createSupabaseUpload(
+      id,
+      filename,
+      process.env,
+      Number.isFinite(chunkIndex) ? chunkIndex : undefined,
+    )
     res.json(session)
   } catch (err) {
     res.status(400).json({
@@ -114,6 +126,14 @@ backgroundsRouter.post('/', async (req, res) => {
   const label = typeof req.body?.label === 'string' ? req.body.label.trim() : ''
   const src = typeof req.body?.src === 'string' ? req.body.src.trim() : ''
   const poster = typeof req.body?.poster === 'string' ? req.body.poster : null
+  const mimeType = typeof req.body?.mimeType === 'string' ? req.body.mimeType : undefined
+  const sizeBytesRaw = req.body?.sizeBytes
+  const sizeBytes =
+    typeof sizeBytesRaw === 'number'
+      ? sizeBytesRaw
+      : typeof sizeBytesRaw === 'string' && sizeBytesRaw.trim()
+        ? Number(sizeBytesRaw)
+        : undefined
   const id =
     typeof req.body?.id === 'string' && req.body.id.trim()
       ? req.body.id.trim()
@@ -122,11 +142,14 @@ backgroundsRouter.post('/', async (req, res) => {
     res.status(400).json({ error: 'A name and video URL are required.' })
     return
   }
+  const extra: { mimeType?: string; sizeBytes?: number } = {}
+  if (mimeType) extra.mimeType = mimeType
+  if (typeof sizeBytes === 'number' && Number.isFinite(sizeBytes) && sizeBytes > 0) extra.sizeBytes = Math.floor(sizeBytes)
   try {
     const row = await prisma.customBackground.upsert({
       where: { id },
-      create: { id, label, src, poster, kind: 'video' },
-      update: { label, src, poster },
+      create: { id, label, src, poster, kind: 'video', ...extra },
+      update: { label, src, poster, ...extra },
     })
     res.status(201).json(toClient(row))
   } catch (err) {
@@ -134,8 +157,8 @@ backgroundsRouter.post('/', async (req, res) => {
       try {
         const row = await prisma.customBackground.upsert({
           where: { id },
-          create: { id, label, src, poster: null, kind: 'video' },
-          update: { label, src },
+          create: { id, label, src, poster: null, kind: 'video', ...extra },
+          update: { label, src, ...extra },
         })
         res.status(201).json(toClient(row))
         return
@@ -163,7 +186,7 @@ backgroundsRouter.delete('/:id', async (req, res) => {
         } catch {
           /* keep deleting the row even if blob cleanup fails */
         }
-      } else if (existing.src.includes('/storage/v1/object/public/')) {
+      } else {
         try {
           await deleteSupabaseObject(existing.src)
         } catch {

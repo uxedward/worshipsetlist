@@ -5,7 +5,9 @@ import {
   findLocalMedia,
   isBlobUploadBody,
   presentVideoBucketCreateBody,
+  presentVideoBucketUpdateBody,
   saveLocalMedia,
+  storageChunkObjectPath,
   supabaseConfig,
   videoHostingStatus,
 } from './videoHosting.ts'
@@ -44,6 +46,13 @@ describe('present video hosting', () => {
       public: true,
     })
     expect(presentVideoBucketCreateBody()).not.toHaveProperty('file_size_limit')
+    expect(presentVideoBucketUpdateBody()).toEqual({ public: true, file_size_limit: 52_428_800 })
+    expect(presentVideoBucketUpdateBody().file_size_limit).toBeLessThan(100 * 1024 * 1024)
+  })
+
+  it('stores each 4K part under the video id so other browsers can stream it', () => {
+    expect(storageChunkObjectPath('custom-hosting-test', 0)).toBe('custom-hosting-test/0')
+    expect(storageChunkObjectPath('custom-hosting-test', 12)).toBe('custom-hosting-test/12')
   })
 
   it('detects Vercel Blob client upload bodies', () => {
