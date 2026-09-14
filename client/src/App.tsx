@@ -4,6 +4,7 @@ import { useAppStore } from './store/useAppStore.ts'
 import { useMutations, usePreferences, useSetlist, useSetlists, useSongs, useBootstrap } from './hooks/useQueries.ts'
 import { useOfflineSync } from './hooks/useOfflineSync.ts'
 import { AppShell } from './components/AppShell.tsx'
+import { BootSplash } from './components/BootSplash.tsx'
 import { SetlistContextMenu } from './components/SetlistContextMenu.tsx'
 import { ConfirmDialog, OfflineBanner } from './components/ui.tsx'
 import { LiveRegion } from './components/LiveRegion.tsx'
@@ -144,22 +145,7 @@ function AppInner() {
   const loadError = boot.isError && !boot.data
 
   if (loading) {
-    return (
-      <div className="flex h-full" style={{ background: 'var(--canvas)' }}>
-        <div className="hidden h-full w-[280px] p-4 lg:block" style={{ background: 'var(--surface-1)' }}>
-          <div className="skeleton mb-6 h-10 w-32" />
-          <div className="skeleton mb-2 h-12 w-full" />
-          <div className="skeleton mb-2 h-12 w-full" />
-          <div className="skeleton h-12 w-full" />
-        </div>
-        <div className="flex-1 p-8">
-          <div className="skeleton mb-6 h-24 w-2/3" />
-          <div className="skeleton mb-3 h-12 w-full" />
-          <div className="skeleton mb-3 h-12 w-full" />
-          <div className="skeleton h-12 w-full" />
-        </div>
-      </div>
-    )
+    return <BootSplash />
   }
 
   if (loadError) {
