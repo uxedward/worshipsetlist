@@ -22,7 +22,7 @@ import {
   hydrateCustomBackgrounds,
   mergeCustomBackgrounds,
 } from '../lib/customPresentBackgrounds.ts'
-import { uploadPresentVideoFile } from '../lib/uploadPresentVideo.ts'
+import { publishLocalPresentVideos, uploadPresentVideoFile } from '../lib/uploadPresentVideo.ts'
 import {
   FONT_MAX,
   FONT_MIN,
@@ -78,6 +78,11 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
         if (cancelled) return
         setHostingEnabled(remote.hostingEnabled)
         setCustomBackgrounds(mergeCustomBackgrounds(local, remote.backgrounds))
+        const published = await publishLocalPresentVideos(remote.backgrounds)
+        if (cancelled || published.length === 0) return
+        const latest = await endpoints.backgrounds()
+        if (cancelled) return
+        setCustomBackgrounds(mergeCustomBackgrounds(local, latest.backgrounds))
       } catch {
         /* local cache still works without the API */
       }
@@ -809,7 +814,7 @@ function BackgroundPicker({
         </p>
       ) : hostingEnabled ? (
         <p className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-          Uploaded 4K videos are shared on every browser.
+          Uploaded videos are stored in the library database and appear on every browser.
         </p>
       ) : (
         <p className="mt-2 text-[12px]" style={{ color: 'var(--warning)' }}>

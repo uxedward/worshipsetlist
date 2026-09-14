@@ -8,7 +8,8 @@ import { backgroundsRouter } from './routes/backgrounds.js'
 import { databaseBackend, durableDatabase, isPoolTimeout, prisma, releasePrisma } from './db.js'
 import { databaseVendor } from './hostedDatabase.js'
 import { loadBootstrap } from './bootstrap.js'
-import { saveLocalMedia, videoHostingStatus } from './videoHosting.js'
+import { readRequestBuffer, saveBackgroundChunk } from './backgroundMedia.js'
+import { videoHostingStatus } from './videoHosting.js'
 
 export const app = express()
 
@@ -40,15 +41,22 @@ app.use((req, _res, next) => {
 app.use(cors())
 
 app.put('/api/backgrounds/media/:id', async (req, res) => {
-  const hosting = videoHostingStatus()
-  if (hosting.provider !== 'local') {
-    res.status(501).json({ error: 'Local video files are only stored on this development server.' })
-    return
-  }
   const filename = typeof req.query.name === 'string' ? req.query.name : `${req.params.id}.mp4`
+  const mimeType = typeof req.query.type === 'string' ? req.query.type : undefined
+  const chunk = Number(typeof req.query.chunk === 'string' ? req.query.chunk : 0)
+  const chunks = Number(typeof req.query.chunks === 'string' ? req.query.chunks : 1)
   try {
-    const src = await saveLocalMedia(req.params.id, filename, req)
-    res.json({ src, src4k: src })
+    await prepareDatabase()
+    const data = await readRequestBuffer(req)
+    const saved = await saveBackgroundChunk({
+      id: req.params.id,
+      filename,
+      mimeType,
+      chunkIndex: Number.isFinite(chunk) ? chunk : 0,
+      chunkCount: Number.isFinite(chunks) && chunks > 0 ? chunks : 1,
+      data,
+    })
+    res.json(saved)
   } catch (err) {
     res.status(400).json({
       error: err instanceof Error ? err.message : 'Could not save that video.',

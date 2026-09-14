@@ -232,7 +232,7 @@ export const endpoints = {
       hostingEnabled: boolean
       blobEnabled: boolean
       supabaseEnabled: boolean
-      provider: 'blob' | 'supabase' | 'local' | 'none'
+      provider: 'database' | 'blob' | 'supabase' | 'local' | 'none'
     }>('/api/backgrounds'),
   createBackgroundUpload: (body: { id: string; filename: string; contentType: string }) =>
     api<{ uploadUrl: string; publicUrl: string; token?: string }>('/api/backgrounds/upload', {
