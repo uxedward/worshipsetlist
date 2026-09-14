@@ -78,8 +78,10 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
         if (cancelled) return
         setHostingEnabled(remote.hostingEnabled)
         setCustomBackgrounds(mergeCustomBackgrounds(local, remote.backgrounds))
-        const published = await publishLocalPresentVideos(remote.backgrounds)
-        if (cancelled || published.length === 0) return
+        const { published, errors } = await publishLocalPresentVideos(remote.backgrounds)
+        if (cancelled) return
+        if (errors.length) setUploadError(errors.join(' '))
+        if (published.length === 0) return
         const latest = await endpoints.backgrounds()
         if (cancelled) return
         setCustomBackgrounds(mergeCustomBackgrounds(local, latest.backgrounds))

@@ -1,0 +1,22 @@
+import { describe, expect, it } from 'vitest'
+import { needsDatabasePrepare, skipDatabasePrepare } from './skipPrepare.ts'
+
+describe('skipDatabasePrepare', () => {
+  it('skips health and video range reads so playback does not wait on schema restore', () => {
+    expect(skipDatabasePrepare('GET', '/api/health')).toBe(true)
+    expect(skipDatabasePrepare('GET', '/api/backgrounds/media/custom-abc')).toBe(true)
+  })
+
+  it('still prepares list writes and other API routes', () => {
+    expect(skipDatabasePrepare('GET', '/api/backgrounds')).toBe(false)
+    expect(skipDatabasePrepare('PUT', '/api/backgrounds/media/custom-abc')).toBe(false)
+    expect(skipDatabasePrepare('POST', '/api/backgrounds')).toBe(false)
+  })
+})
+
+describe('needsDatabasePrepare', () => {
+  it('detects a missing table so a video write can create schema and retry', () => {
+    expect(needsDatabasePrepare(new Error('relation "BackgroundChunk" does not exist'))).toBe(true)
+    expect(needsDatabasePrepare(new Error('That video chunk is out of range.'))).toBe(false)
+  })
+})

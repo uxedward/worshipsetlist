@@ -27,24 +27,27 @@ async function putVideoChunk(id: string, file: File, chunkIndex: number, chunkCo
     chunkIndex * PRESENT_VIDEO_CHUNK_BYTES,
     (chunkIndex + 1) * PRESENT_VIDEO_CHUNK_BYTES,
   )
-  const put = await fetch(
-    `/api/backgrounds/media/${encodeURIComponent(id)}?chunk=${chunkIndex}&chunks=${chunkCount}&name=${encodeURIComponent(file.name)}&type=${encodeURIComponent(file.type || 'video/mp4')}`,
-    {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/octet-stream' },
-      body: blob,
-    },
-  )
-  if (!put.ok) {
-    let message = 'Could not store that video in the database.'
+  let lastError = 'Could not store that video in the database.'
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const put = await fetch(
+      `/api/backgrounds/media/${encodeURIComponent(id)}?chunk=${chunkIndex}&chunks=${chunkCount}&name=${encodeURIComponent(file.name)}&type=${encodeURIComponent(file.type || 'video/mp4')}`,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/octet-stream' },
+        body: blob,
+      },
+    )
+    if (put.ok) return
     try {
       const data = (await put.json()) as { error?: string }
-      if (data.error) message = data.error
+      if (data.error) lastError = data.error
     } catch {
-      /* keep default */
+      lastError = put.status === 504 ? 'The database timed out while saving that video.' : lastError
     }
-    throw new Error(message)
+    if (put.status < 500 && put.status !== 429) break
+    await new Promise((resolve) => setTimeout(resolve, 500 * 2 ** attempt))
   }
+  throw new Error(lastError)
 }
 
 async function saveBackgroundRecord(body: { id: string; label: string; src: string; poster?: string }) {
@@ -56,13 +59,17 @@ async function saveBackgroundRecord(body: { id: string; label: string; src: stri
   }
 }
 
-export async function uploadPresentVideoFile(file: File, existingId?: string): Promise<PresentBackground> {
+export async function uploadPresentVideoFile(
+  file: File,
+  existingId?: string,
+  extras?: { poster?: string },
+): Promise<PresentBackground> {
   if (!isAllowedVideoFile(file)) {
     throw new Error('Choose an MP4, WebM, or MOV video under 1 GB.')
   }
   const id = existingId?.startsWith(CUSTOM_BG_PREFIX) ? existingId : `${CUSTOM_BG_PREFIX}${crypto.randomUUID()}`
   const label = labelFromVideoName(file.name)
-  const poster = await posterFromVideoFile(file)
+  const poster = extras?.poster ?? (await posterFromVideoFile(file))
   const chunkCount = presentVideoChunkCount(file.size)
   for (let chunkIndex = 0; chunkIndex < chunkCount; chunkIndex++) {
     await putVideoChunk(id, file, chunkIndex, chunkCount)
@@ -76,16 +83,20 @@ export async function uploadPresentVideoFile(file: File, existingId?: string): P
   return hosted
 }
 
-export async function publishLocalPresentVideos(remote: PresentBackground[]): Promise<PresentBackground[]> {
+export async function publishLocalPresentVideos(remote: PresentBackground[]): Promise<{
+  published: PresentBackground[]
+  errors: string[]
+}> {
   const remoteById = new Map(remote.map((bg) => [bg.id, bg]))
   const local = await listLocalCustomVideos()
   const published: PresentBackground[] = []
+  const errors: string[] = []
   for (const item of local) {
     try {
       const already = remoteById.get(item.id)
       if (already && isHostedBackgroundSrc(already.src)) continue
       if (item.file) {
-        published.push(await uploadPresentVideoFile(item.file, item.id))
+        published.push(await uploadPresentVideoFile(item.file, item.id, { poster: item.meta.poster }))
         continue
       }
       if (item.meta.src && isHostedBackgroundSrc(item.meta.src) && !already) {
@@ -97,9 +108,9 @@ export async function publishLocalPresentVideos(remote: PresentBackground[]): Pr
         })
         published.push(asSharedVideo(saved, saved.src ?? item.meta.src))
       }
-    } catch {
-      /* keep publishing the rest */
+    } catch (err) {
+      errors.push(`${item.meta.label}: ${err instanceof Error ? err.message : 'Could not save that video.'}`)
     }
   }
-  return published
+  return { published, errors }
 }

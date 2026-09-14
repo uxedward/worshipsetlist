@@ -9,6 +9,7 @@ import { databaseBackend, durableDatabase, isPoolTimeout, prisma, releasePrisma 
 import { databaseVendor } from './hostedDatabase.js'
 import { loadBootstrap } from './bootstrap.js'
 import { readRequestBuffer, saveBackgroundChunk } from './backgroundMedia.js'
+import { needsDatabasePrepare, skipDatabasePrepare } from './skipPrepare.js'
 import { videoHostingStatus } from './videoHosting.js'
 
 export const app = express()
@@ -46,16 +47,24 @@ app.put('/api/backgrounds/media/:id', async (req, res) => {
   const chunk = Number(typeof req.query.chunk === 'string' ? req.query.chunk : 0)
   const chunks = Number(typeof req.query.chunks === 'string' ? req.query.chunks : 1)
   try {
-    await prepareDatabase()
     const data = await readRequestBuffer(req)
-    const saved = await saveBackgroundChunk({
-      id: req.params.id,
-      filename,
-      mimeType,
-      chunkIndex: Number.isFinite(chunk) ? chunk : 0,
-      chunkCount: Number.isFinite(chunks) && chunks > 0 ? chunks : 1,
-      data,
-    })
+    const write = () =>
+      saveBackgroundChunk({
+        id: req.params.id,
+        filename,
+        mimeType,
+        chunkIndex: Number.isFinite(chunk) ? chunk : 0,
+        chunkCount: Number.isFinite(chunks) && chunks > 0 ? chunks : 1,
+        data,
+      })
+    let saved
+    try {
+      saved = await write()
+    } catch (err) {
+      if (!needsDatabasePrepare(err)) throw err
+      await prepareDatabase()
+      saved = await write()
+    }
     res.json(saved)
   } catch (err) {
     res.status(400).json({
@@ -71,8 +80,7 @@ function requestPath(req: { url?: string }) {
 }
 
 app.use(async (req, _res, next) => {
-  // Health must not wait on schema/restore — that blocked the app from loading.
-  if (requestPath(req) === '/api/health') return next()
+  if (skipDatabasePrepare(req.method, requestPath(req))) return next()
   await prepareDatabase()
   next()
 })
@@ -80,11 +88,23 @@ app.use(async (req, _res, next) => {
 app.get('/api/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`
+    let customBackgrounds = 0
+    let customBackgroundReady = 0
+    try {
+      customBackgrounds = await prisma.customBackground.count()
+      customBackgroundReady = await prisma.customBackground.count({
+        where: { OR: [{ sizeBytes: { gt: 0 } }, { src: { startsWith: 'http' } }] },
+      })
+    } catch {
+      /* schema may still be creating */
+    }
     res.json({
       ok: true,
       durable: durableDatabase,
       backend: databaseBackend,
       vendor: databaseVendor(process.env.DATABASE_URL || ''),
+      customBackgrounds,
+      customBackgroundReady,
       ...videoHostingStatus(),
     })
   } catch (err) {
