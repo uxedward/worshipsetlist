@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   PRESENT_VIDEO_STORAGE_CHUNK_BYTES,
+  clampPresentStreamRange,
+  parsePresentByteRange,
+  presentChunkRangeFetches,
+  presentStreamSrc,
   presentVideoChunkCount,
   presentVideoChunkUrls,
   presentVideoSrc,
@@ -33,6 +37,18 @@ describe('present video helpers', () => {
     expect(urls).toEqual([
       'https://example.supabase.co/storage/v1/object/public/present-videos/custom-a/0',
       'https://example.supabase.co/storage/v1/object/public/present-videos/custom-a/1',
+    ])
+  })
+
+  it('maps a 4K byte range onto the matching public Storage parts', () => {
+    expect(presentStreamSrc('custom-abc')).toBe('/present-media/custom-abc')
+    expect(parsePresentByteRange('bytes=0-', 100)).toEqual({ start: 0, end: 99 })
+    expect(clampPresentStreamRange(0, 99, 100, 8)).toEqual({ start: 0, end: 7 })
+    expect(
+      presentChunkRangeFetches(8 * 1024 * 1024 - 4, 8 * 1024 * 1024 + 4, 8 * 1024 * 1024, 'https://cdn.example/a/'),
+    ).toEqual([
+      { url: 'https://cdn.example/a/0', start: 8 * 1024 * 1024 - 4, end: 8 * 1024 * 1024 - 1 },
+      { url: 'https://cdn.example/a/1', start: 0, end: 4 },
     ])
   })
 })

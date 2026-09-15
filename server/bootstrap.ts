@@ -1,12 +1,12 @@
 import { prisma } from './db.ts'
-import { setlistWithSongMeta } from './songInclude.ts'
+import { setlistWithSongCharts } from './songInclude.ts'
 
 export async function loadBootstrap() {
   const [preferencesRow, setlists, songs] = await Promise.all([
     prisma.preference.findUnique({ where: { id: 1 } }),
     prisma.setlist.findMany({
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-      include: setlistWithSongMeta,
+      include: setlistWithSongCharts,
     }),
     prisma.song.findMany({
       orderBy: [{ artist: 'asc' }, { title: 'asc' }],
