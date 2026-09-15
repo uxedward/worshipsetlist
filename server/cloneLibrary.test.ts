@@ -7,5 +7,6 @@ describe('ensureSchema', () => {
     expect(src).toContain('if (await songTableExists()) return')
     expect(src).toContain('ensureRowLevelSecurity')
     expect(src).toContain('ENABLE ROW LEVEL SECURITY')
+    expect(src).toContain("SET lock_timeout = '1000'")
   })
 })

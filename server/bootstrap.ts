@@ -1,9 +1,7 @@
 import { prisma } from './db.ts'
 import { setlistWithSongCharts } from './songInclude.ts'
-import { ensureRowLevelSecurity } from './cloneLibrary.ts'
 
 export async function loadBootstrap() {
-  await ensureRowLevelSecurity()
   const [preferencesRow, setlists, songs] = await Promise.all([
     prisma.preference.findUnique({ where: { id: 1 } }),
     prisma.setlist.findMany({

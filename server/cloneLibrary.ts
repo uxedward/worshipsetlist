@@ -60,6 +60,8 @@ function quotedTable(name: string) {
 export async function ensureRowLevelSecurity() {
   if (rowLevelSecurityReady) return
   try {
+    await prisma.$executeRawUnsafe(`SET statement_timeout = '2500'`)
+    await prisma.$executeRawUnsafe(`SET lock_timeout = '1000'`)
     const open = await prisma.$queryRaw<Array<{ tablename: string }>>`
       SELECT tablename
       FROM pg_tables
@@ -69,20 +71,38 @@ export async function ensureRowLevelSecurity() {
     `
     for (const row of open) {
       if (!SAFE_TABLE.test(row.tablename)) continue
-      await prisma.$executeRawUnsafe(`ALTER TABLE ${quotedTable(row.tablename)} ENABLE ROW LEVEL SECURITY`)
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE ${quotedTable(row.tablename)} ENABLE ROW LEVEL SECURITY`)
+      } catch {
+        /* lock timeout / pooler — retry on the next write */
+      }
     }
     for (const statement of [...RLS_STATEMENTS, ...REVOKE_PUBLIC_ACCESS_STATEMENTS]) {
       try {
         await prisma.$executeRawUnsafe(statement)
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
-        if (/does not exist|undefined_object|42704/i.test(message)) continue
+        if (/does not exist|undefined_object|42704|timeout|lock/i.test(message)) continue
         throw err
       }
     }
-    rowLevelSecurityReady = true
+    const stillOpen = await prisma.$queryRaw<Array<{ n: bigint | number }>>`
+      SELECT COUNT(*)::int AS n
+      FROM pg_tables
+      WHERE schemaname = 'public'
+        AND NOT rowsecurity
+        AND tablename !~ '^pg_'
+    `
+    if (Number(stillOpen[0]?.n ?? 1) === 0) rowLevelSecurityReady = true
   } catch (err) {
     console.error('Could not enable row level security', err)
+  } finally {
+    try {
+      await prisma.$executeRawUnsafe(`SET statement_timeout = '0'`)
+      await prisma.$executeRawUnsafe(`SET lock_timeout = '0'`)
+    } catch {
+      /* keep serving even if timeouts cannot be reset */
+    }
   }
 }
 
