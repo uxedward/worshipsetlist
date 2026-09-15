@@ -10,10 +10,20 @@ describe('skipDatabasePrepare', () => {
     expect(skipDatabasePrepare('DELETE', '/api/backgrounds/custom-abc')).toBe(true)
   })
 
-  it('still prepares song and bootstrap reads', () => {
-    expect(skipDatabasePrepare('GET', '/api/songs')).toBe(false)
-    expect(skipDatabasePrepare('GET', '/api/bootstrap')).toBe(false)
+  it('skips library reads so boot, songs, and present charts are not blocked by schema restore', () => {
+    expect(skipDatabasePrepare('GET', '/api/bootstrap')).toBe(true)
+    expect(skipDatabasePrepare('GET', '/api/songs')).toBe(true)
+    expect(skipDatabasePrepare('GET', '/api/songs/abc123')).toBe(true)
+    expect(skipDatabasePrepare('GET', '/api/setlists')).toBe(true)
+    expect(skipDatabasePrepare('GET', '/api/setlists/abc/songs')).toBe(true)
+    expect(skipDatabasePrepare('GET', '/api/preferences')).toBe(true)
+  })
+
+  it('still prepares song writes so a brand-new database can accept edits', () => {
+    expect(skipDatabasePrepare('POST', '/api/songs')).toBe(false)
     expect(skipDatabasePrepare('PATCH', '/api/songs/abc123')).toBe(false)
+    expect(skipDatabasePrepare('DELETE', '/api/songs/abc123')).toBe(false)
+    expect(skipDatabasePrepare('PATCH', '/api/setlists/abc')).toBe(false)
   })
 })
 

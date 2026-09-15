@@ -34,6 +34,7 @@ const queryClient = new QueryClient({
       retry: 1,
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
       refetchOnWindowFocus: false,
+      refetchOnMount: false,
       staleTime: 60_000,
     },
   },
@@ -143,19 +144,12 @@ function AppInner() {
 
   useEffect(() => {
     if (!ready) return
-    let iv: number | undefined
-    let cancelled = false
-    void import('./lib/presentVideoSync.ts').then(({ startPresentVideoSync }) => {
-      void startPresentVideoSync()
-      if (cancelled) return
-      iv = window.setInterval(() => {
-        void startPresentVideoSync()
-      }, 8000)
-    })
-    return () => {
-      cancelled = true
-      if (iv) window.clearInterval(iv)
-    }
+    const idle = window.setTimeout(() => {
+      void import('./lib/presentVideoSync.ts').then(({ startPresentVideoSyncIfNeeded }) => {
+        void startPresentVideoSyncIfNeeded()
+      })
+    }, 4000)
+    return () => window.clearTimeout(idle)
   }, [ready])
 
   const loading = !boot.data && !boot.isError

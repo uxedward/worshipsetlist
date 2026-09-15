@@ -35,6 +35,7 @@ export async function songTableExists() {
 }
 
 async function ensureSchema() {
+  if (await songTableExists()) return
   for (const statement of SCHEMA_STATEMENTS) {
     try {
       await prisma.$executeRawUnsafe(statement)

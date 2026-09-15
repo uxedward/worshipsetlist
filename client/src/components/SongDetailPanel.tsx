@@ -3,7 +3,7 @@ import type { SetlistSong, Song } from '@shared/types.ts'
 import { soundingKey, transposeKey, semitonesFromKeys, preferFlatsForKey } from '@shared/transpose.ts'
 import { TRANSPOSE_MAX, TRANSPOSE_MIN } from '@shared/types.ts'
 import { useAppStore } from '../store/useAppStore.ts'
-import { useMutations, useSong } from '../hooks/useQueries.ts'
+import { useMutations, useOpenEditor, usePrefetchSong, useSong } from '../hooks/useQueries.ts'
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback.ts'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Setlist } from '@shared/types.ts'
@@ -25,7 +25,8 @@ export function SongDetailPanel({
   const lyricsOnly = useAppStore((s) => s.lyricsOnly)
   const setLyricsOnly = useAppStore((s) => s.setLyricsOnly)
   const openPresentation = useAppStore((s) => s.openPresentation)
-  const openEditor = useAppStore((s) => s.openEditor)
+  const openEditor = useOpenEditor()
+  const prefetchSong = usePrefetchSong()
   const askConfirm = useAppStore((s) => s.askConfirm)
   const sectionIndex = useAppStore((s) => s.activeSectionIndex)
   const setSection = useAppStore((s) => s.setActiveSectionIndex)
@@ -75,7 +76,14 @@ export function SongDetailPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="truncate text-title">{song.title}</h2>
-            <button type="button" onClick={() => openEditor(song.id)} aria-label="Edit song" title="Edit song" style={{ color: 'var(--text-secondary)' }}>
+            <button
+              type="button"
+              onPointerEnter={() => prefetchSong(song.id)}
+              onClick={() => openEditor(song.id)}
+              aria-label="Edit song"
+              title="Edit song"
+              style={{ color: 'var(--text-secondary)' }}
+            >
               <Pencil size={14} />
             </button>
             <button
