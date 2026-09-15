@@ -1,6 +1,7 @@
 import { endpoints } from './api.ts'
 import {
   CUSTOM_BG_PREFIX,
+  asVideoFile,
   isAllowedVideoFile,
   isHostedBackgroundSrc,
   labelFromVideoName,
@@ -97,6 +98,15 @@ async function saveBackgroundRecord(body: {
   }
 }
 
+export async function saveBackgroundStub(body: { id: string; label: string; poster?: string }) {
+  return saveBackgroundRecord({
+    id: body.id,
+    label: body.label,
+    src: presentVideoSrc(body.id),
+    poster: body.poster,
+  })
+}
+
 async function putSignedStorageChunk(id: string, file: File, chunkIndex: number, chunkBytes: number) {
   const blob = file.slice(chunkIndex * chunkBytes, (chunkIndex + 1) * chunkBytes)
   let lastError = 'Could not upload that video to storage.'
@@ -149,36 +159,22 @@ export async function uploadPresentVideoFile(
   existingId?: string,
   extras?: { poster?: string },
 ): Promise<PresentBackground> {
-  if (!isAllowedVideoFile(file)) {
+  const upload = asVideoFile(file, existingId ? `${existingId}.mp4` : 'video.mp4')
+  if (!isAllowedVideoFile(upload)) {
     throw new Error('Choose an MP4, WebM, or MOV video under 1 GB.')
   }
   const id = existingId?.startsWith(CUSTOM_BG_PREFIX) ? existingId : `${CUSTOM_BG_PREFIX}${crypto.randomUUID()}`
-  const label = labelFromVideoName(file.name)
-  const poster = extras?.poster ?? (await posterFromVideoFile(file))
+  const label = labelFromVideoName(upload.name)
+  const poster = extras?.poster ?? (await posterFromVideoFile(upload))
   const caps = await endpoints.backgrounds()
-  let src: string | null = null
-  let lastError: Error | null = null
-  if (caps.supabaseEnabled) {
-    try {
-      src = await uploadToSupabase(id, file)
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error('Could not upload that video to storage.')
-    }
-  }
-  if (!src) {
-    try {
-      src = await uploadToDatabase(id, file)
-    } catch (err) {
-      throw lastError ?? (err instanceof Error ? err : new Error('Could not save that video.'))
-    }
-  }
+  const src = caps.supabaseEnabled ? await uploadToSupabase(id, upload) : await uploadToDatabase(id, upload)
   const saved = await saveBackgroundRecord({
     id,
     label,
     src,
     poster,
-    sizeBytes: file.size,
-    mimeType: file.type || 'video/mp4',
+    sizeBytes: upload.size,
+    mimeType: upload.type || 'video/mp4',
   })
   const hosted = asSharedVideo(saved, saved.src ?? src)
   await rememberRemoteBackground(hosted).catch(() => {
@@ -187,23 +183,32 @@ export async function uploadPresentVideoFile(
   return hosted
 }
 
-export async function publishLocalPresentVideos(remote: PresentBackground[]): Promise<{
+export async function publishLocalPresentVideos(
+  remote: PresentBackground[],
+  options?: { onProgress?: (current: number, total: number, label: string) => void },
+): Promise<{
   published: PresentBackground[]
   errors: string[]
 }> {
   const remoteById = new Map(remote.map((bg) => [bg.id, bg]))
   const local = await listLocalCustomVideos()
+  const queued = local.filter((item) => {
+    const already = remoteById.get(item.id)
+    if (already && isHostedBackgroundSrc(already.src)) return false
+    return Boolean(item.file) || Boolean(item.meta.src && isHostedBackgroundSrc(item.meta.src))
+  })
   const published: PresentBackground[] = []
   const errors: string[] = []
-  for (const item of local) {
+  for (let index = 0; index < queued.length; index++) {
+    const item = queued[index]!
+    options?.onProgress?.(index + 1, queued.length, item.meta.label)
     try {
-      const already = remoteById.get(item.id)
-      if (already && isHostedBackgroundSrc(already.src)) continue
       if (item.file) {
-        published.push(await uploadPresentVideoFile(item.file, item.id, { poster: item.meta.poster }))
+        const file = asVideoFile(item.file, `${item.meta.label || item.id}.mp4`)
+        published.push(await uploadPresentVideoFile(file, item.id, { poster: item.meta.poster }))
         continue
       }
-      if (item.meta.src && isHostedBackgroundSrc(item.meta.src) && !already) {
+      if (item.meta.src && isHostedBackgroundSrc(item.meta.src)) {
         const saved = await saveBackgroundRecord({
           id: item.id,
           label: item.meta.label,

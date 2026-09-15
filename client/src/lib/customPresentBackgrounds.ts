@@ -116,6 +116,14 @@ function revokeUrl(id: string) {
   }
 }
 
+export function asVideoFile(input: Blob, fallbackName = 'video.mp4'): File {
+  const named = input instanceof File ? input.name.trim() : ''
+  const name = named || fallbackName
+  const type = input.type || (/\.webm$/i.test(name) ? 'video/webm' : 'video/mp4')
+  if (input instanceof File && named) return input
+  return new File([input], name, { type, lastModified: Date.now() })
+}
+
 export function isAllowedVideoFile(file: File) {
   if (file.size <= 0 || file.size > MAX_CUSTOM_VIDEO_BYTES) return false
   const type = file.type.toLowerCase()
@@ -281,9 +289,12 @@ export async function rememberRemoteBackground(bg: PresentBackground) {
     custom: true,
   }
   writeCustomBackgroundMeta([...readCustomBackgroundMeta().filter((item) => item.id !== meta.id), meta])
-  revokeUrl(meta.id)
-  await idbDel(meta.id).catch(() => {
-    /* hosted URL is already saved */
+}
+
+export async function forgetLocalVideoBytes(id: string) {
+  revokeUrl(id)
+  await idbDel(id).catch(() => {
+    /* hosted copy is already saved */
   })
 }
 

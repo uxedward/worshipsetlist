@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from 'vitest'
 import {
   CUSTOM_BG_META_KEY,
   CUSTOM_BG_PREFIX,
+  asVideoFile,
   isAllowedVideoFile,
   isCustomBackgroundId,
   isHostedBackgroundSrc,
@@ -40,6 +41,15 @@ describe('custom present backgrounds', () => {
     expect(isAllowedVideoFile(new File([new Uint8Array([1, 2, 3])], 'clip.mp4', { type: 'video/mp4' }))).toBe(true)
     expect(isAllowedVideoFile(new File([], 'clip.mp4', { type: 'video/mp4' }))).toBe(false)
     expect(isAllowedVideoFile(new File([new Uint8Array([1])], 'notes.pdf', { type: 'application/pdf' }))).toBe(false)
+  })
+
+  it('restores a nameless IndexedDB blob as an uploadable video file', () => {
+    const blob = new Blob([new Uint8Array([1, 2, 3])], { type: 'video/mp4' })
+    const file = asVideoFile(blob, 'cool-rainbow.mp4')
+    expect(file).toBeInstanceOf(File)
+    expect(file.name).toBe('cool-rainbow.mp4')
+    expect(file.type).toBe('video/mp4')
+    expect(isAllowedVideoFile(file)).toBe(true)
   })
 
   it('merges remote uploads over local copies of the same id', () => {
