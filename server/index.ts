@@ -118,7 +118,14 @@ app.get('/api/health', async (_req, res) => {
 
 app.get('/api/bootstrap', async (_req, res) => {
   try {
-    res.json(await loadBootstrap())
+    try {
+      res.json(await loadBootstrap())
+      return
+    } catch (err) {
+      if (!needsDatabasePrepare(err)) throw err
+      await prepareDatabase()
+      res.json(await loadBootstrap())
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     if (isPoolTimeout(err)) await releasePrisma()

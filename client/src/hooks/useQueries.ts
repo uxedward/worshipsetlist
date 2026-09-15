@@ -30,6 +30,7 @@ import {
 import { songsListQueryKey } from '../lib/queryKeys.ts'
 import { sameSongIdentity, songInputFromSpotifyTrack } from '@shared/spotifyImport.ts'
 import { readBootstrapCache, writeBootstrapCache } from '../lib/bootstrapCache.ts'
+import { dropCachedSong, hasSongChart, readCachedSong, writeCachedSong } from '../lib/songChartCache.ts'
 import type { BootstrapPayload } from '../lib/bootstrapCache.ts'
 
 function hydrateBootstrap(raw: BootstrapPayload | null): BootstrapPayload | null {
@@ -71,6 +72,7 @@ export function useBootstrap() {
     queryKey: ['bootstrap'],
     staleTime: 60_000,
     retry: 1,
+    refetchOnMount: true,
     // Cached initialData paints immediately. updatedAt 0 marks it stale so
     // the default refetchOnMount:true still pulls a fresh copy in the background.
     initialData: cachedBootstrap ?? undefined,
@@ -122,6 +124,8 @@ export function usePreferences(enabled = true) {
     queryFn: endpoints.prefs,
     enabled,
     staleTime: 60_000,
+    refetchOnMount: false,
+    initialData: cachedBootstrap?.preferences,
   })
 }
 
@@ -131,15 +135,21 @@ export function useSetlists(enabled = true) {
     queryFn: async () => overlaySetlists(await endpoints.setlists()),
     enabled,
     staleTime: 60_000,
+    refetchOnMount: false,
+    initialData: cachedBootstrap?.setlists,
   })
 }
 
 export function useSetlist(id: string | null) {
+  const cached =
+    id && cachedBootstrap?.activeSetlist?.id === id ? cachedBootstrap.activeSetlist : undefined
   return useQuery({
     queryKey: ['setlist', id],
     queryFn: async () => overlaySetlist(await endpoints.setlist(id!)),
     enabled: Boolean(id),
     staleTime: 60_000,
+    refetchOnMount: false,
+    initialData: cached,
   })
 }
 
@@ -153,28 +163,66 @@ export function useSongs(
   if (params.tag) q.set('tag', params.tag)
   if (params.sort) q.set('sort', params.sort)
   const qs = q.toString() ? `?${q.toString()}` : ''
+  const defaultList = !params.search && !params.artist && !params.tag && (!params.sort || params.sort === 'artist')
   return useQuery({
     queryKey: songsListQueryKey(params),
     queryFn: async () => overlaySongs(await endpoints.songs(qs)),
     enabled,
     staleTime: 60_000,
+    refetchOnMount: false,
+    initialData: defaultList ? cachedBootstrap?.songs : undefined,
   })
 }
 
+const SONG_STALE_MS = 5 * 60_000
+
+async function loadFullSong(id: string) {
+  try {
+    const song = overlaySong(id, await endpoints.song(id))
+    if (hasSongChart(song)) writeCachedSong(song)
+    return song
+  } catch {
+    const local = overlaySong(id, readCachedSong(id))
+    if (local) return local
+    throw new Error('Song not found')
+  }
+}
+
+export function prefetchSong(qc: ReturnType<typeof useQueryClient>, id: string | null | undefined) {
+  if (!id) return
+  void qc.prefetchQuery({
+    queryKey: ['song', id],
+    queryFn: () => loadFullSong(id),
+    staleTime: SONG_STALE_MS,
+  })
+}
+
+export function usePrefetchSong() {
+  const qc = useQueryClient()
+  return (id: string | null | undefined) => prefetchSong(qc, id)
+}
+
+export function useOpenEditor() {
+  const openEditor = useAppStore((s) => s.openEditor)
+  const prefetch = usePrefetchSong()
+  return (id: string | null) => {
+    prefetch(id)
+    void import('../components/SongEditor.tsx')
+    openEditor(id)
+  }
+}
+
 export function useSong(id: string | null) {
+  const cached = id ? overlaySong(id, readCachedSong(id)) : null
+  const initial = hasSongChart(cached) ? cached : undefined
   return useQuery({
     queryKey: ['song', id],
-    queryFn: async () => {
-      try {
-        return overlaySong(id!, await endpoints.song(id!))
-      } catch {
-        const local = overlaySong(id!, null)
-        if (local) return local
-        throw new Error('Song not found')
-      }
-    },
+    queryFn: () => loadFullSong(id!),
     enabled: Boolean(id),
-    staleTime: 60_000,
+    staleTime: SONG_STALE_MS,
+    gcTime: 30 * 60_000,
+    initialData: initial,
+    placeholderData: initial,
   })
 }
 
@@ -479,6 +527,7 @@ export function useMutations() {
       try {
         const created = (await endpoints.createSong(body)) as Song
         rememberSong(created)
+        if (hasSongChart(created)) writeCachedSong(created)
         upsertSongInCaches(qc, created)
         return created
       } catch (err) {
@@ -492,6 +541,7 @@ export function useMutations() {
       try {
         const updated = (await endpoints.patchSong(v.id, v.body)) as Song
         rememberSong(updated)
+        if (hasSongChart(updated)) writeCachedSong(updated)
         upsertSongInCaches(qc, updated)
         return updated
       } catch (err) {
@@ -510,6 +560,7 @@ export function useMutations() {
         }
       }
       rememberDeletedSong(id, fromSetlistIds)
+      dropCachedSong(id)
       dropSongFromCaches(qc, id)
       try {
         return await endpoints.deleteSong(id)

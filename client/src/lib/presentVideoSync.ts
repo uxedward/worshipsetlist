@@ -1,6 +1,5 @@
 import { endpoints } from './api.ts'
 import {
-  asVideoFile,
   forgetLocalVideoBytes,
   isHostedBackgroundSrc,
   listLocalCustomVideos,
@@ -96,7 +95,32 @@ async function dropSharedLocalBytes(remote: PresentBackground[]) {
   }
 }
 
+async function unpublishedLocalVideos() {
+  const local = await listLocalCustomVideos()
+  return local.filter(
+    (item) => Boolean(item.file) || Boolean(item.meta.src && isHostedBackgroundSrc(item.meta.src)),
+  )
+}
+
 async function runPresentVideoSync() {
+  const pendingLocal = await unpublishedLocalVideos()
+  if (!pendingLocal.length) {
+    try {
+      const remote = await endpoints.backgrounds()
+      setStatus({
+        copying: false,
+        current: 0,
+        total: 0,
+        label: null,
+        error: null,
+        backgrounds: remote.backgrounds ?? [],
+        pending: remote.pending ?? [],
+      })
+    } catch {
+      setStatus({ copying: false, current: 0, total: 0, label: null })
+    }
+    return
+  }
   setStatus({ copying: true, error: null })
   await registerLocalStubs()
   let lastErrors: string[] = []
@@ -147,4 +171,27 @@ export function startPresentVideoSync() {
     })
   }
   return running
+}
+
+/** Boot-safe: only copy if this browser still has unpublished video files. */
+export async function startPresentVideoSyncIfNeeded() {
+  const pendingLocal = await unpublishedLocalVideos()
+  if (!pendingLocal.length) {
+    try {
+      const remote = await endpoints.backgrounds()
+      setStatus({
+        copying: false,
+        current: 0,
+        total: 0,
+        label: null,
+        error: null,
+        backgrounds: remote.backgrounds ?? [],
+        pending: remote.pending ?? [],
+      })
+    } catch {
+      /* library boot should not fail because backgrounds are unreachable */
+    }
+    return
+  }
+  return startPresentVideoSync()
 }

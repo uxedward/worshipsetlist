@@ -5,7 +5,7 @@ import { displaySongMeta } from '@shared/bulkFormat.ts'
 import type { SetlistSong, Song } from '@shared/types.ts'
 import { cn } from '../lib/cn.ts'
 import { useAppStore } from '../store/useAppStore.ts'
-import { useMutations, useSongs } from '../hooks/useQueries.ts'
+import { useMutations, useOpenEditor, usePrefetchSong, useSongs } from '../hooks/useQueries.ts'
 import { Btn, KeyBadge, Spinner } from './ui.tsx'
 import { AddToSetlistModal } from './AddToSetlistModal.tsx'
 
@@ -23,7 +23,7 @@ export function LibraryView({
 }) {
   const [search, setSearch] = useState('')
   const [sort, setSort] = useState<'artist' | 'title' | 'bpm'>('artist')
-  const openEditor = useAppStore((s) => s.openEditor)
+  const openEditor = useOpenEditor()
   const setBulkImportOpen = useAppStore((s) => s.setBulkImportOpen)
   const askConfirm = useAppStore((s) => s.askConfirm)
   const [pendingSong, setPendingSong] = useState<Song | null>(null)
@@ -376,10 +376,12 @@ function LibraryRow({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const prefetchSong = usePrefetchSong()
   const meta = displaySongMeta(song)
   return (
     <div
       className={cn('flex h-14 items-center gap-3 rounded-[8px] px-2')}
+      onPointerEnter={() => prefetchSong(song.id)}
     >
       <div className="min-w-0 flex-1">
         <div className="truncate text-[14px]">{song.title}</div>
