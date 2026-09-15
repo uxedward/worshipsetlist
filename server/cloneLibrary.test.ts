@@ -5,5 +5,7 @@ describe('ensureSchema', () => {
   it('skips the DDL loop when the Song table already exists', () => {
     const src = readFileSync(new URL('./cloneLibrary.ts', import.meta.url), 'utf8')
     expect(src).toContain('if (await songTableExists()) return')
+    expect(src).toContain('ensureRowLevelSecurity')
+    expect(src).toContain('ENABLE ROW LEVEL SECURITY')
   })
 })

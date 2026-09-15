@@ -82,4 +82,38 @@ export const SCHEMA_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS "Line_sectionId_idx" ON "Line"("sectionId")`,
   `CREATE INDEX IF NOT EXISTS "SetlistSong_setlistId_idx" ON "SetlistSong"("setlistId")`,
   `CREATE INDEX IF NOT EXISTS "SetlistSong_songId_idx" ON "SetlistSong"("songId")`,
+  `ALTER TABLE "Song" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Section" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Line" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Setlist" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "SetlistSong" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "Preference" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "CustomBackground" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "BackgroundChunk" ENABLE ROW LEVEL SECURITY`,
 ]
+
+/** Prisma table names in the public schema. PostgREST exposes these without RLS. */
+export const APP_TABLES = [
+  'Song',
+  'Section',
+  'Line',
+  'Setlist',
+  'SetlistSong',
+  'Preference',
+  'CustomBackground',
+  'BackgroundChunk',
+] as const
+
+export function enableRlsStatement(table: string) {
+  return `ALTER TABLE "${table}" ENABLE ROW LEVEL SECURITY`
+}
+
+export function revokePublicAccessStatement(table: string, role: 'anon' | 'authenticated') {
+  return `REVOKE ALL ON TABLE "${table}" FROM ${role}`
+}
+
+export const RLS_STATEMENTS = APP_TABLES.map((table) => enableRlsStatement(table))
+export const REVOKE_PUBLIC_ACCESS_STATEMENTS = APP_TABLES.flatMap((table) => [
+  revokePublicAccessStatement(table, 'anon'),
+  revokePublicAccessStatement(table, 'authenticated'),
+])
