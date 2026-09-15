@@ -41,7 +41,12 @@ backgroundsRouter.get('/', async (_req, res) => {
       backgrounds: ready.map(toClient),
       storedCount: rows.length,
       readyCount: ready.length,
-      pending: rows.filter((row) => !isPlayable(row)).map((row) => ({ id: row.id, label: row.label, sizeBytes: row.sizeBytes })),
+      pending: rows.filter((row) => !isPlayable(row)).map((row) => ({
+        id: row.id,
+        label: row.label,
+        sizeBytes: row.sizeBytes,
+        poster: row.poster ?? undefined,
+      })),
       ...hosting,
     })
   } catch (err) {
@@ -63,14 +68,14 @@ backgroundsRouter.post('/upload', async (req, res) => {
       : typeof chunkIndexRaw === 'string' && chunkIndexRaw.trim()
         ? Number(chunkIndexRaw)
         : undefined
-  if (!id || !filename) {
-    res.status(400).json({ error: 'A video id and filename are required.' })
+  if (!id) {
+    res.status(400).json({ error: 'A video id is required.' })
     return
   }
   try {
     const session = await createSupabaseUpload(
       id,
-      filename,
+      filename || 'video.mp4',
       process.env,
       Number.isFinite(chunkIndex) ? chunkIndex : undefined,
     )

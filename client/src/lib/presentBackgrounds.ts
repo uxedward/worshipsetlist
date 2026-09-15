@@ -11,6 +11,7 @@ export type PresentBackground = {
   /** CSS fill for gradient stills, e.g. var(--present-horizon). */
   fill?: string
   custom?: boolean
+  pending?: boolean
 }
 
 export const DEFAULT_PRESENT_BACKGROUND = 'horizon'

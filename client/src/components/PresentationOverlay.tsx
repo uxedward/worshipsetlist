@@ -22,7 +22,12 @@ import {
   hydrateCustomBackgrounds,
   mergeCustomBackgrounds,
 } from '../lib/customPresentBackgrounds.ts'
-import { publishLocalPresentVideos, uploadPresentVideoFile } from '../lib/uploadPresentVideo.ts'
+import { uploadPresentVideoFile } from '../lib/uploadPresentVideo.ts'
+import {
+  pendingAsBackgrounds,
+  startPresentVideoSync,
+  subscribePresentVideoSync,
+} from '../lib/presentVideoSync.ts'
 import {
   FONT_MAX,
   FONT_MIN,
@@ -61,7 +66,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const [chromeVisible, setChromeVisible] = useState(true)
   const [fittedSize, setFittedSize] = useState(presentSettings.fontSize)
   const [customBackgrounds, setCustomBackgrounds] = useState<PresentBackground[]>([])
-  const [hostingEnabled, setHostingEnabled] = useState(true)
+  const hostingEnabled = true
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploading, setUploading] = useState<{ current: number; total: number } | null>(null)
   const touchX = useRef<number | null>(null)
@@ -70,27 +75,24 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
 
   useEffect(() => {
     let cancelled = false
+    let stop = () => {}
     void (async () => {
       const local = await hydrateCustomBackgrounds()
-      if (!cancelled) setCustomBackgrounds(local)
-      try {
-        const remote = await endpoints.backgrounds()
+      if (cancelled) return
+      setCustomBackgrounds(local)
+      stop = subscribePresentVideoSync((status) => {
         if (cancelled) return
-        setHostingEnabled(remote.hostingEnabled)
-        setCustomBackgrounds(mergeCustomBackgrounds(local, remote.backgrounds))
-        const { published, errors } = await publishLocalPresentVideos(remote.backgrounds)
-        if (cancelled) return
-        if (errors.length) setUploadError(errors.join(' '))
-        if (published.length === 0) return
-        const latest = await endpoints.backgrounds()
-        if (cancelled) return
-        setCustomBackgrounds(mergeCustomBackgrounds(local, latest.backgrounds))
-      } catch {
-        /* local cache still works without the API */
-      }
+        setUploadError(status.error)
+        setUploading(status.copying && status.total ? { current: status.current, total: status.total } : null)
+        setCustomBackgrounds((prev) =>
+          mergeCustomBackgrounds(prev, [...status.backgrounds, ...pendingAsBackgrounds(status.pending)]),
+        )
+      })
+      await startPresentVideoSync()
     })()
     return () => {
       cancelled = true
+      stop()
     }
   }, [])
 
@@ -440,6 +442,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
             if (lastId) setBackgroundId(lastId)
             setUploadError(failed.length ? failed.join(' ') : null)
             setUploading(null)
+            void startPresentVideoSync()
           }}
           onDelete={(id) => {
             useAppStore.getState().askConfirm({
@@ -775,8 +778,11 @@ function BackgroundPicker({
             key={bg.id}
             background={bg}
             selected={bg.id === selectedId}
-            onSelect={() => onSelect(bg.id)}
-            onDelete={() => onDelete(bg.id)}
+            onSelect={() => {
+              if (bg.pending || !bg.src) return
+              onSelect(bg.id)
+            }}
+            onDelete={bg.pending ? undefined : () => onDelete(bg.id)}
           />
         ))}
         <button
@@ -814,9 +820,13 @@ function BackgroundPicker({
         <p className="mt-2 text-[12px]" style={{ color: 'var(--warning)' }}>
           {error}
         </p>
+      ) : uploading ? (
+        <p className="mt-2 text-[12px]" style={{ color: 'var(--accent)' }}>
+          Copying {uploading.current}/{uploading.total} to the shared library. Keep this browser open until it finishes.
+        </p>
       ) : hostingEnabled ? (
         <p className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-          Uploaded videos are saved to the shared library. Keep this browser open after a 4K upload so other browsers can load them.
+          Uploaded videos are saved to the shared library and then appear on every browser.
         </p>
       ) : (
         <p className="mt-2 text-[12px]" style={{ color: 'var(--warning)' }}>
@@ -847,6 +857,7 @@ function BackgroundThumb({
         className="w-full overflow-hidden rounded-[10px] text-left"
         style={{
           border: selected ? '2px solid var(--text-primary)' : '2px solid var(--border)',
+          opacity: background.pending ? 0.55 : 1,
         }}
       >
         <span
@@ -861,7 +872,7 @@ function BackgroundThumb({
           }}
         />
         <span className="block truncate px-1.5 py-1 text-caption" style={{ color: 'var(--text-secondary)' }}>
-          {background.label}
+          {background.pending ? `${background.label} (copying)` : background.label}
         </span>
       </button>
       {onDelete ? (

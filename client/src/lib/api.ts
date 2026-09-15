@@ -229,6 +229,7 @@ export const endpoints = {
   backgrounds: () =>
     api<{
       backgrounds: import('../lib/presentBackgrounds.ts').PresentBackground[]
+      pending?: Array<{ id: string; label: string; sizeBytes: number; poster?: string }>
       hostingEnabled: boolean
       blobEnabled: boolean
       supabaseEnabled: boolean
