@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { dropCachedSong, hasSongChart, readCachedSong, writeCachedSong } from './songChartCache.ts'
+import { cacheSetlistSongCharts, dropCachedSong, hasSongChart, readCachedSong, writeCachedSong } from './songChartCache.ts'
 import type { Song } from '@shared/types.ts'
 
 const memory = new Map<string, string>()
+Object.defineProperty(globalThis, 'localStorage', {
+  value: {
+    getItem: (key: string) => memory.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      memory.set(key, value)
+    },
+    removeItem: (key: string) => {
+      memory.delete(key)
+    },
+  },
+  configurable: true,
+})
 Object.defineProperty(globalThis, 'sessionStorage', {
   value: {
     getItem: (key: string) => memory.get(key) ?? null,
@@ -36,5 +48,10 @@ describe('song chart cache', () => {
     expect(readCachedSong('song-1')?.title).toBe('Oceans')
     dropCachedSong('song-1')
     expect(readCachedSong('song-1')).toBeNull()
+  })
+
+  it('warms charts from bootstrap setlists into durable storage', () => {
+    cacheSetlistSongCharts([{ songs: [{ song }] }])
+    expect(readCachedSong('song-1')?.title).toBe('Oceans')
   })
 })

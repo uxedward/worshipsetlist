@@ -129,6 +129,7 @@ songsRouter.get('/:id', async (req, res) => {
     res.status(404).json({ error: 'Song not found' })
     return
   }
+  res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=86400')
   res.json(song)
 })
 

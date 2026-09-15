@@ -18,6 +18,8 @@ import {
   type PresentBackground,
 } from '../lib/presentBackgrounds.ts'
 import { resolvePlayablePresentSrc } from '../lib/playPresentVideo.ts'
+import { bindPresentVideoManifest } from '../lib/presentVideoSw.ts'
+import { PRESENT_VIDEO_STORAGE_CHUNK_BYTES } from '@shared/presentVideo.ts'
 import {
   deleteCustomBackground,
   hydrateCustomBackgrounds,
@@ -96,6 +98,19 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
       stop()
     }
   }, [])
+
+  useEffect(() => {
+    for (const bg of customBackgrounds) {
+      if (!bg.chunkBaseUrl || !bg.sizeBytes) continue
+      void bindPresentVideoManifest({
+        id: bg.id,
+        sizeBytes: bg.sizeBytes,
+        mimeType: bg.mimeType,
+        chunkBaseUrl: bg.chunkBaseUrl,
+        chunkBytes: PRESENT_VIDEO_STORAGE_CHUNK_BYTES,
+      })
+    }
+  }, [customBackgrounds])
 
   const selectedIndex = songs.findIndex((s) => s.id === activeId)
   const index = selectedIndex >= 0 ? selectedIndex : 0

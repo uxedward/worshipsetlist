@@ -30,7 +30,7 @@ import {
 import { songsListQueryKey } from '../lib/queryKeys.ts'
 import { sameSongIdentity, songInputFromSpotifyTrack } from '@shared/spotifyImport.ts'
 import { readBootstrapCache, writeBootstrapCache } from '../lib/bootstrapCache.ts'
-import { dropCachedSong, hasSongChart, readCachedSong, writeCachedSong } from '../lib/songChartCache.ts'
+import { cacheSetlistSongCharts, dropCachedSong, hasSongChart, readCachedSong, writeCachedSong } from '../lib/songChartCache.ts'
 import type { BootstrapPayload } from '../lib/bootstrapCache.ts'
 
 function hydrateBootstrap(raw: BootstrapPayload | null): BootstrapPayload | null {
@@ -60,6 +60,12 @@ export function useBootstrap() {
     if (payload.activeSetlist) {
       qc.setQueryData(['setlist', payload.activeSetlist.id], payload.activeSetlist)
     }
+    cacheSetlistSongCharts(payload.setlists, (song) => {
+      qc.setQueryData(['song', song.id], song)
+    })
+    cacheSetlistSongCharts(payload.activeSetlist ? [payload.activeSetlist] : [], (song) => {
+      qc.setQueryData(['song', song.id], song)
+    })
     const preferences = qc.getQueryData<Preference>(['preferences']) ?? payload.preferences
     writeBootstrapCache({ ...payload, preferences })
   }
