@@ -1,5 +1,5 @@
 import { prisma } from './db.ts'
-import { SCHEMA_STATEMENTS } from './schemaSql.ts'
+import { REVOKE_PUBLIC_ACCESS_STATEMENTS, RLS_STATEMENTS, SCHEMA_STATEMENTS } from './schemaSql.ts'
 import { restoreLibraryIfEmpty } from './restoreLibrary.ts'
 
 let ready: Promise<void> | null = null
@@ -20,6 +20,7 @@ export async function persistGithubWrites() {
 
 async function prepare() {
   await ensureSchema()
+  await ensureRowLevelSecurity()
   await ensureWorkspace()
   await restoreLibraryIfEmpty()
 }
@@ -44,6 +45,44 @@ async function ensureSchema() {
       if (/already exists|duplicate/i.test(message)) continue
       throw err
     }
+  }
+}
+
+const SAFE_TABLE = /^[A-Za-z_][A-Za-z0-9_]*$/
+let rowLevelSecurityReady = false
+
+function quotedTable(name: string) {
+  if (!SAFE_TABLE.test(name)) throw new Error('Unexpected table name')
+  return `"${name}"`
+}
+
+/** Close the public Data API. Prisma still connects as the database owner, which bypasses RLS. */
+export async function ensureRowLevelSecurity() {
+  if (rowLevelSecurityReady) return
+  try {
+    const open = await prisma.$queryRaw<Array<{ tablename: string }>>`
+      SELECT tablename
+      FROM pg_tables
+      WHERE schemaname = 'public'
+        AND NOT rowsecurity
+        AND tablename !~ '^pg_'
+    `
+    for (const row of open) {
+      if (!SAFE_TABLE.test(row.tablename)) continue
+      await prisma.$executeRawUnsafe(`ALTER TABLE ${quotedTable(row.tablename)} ENABLE ROW LEVEL SECURITY`)
+    }
+    for (const statement of [...RLS_STATEMENTS, ...REVOKE_PUBLIC_ACCESS_STATEMENTS]) {
+      try {
+        await prisma.$executeRawUnsafe(statement)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        if (/does not exist|undefined_object|42704/i.test(message)) continue
+        throw err
+      }
+    }
+    rowLevelSecurityReady = true
+  } catch (err) {
+    console.error('Could not enable row level security', err)
   }
 }
 
