@@ -147,6 +147,18 @@ export function storageChunkObjectPath(id: string, chunkIndex: number) {
   return `${sanitizeBackgroundId(id)}/${Math.max(0, Math.floor(chunkIndex))}`
 }
 
+export function storagePublicObjectUrl(objectPath: string, env: Env = process.env) {
+  const cfg = supabaseConfig(env)
+  if (!cfg) return null
+  return `${cfg.url}/storage/v1/object/public/${PRESENT_VIDEO_BUCKET}/${objectPath}`
+}
+
+export function presentVideoChunkBaseUrl(id: string, env: Env = process.env) {
+  const cfg = supabaseConfig(env)
+  if (!cfg) return null
+  return `${cfg.url}/storage/v1/object/public/${PRESENT_VIDEO_BUCKET}/${storagePrefix(id)}`
+}
+
 export function storagePrefix(id: string) {
   return `${sanitizeBackgroundId(id)}/`
 }
@@ -262,13 +274,20 @@ export async function storageObjectSize(objectPath: string, env: Env = process.e
   return Number.isFinite(length) && length > 0 ? length : null
 }
 
-export async function downloadStorageObject(objectPath: string, env: Env = process.env) {
+export async function downloadStorageObject(
+  objectPath: string,
+  env: Env = process.env,
+  range?: { start: number; end: number },
+) {
   const cfg = supabaseConfig(env)
   if (!cfg) return null
+  const headers: Record<string, string> = {}
+  if (range) headers.Range = `bytes=${range.start}-${range.end}`
   const res = await supabaseFetch(cfg, `/object/authenticated/${PRESENT_VIDEO_BUCKET}/${objectPath}`, {
     method: 'GET',
+    headers,
   })
-  if (!res.ok) return null
+  if (!res.ok && res.status !== 206) return null
   return Buffer.from(await res.arrayBuffer())
 }
 

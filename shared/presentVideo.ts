@@ -15,3 +15,13 @@ export function presentVideoChunkCount(size: number, chunkBytes = PRESENT_VIDEO_
 export function presentVideoStorageChunkCount(size: number) {
   return presentVideoChunkCount(size, PRESENT_VIDEO_STORAGE_CHUNK_BYTES)
 }
+
+export function presentVideoChunkUrls(
+  baseUrl: string,
+  sizeBytes: number,
+  chunkBytes = PRESENT_VIDEO_STORAGE_CHUNK_BYTES,
+) {
+  const count = presentVideoStorageChunkCount(sizeBytes)
+  const base = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`
+  return Array.from({ length: count }, (_, index) => `${base}${index}`)
+}

@@ -12,6 +12,11 @@ export type PresentBackground = {
   fill?: string
   custom?: boolean
   pending?: boolean
+  sizeBytes?: number
+  mimeType?: string
+  /** Public Storage prefix ending with `{id}/`, used to play 4K parts from the CDN. */
+  chunkBaseUrl?: string
+  chunkUrls?: string[]
 }
 
 export const DEFAULT_PRESENT_BACKGROUND = 'horizon'

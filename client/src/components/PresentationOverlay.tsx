@@ -17,6 +17,7 @@ import {
   presentBackgroundFill,
   type PresentBackground,
 } from '../lib/presentBackgrounds.ts'
+import { resolvePlayablePresentSrc } from '../lib/playPresentVideo.ts'
 import {
   deleteCustomBackground,
   hydrateCustomBackgrounds,
@@ -541,8 +542,45 @@ function PresentBackdrop({
   background: PresentBackground
   reduceMotion: boolean
 }) {
-  const videoSrc = pickPresentVideoSrc(background, currentViewport())
-  const showVideo = background.kind === 'video' && Boolean(videoSrc) && !reduceMotion
+  const fallbackSrc = pickPresentVideoSrc(background, currentViewport())
+  const [playSrc, setPlaySrc] = useState<string | undefined>(() =>
+    background.custom ? undefined : fallbackSrc,
+  )
+  const videoRef = useRef<HTMLVideoElement>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    if (!background.custom) {
+      setPlaySrc(fallbackSrc)
+      return () => {
+        cancelled = true
+      }
+    }
+    setPlaySrc(background.src?.startsWith('blob:') ? background.src : undefined)
+    void resolvePlayablePresentSrc(background).then((src) => {
+      if (!cancelled && src) setPlaySrc(src)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [background, fallbackSrc])
+
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el || !playSrc) return
+    const tryPlay = () => {
+      void el.play().catch(() => undefined)
+    }
+    el.addEventListener('canplay', tryPlay)
+    tryPlay()
+    return () => el.removeEventListener('canplay', tryPlay)
+  }, [playSrc])
+
+  const showVideo = background.kind === 'video' && Boolean(playSrc) && !reduceMotion
+  const showPoster =
+    background.kind === 'video' &&
+    Boolean(background.poster) &&
+    (reduceMotion || !showVideo)
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
       {background.kind === 'gradient' ? (
@@ -551,21 +589,22 @@ function PresentBackdrop({
       {background.kind === 'photo' && background.src ? (
         <img src={background.src} alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : null}
+      {showPoster ? (
+        <img src={background.poster} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      ) : null}
       {showVideo ? (
         <video
-          key={`${background.id}-${videoSrc}`}
+          ref={videoRef}
+          key={`${background.id}-${playSrc}`}
           className="absolute inset-0 h-full w-full object-cover"
-          src={videoSrc}
+          src={playSrc}
           poster={background.poster}
-          preload="metadata"
+          preload="auto"
           autoPlay
           muted
           loop
           playsInline
         />
-      ) : null}
-      {background.kind === 'video' && reduceMotion && background.poster ? (
-        <img src={background.poster} alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : null}
       {background.kind !== 'gradient' ? (
         <div className="absolute inset-0" style={{ background: 'var(--present-scrim)' }} />

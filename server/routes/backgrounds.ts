@@ -6,12 +6,22 @@ import {
   deleteLocalMedia,
   deleteSupabaseObject,
   findLocalMedia,
+  presentVideoChunkBaseUrl,
   videoHostingStatus,
 } from '../videoHosting.js'
 
 export const backgroundsRouter = Router()
 
-function toClient(row: { id: string; label: string; kind: string; src: string; poster: string | null }) {
+function toClient(row: {
+  id: string
+  label: string
+  kind: string
+  src: string
+  poster: string | null
+  sizeBytes?: number
+  mimeType?: string | null
+}) {
+  const sizeBytes = row.sizeBytes && row.sizeBytes > 0 ? row.sizeBytes : undefined
   return {
     id: row.id,
     label: row.label,
@@ -21,6 +31,9 @@ function toClient(row: { id: string; label: string; kind: string; src: string; p
     src4k: row.src,
     poster: row.poster ?? undefined,
     custom: true as const,
+    sizeBytes,
+    mimeType: row.mimeType || undefined,
+    chunkBaseUrl: sizeBytes ? presentVideoChunkBaseUrl(row.id) ?? undefined : undefined,
   }
 }
 
@@ -98,7 +111,8 @@ backgroundsRouter.get('/media/:id', async (req, res) => {
       if (media.partial) {
         res.setHeader('Content-Range', `bytes ${media.start}-${media.end}/${media.size}`)
       }
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      res.setHeader('Cache-Control', 'private, no-store')
+      res.setHeader('Vary', 'Range')
       res.end(media.body)
       return
     }

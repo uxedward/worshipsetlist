@@ -1,9 +1,5 @@
 import { endpoints } from './api.ts'
-import {
-  forgetLocalVideoBytes,
-  isHostedBackgroundSrc,
-  listLocalCustomVideos,
-} from './customPresentBackgrounds.ts'
+import { isHostedBackgroundSrc, listLocalCustomVideos } from './customPresentBackgrounds.ts'
 import type { PresentBackground } from './presentBackgrounds.ts'
 import { publishLocalPresentVideos, saveBackgroundStub } from './uploadPresentVideo.ts'
 
@@ -85,21 +81,29 @@ async function registerLocalStubs() {
   }
 }
 
-async function dropSharedLocalBytes(remote: PresentBackground[]) {
-  const local = await listLocalCustomVideos()
-  for (const item of local) {
-    const shared = remote.find((bg) => bg.id === item.id)
-    if (shared && isHostedBackgroundSrc(shared.src) && item.file) {
-      await forgetLocalVideoBytes(item.id)
-    }
-  }
-}
-
 async function unpublishedLocalVideos() {
   const local = await listLocalCustomVideos()
-  return local.filter(
-    (item) => Boolean(item.file) || Boolean(item.meta.src && isHostedBackgroundSrc(item.meta.src)),
-  )
+  if (!local.length) return []
+  let remote = status.backgrounds
+  if (!remote.length) {
+    try {
+      const listed = await endpoints.backgrounds()
+      remote = listed.backgrounds ?? []
+      setStatus({
+        backgrounds: remote,
+        pending: listed.pending ?? [],
+      })
+    } catch {
+      return local.filter(
+        (item) => Boolean(item.file) || Boolean(item.meta.src && isHostedBackgroundSrc(item.meta.src)),
+      )
+    }
+  }
+  const ready = new Set(remote.filter((bg) => isHostedBackgroundSrc(bg.src)).map((bg) => bg.id))
+  return local.filter((item) => {
+    if (ready.has(item.id)) return false
+    return Boolean(item.file) || Boolean(item.meta.src && isHostedBackgroundSrc(item.meta.src))
+  })
 }
 
 async function runPresentVideoSync() {
@@ -142,7 +146,6 @@ async function runPresentVideoSync() {
       pending: latest.pending ?? [],
       error: result.errors.length ? result.errors.join(' ') : null,
     })
-    await dropSharedLocalBytes(latest.backgrounds ?? [])
     const local = await listLocalCustomVideos()
     const stillLocal = local.some((item) => {
       if (latest.backgrounds?.some((bg) => bg.id === item.id && isHostedBackgroundSrc(bg.src))) return false

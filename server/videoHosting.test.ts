@@ -6,9 +6,11 @@ import {
   isBlobUploadBody,
   presentVideoBucketCreateBody,
   presentVideoBucketUpdateBody,
+  presentVideoChunkBaseUrl,
   presentVideoSignHeaders,
   saveLocalMedia,
   storageChunkObjectPath,
+  storagePublicObjectUrl,
   supabaseConfig,
   videoHostingStatus,
 } from './videoHosting.ts'
@@ -55,6 +57,16 @@ describe('present video hosting', () => {
   it('stores each 4K part under the video id so other browsers can stream it', () => {
     expect(storageChunkObjectPath('custom-hosting-test', 0)).toBe('custom-hosting-test/0')
     expect(storageChunkObjectPath('custom-hosting-test', 12)).toBe('custom-hosting-test/12')
+  })
+
+  it('builds public CDN URLs for those 4K parts', () => {
+    const env = { SUPABASE_URL: 'https://example.supabase.co', SUPABASE_ANON_KEY: 'anon' }
+    expect(storagePublicObjectUrl('custom-hosting-test/0', env)).toBe(
+      'https://example.supabase.co/storage/v1/object/public/present-videos/custom-hosting-test/0',
+    )
+    expect(presentVideoChunkBaseUrl('custom-hosting-test', env)).toBe(
+      'https://example.supabase.co/storage/v1/object/public/present-videos/custom-hosting-test/',
+    )
   })
 
   it('detects Vercel Blob client upload bodies', () => {

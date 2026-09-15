@@ -180,10 +180,14 @@ function asHostedVideo(bg: PresentBackground | CustomBackgroundMeta): PresentBac
     src,
     src4k: ('src4k' in bg && bg.src4k) || src,
     custom: true,
+    sizeBytes: 'sizeBytes' in bg ? bg.sizeBytes : undefined,
+    mimeType: 'mimeType' in bg ? bg.mimeType : undefined,
+    chunkBaseUrl: 'chunkBaseUrl' in bg ? bg.chunkBaseUrl : undefined,
+    chunkUrls: 'chunkUrls' in bg ? bg.chunkUrls : undefined,
   }
 }
 
-/** Remote hosted videos win so every browser sees the same 4K files. */
+/** Remote metadata is shared; a local blob URL stays so this browser can keep playing 4K. */
 export function mergeCustomBackgrounds(
   local: Array<PresentBackground | CustomBackgroundMeta>,
   remote: PresentBackground[],
@@ -193,8 +197,16 @@ export function mergeCustomBackgrounds(
   for (const bg of remote) {
     const hosted = asHostedVideo(bg)
     const existing = byId.get(hosted.id)
+    if (existing?.src?.startsWith('blob:')) {
+      byId.set(hosted.id, {
+        ...hosted,
+        src: existing.src,
+        src4k: existing.src,
+        poster: hosted.poster ?? existing.poster,
+      })
+      continue
+    }
     if (!existing || isHostedBackgroundSrc(hosted.src)) {
-      if (existing?.src?.startsWith('blob:')) revokeUrl(hosted.id)
       byId.set(hosted.id, hosted)
     }
   }
@@ -205,6 +217,28 @@ export async function hydrateCustomBackgrounds(): Promise<PresentBackground[]> {
   const metas = readCustomBackgroundMeta()
   const hydrated: PresentBackground[] = []
   for (const meta of metas) {
+    try {
+      const file = await idbGet(meta.id)
+      if (file) {
+        revokeUrl(meta.id)
+        const src = URL.createObjectURL(file)
+        objectUrls.set(meta.id, src)
+        hydrated.push({
+          id: meta.id,
+          label: meta.label,
+          kind: 'video',
+          group: 'motion',
+          poster: meta.poster,
+          src,
+          src4k: src,
+          custom: true,
+          sizeBytes: file.size,
+        })
+        continue
+      }
+    } catch {
+      /* fall through to the hosted URL */
+    }
     if (isHostedBackgroundSrc(meta.src)) {
       hydrated.push({
         id: meta.id,
@@ -216,26 +250,6 @@ export async function hydrateCustomBackgrounds(): Promise<PresentBackground[]> {
         src4k: meta.src,
         custom: true,
       })
-      continue
-    }
-    try {
-      const file = await idbGet(meta.id)
-      if (!file) continue
-      revokeUrl(meta.id)
-      const src = URL.createObjectURL(file)
-      objectUrls.set(meta.id, src)
-      hydrated.push({
-        id: meta.id,
-        label: meta.label,
-        kind: 'video',
-        group: 'motion',
-        poster: meta.poster,
-        src,
-        src4k: src,
-        custom: true,
-      })
-    } catch {
-      /* skip unreadable local files */
     }
   }
   return hydrated
@@ -289,6 +303,18 @@ export async function rememberRemoteBackground(bg: PresentBackground) {
     custom: true,
   }
   writeCustomBackgroundMeta([...readCustomBackgroundMeta().filter((item) => item.id !== meta.id), meta])
+}
+
+export async function readLocalVideoFile(id: string) {
+  try {
+    return await idbGet(id)
+  } catch {
+    return undefined
+  }
+}
+
+export async function cacheLocalVideoFile(id: string, file: File) {
+  await idbPut(id, file)
 }
 
 export async function forgetLocalVideoBytes(id: string) {
