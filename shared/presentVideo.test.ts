@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   PRESENT_VIDEO_STORAGE_CHUNK_BYTES,
   presentVideoChunkCount,
+  presentVideoChunkUrls,
   presentVideoSrc,
   presentVideoStorageChunkCount,
 } from './presentVideo.ts'
@@ -22,5 +23,16 @@ describe('present video helpers', () => {
     expect(presentVideoStorageChunkCount(fourK)).toBe(50)
     expect(PRESENT_VIDEO_STORAGE_CHUNK_BYTES).toBeLessThan(50 * 1024 * 1024)
     expect(presentVideoChunkCount(8 * 1024 * 1024 + 1, PRESENT_VIDEO_STORAGE_CHUNK_BYTES)).toBe(2)
+  })
+
+  it('builds public storage URLs for each 8MB part of a 4K file', () => {
+    const urls = presentVideoChunkUrls(
+      'https://example.supabase.co/storage/v1/object/public/present-videos/custom-a',
+      8 * 1024 * 1024 + 1,
+    )
+    expect(urls).toEqual([
+      'https://example.supabase.co/storage/v1/object/public/present-videos/custom-a/0',
+      'https://example.supabase.co/storage/v1/object/public/present-videos/custom-a/1',
+    ])
   })
 })

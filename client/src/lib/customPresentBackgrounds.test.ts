@@ -76,7 +76,7 @@ describe('custom present backgrounds', () => {
     expect(merged[0].label).toBe('Sunrise')
   })
 
-  it('keeps a database-hosted video over a local blob copy', () => {
+  it('keeps a local blob playing after the shared library URL arrives', () => {
     const merged = mergeCustomBackgrounds(
       [
         {
@@ -96,11 +96,16 @@ describe('custom present backgrounds', () => {
           group: 'motion',
           src: '/api/backgrounds/media/custom-a',
           custom: true,
+          chunkBaseUrl: 'https://example.supabase.co/storage/v1/object/public/present-videos/custom-a/',
+          sizeBytes: 12,
         },
       ],
     )
-    expect(merged[0].src).toBe('/api/backgrounds/media/custom-a')
-    expect(merged[0].src4k).toBe('/api/backgrounds/media/custom-a')
+    expect(merged[0].src).toBe('blob:http://localhost/1')
+    expect(merged[0].src4k).toBe('blob:http://localhost/1')
+    expect(merged[0].label).toBe('Shared')
+    expect(merged[0].chunkBaseUrl).toContain('present-videos/custom-a/')
+    expect(merged[0].sizeBytes).toBe(12)
   })
 
   it('marks uploaded ids as custom', () => {

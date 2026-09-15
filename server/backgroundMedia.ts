@@ -179,13 +179,21 @@ async function readStoredRange(id: string, start: number, end: number, size: num
   const chunkSize = firstSize >= size ? size : firstSize
   const first = Math.floor(start / chunkSize)
   const last = Math.floor(end / chunkSize)
-  const parts: Array<{ index: number; data: Buffer }> = []
+  const parts: Buffer[] = []
   for (let index = first; index <= last; index++) {
-    const data = await downloadStorageObject(storageChunkObjectPath(id, index))
+    const chunkStart = index * chunkSize
+    const objectSize = Math.min(chunkSize, size - chunkStart)
+    const from = Math.max(0, start - chunkStart)
+    const to = Math.min(objectSize - 1, end - chunkStart)
+    if (from > to) continue
+    const data = await downloadStorageObject(storageChunkObjectPath(id, index), process.env, {
+      start: from,
+      end: to,
+    })
     if (!data) return null
-    parts.push({ index, data })
+    parts.push(data)
   }
-  return sliceChunkRange(parts, start, end, chunkSize)
+  return parts.length ? Buffer.concat(parts) : null
 }
 
 export async function readBackgroundRange(id: string, rangeHeader?: string) {
