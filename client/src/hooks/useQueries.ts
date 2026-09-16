@@ -4,12 +4,14 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useLayoutEffect } from 'react'
-import { endpoints, flushQueue, pingHealth } from '../lib/api.ts'
+import { ApiError, endpoints, flushQueue, pingHealth } from '../lib/api.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import type { Preference, Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
 import {
   appendSetlistSong,
   extraSongs,
+  forgetDeletedSetlist,
+  forgetDeletedSong,
   forgetExtraSongs,
   overlaySetlist,
   overlaySetlists,
@@ -348,6 +350,15 @@ function useTrackedMutation<TData, TVars>(
   })
 }
 
+/**
+ * A refused write is not an offline write. The local-first fallbacks below
+ * exist for a missing network; replaying them for a permission error would
+ * show the change succeeding and then silently reverting on the next read.
+ */
+function isPermissionError(err: unknown): boolean {
+  return err instanceof ApiError && (err.status === 401 || err.status === 403)
+}
+
 export function useMutations() {
   const qc = useQueryClient()
   const refreshLibrary = () => {
@@ -423,7 +434,12 @@ export function useMutations() {
       qc.removeQueries({ queryKey: ['setlist', id] })
       try {
         return await endpoints.deleteSetlist(id)
-      } catch {
+      } catch (err) {
+        if (isPermissionError(err)) {
+          forgetDeletedSetlist(id)
+          void qc.invalidateQueries({ queryKey: ['setlists'] })
+          throw err
+        }
         return { ok: true }
       }
     }),
@@ -570,7 +586,15 @@ export function useMutations() {
       dropSongFromCaches(qc, id)
       try {
         return await endpoints.deleteSong(id)
-      } catch {
+      } catch (err) {
+        if (isPermissionError(err)) {
+          forgetDeletedSong(id, fromSetlistIds)
+          refreshLibrary()
+          for (const setlistId of fromSetlistIds) {
+            void qc.invalidateQueries({ queryKey: ['setlist', setlistId] })
+          }
+          throw err
+        }
         return { ok: true }
       }
     }),

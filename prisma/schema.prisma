@@ -72,11 +72,44 @@ model SetlistSong {
   @@index([songId])
 }
 
+model User {
+  id           String          @id @default(cuid())
+  email        String          @unique
+  name         String          @default("")
+  passwordHash String
+  role         String          @default("user")
+  createdAt    DateTime        @default(now())
+  preference   Preference?
+  resets       PasswordReset[]
+}
+
+/** One-time reset links. Only the hash is stored, never the token itself. */
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/** Bumping sessionEpoch invalidates every issued session cookie at once. */
+model AuthSetting {
+  id           Int @id
+  sessionEpoch Int @default(1)
+}
+
 model Preference {
-  id                   Int     @id
-  theme                String  @default("dark")
-  presentationFontSize String  @default("medium")
+  id                   Int     @id @default(autoincrement())
+  userId               String? @unique
+  user                 User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme                String    @default("dark")
+  presentationFontSize String    @default("medium")
   lastSetlistId        String?
+  onboardingDoneAt     DateTime?
 }
 
 model CustomBackground {

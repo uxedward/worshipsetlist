@@ -5,8 +5,13 @@ import { resolveSongKey } from '../../shared/detectKey.js'
 import { sameSongIdentity } from '../../shared/spotifyImport.js'
 import { durableDatabase, prisma } from '../db.js'
 import { songWithChart } from '../songInclude.js'
+import { requireAdmin, requireAuth } from '../authMiddleware.js'
 
 export const songsRouter = Router()
+
+// Everyone signed in can read the library and add to it. Deleting is an admin
+// action: it is the one verb here that destroys work other people rely on.
+songsRouter.use(requireAuth)
 
 const fullSong = songWithChart
 
@@ -191,7 +196,7 @@ songsRouter.patch('/:id', async (req, res) => {
   res.json(song)
 })
 
-songsRouter.delete('/:id', async (req, res) => {
+songsRouter.delete('/:id', requireAdmin, async (req, res) => {
   const existing = await prisma.song.findUnique({ where: { id: req.params.id } })
   if (!existing) {
     res.status(404).json({ error: 'Song not found' })

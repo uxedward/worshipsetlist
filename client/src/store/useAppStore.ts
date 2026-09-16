@@ -36,6 +36,7 @@ interface AppState {
   contextMenu: { id: string; x: number; y: number } | null
   bulkImportOpen: boolean
   exportOpen: boolean
+  settingsPageOpen: boolean
   drawerOpen: boolean
   sidebarHover: boolean
   saveStatus: SaveStatus
@@ -65,6 +66,8 @@ interface AppState {
   setContextMenu: (v: AppState['contextMenu']) => void
   setBulkImportOpen: (v: boolean) => void
   setExportOpen: (v: boolean) => void
+  openSettingsPage: () => void
+  closeSettingsPage: () => void
   setDrawerOpen: (v: boolean) => void
   setSidebarHover: (v: boolean) => void
   setSaveStatus: (s: SaveStatus) => void
@@ -95,6 +98,7 @@ export const useAppStore = create<AppState>((set) => ({
   contextMenu: null,
   bulkImportOpen: false,
   exportOpen: false,
+  settingsPageOpen: false,
   drawerOpen: false,
   sidebarHover: false,
   saveStatus: 'saved',
@@ -130,6 +134,8 @@ export const useAppStore = create<AppState>((set) => ({
   setContextMenu: (contextMenu) => set({ contextMenu }),
   setBulkImportOpen: (bulkImportOpen) => set({ bulkImportOpen }),
   setExportOpen: (exportOpen) => set({ exportOpen }),
+  openSettingsPage: () => set({ settingsPageOpen: true }),
+  closeSettingsPage: () => set({ settingsPageOpen: false }),
   setDrawerOpen: (drawerOpen) => set({ drawerOpen }),
   setSidebarHover: (sidebarHover) => set({ sidebarHover }),
   setSaveStatus: (saveStatus) => set({ saveStatus }),

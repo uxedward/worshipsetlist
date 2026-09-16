@@ -8,6 +8,7 @@ import { SongTable } from './SongTable.tsx'
 import { SongDetailPanel } from './SongDetailPanel.tsx'
 import { LibraryView } from './LibraryView.tsx'
 import { MobileNav } from './MobileNav.tsx'
+import { OnboardingPanel } from './OnboardingPanel.tsx'
 import { Minus, Play, Plus } from 'lucide-react'
 import { Btn, KeyBadge, Pill } from './ui.tsx'
 import { ChordChart } from './ChordChart.tsx'
@@ -48,6 +49,7 @@ export function AppShell({
   const mainSetlist = setlist ? (
     <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto">
       <SetlistHeader setlist={setlist} songs={songs} />
+      <OnboardingPanel />
       {isMobile ? (
         <div className="mx-4 mb-3 flex flex-wrap gap-2 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
           <span>{songs.length} songs</span>

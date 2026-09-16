@@ -1,19 +1,22 @@
 import { Router } from 'express'
 import { prisma } from '../db.js'
+import { requireAuth } from '../authMiddleware.js'
 
 export const preferencesRouter = Router()
 
-async function getOrCreate() {
-  return prisma.preference.upsert({
-    where: { id: 1 },
-    create: { id: 1, theme: 'dark', presentationFontSize: 'medium' },
-    update: {},
+/** Preferences are per-account: theme and last setlist no longer collide. */
+export async function preferencesFor(userId: string) {
+  const existing = await prisma.preference.findUnique({ where: { userId } })
+  if (existing) return existing
+  return prisma.preference.create({
+    data: { userId, theme: 'dark', presentationFontSize: 'medium' },
   })
 }
 
-preferencesRouter.get('/', async (_req, res) => {
-  const prefs = await getOrCreate()
-  res.json(prefs)
+preferencesRouter.use(requireAuth)
+
+preferencesRouter.get('/', async (req, res) => {
+  res.json(await preferencesFor(req.user!.id))
 })
 
 preferencesRouter.patch('/', async (req, res) => {
@@ -21,7 +24,13 @@ preferencesRouter.patch('/', async (req, res) => {
     theme?: string
     presentationFontSize?: string
     lastSetlistId?: string | null
+    onboardingDoneAt?: Date | null
   } = {}
+  // The checklist itself is derived from real data; only "I'm done with it"
+  // needs storing, and it is per account so a new member still gets shown it.
+  if ('onboardingDone' in req.body) {
+    data.onboardingDoneAt = req.body.onboardingDone ? new Date() : null
+  }
   if (req.body.theme === 'dark' || req.body.theme === 'light') data.theme = req.body.theme
   if (
     req.body.presentationFontSize === 'small' ||
@@ -32,15 +41,8 @@ preferencesRouter.patch('/', async (req, res) => {
   }
   if ('lastSetlistId' in req.body) data.lastSetlistId = req.body.lastSetlistId
 
-  const prefs = await prisma.preference.upsert({
-    where: { id: 1 },
-    create: {
-      id: 1,
-      theme: data.theme ?? 'dark',
-      presentationFontSize: data.presentationFontSize ?? 'medium',
-      lastSetlistId: data.lastSetlistId ?? null,
-    },
-    update: data,
-  })
+  const userId = req.user!.id
+  await preferencesFor(userId)
+  const prefs = await prisma.preference.update({ where: { userId }, data })
   res.json(prefs)
 })

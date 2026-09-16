@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { lazy, Suspense, useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useAppStore } from './store/useAppStore.ts'
 import { useMutations, usePreferences, useSetlist, useSetlists, useSongs, useBootstrap } from './hooks/useQueries.ts'
 import { useOfflineSync } from './hooks/useOfflineSync.ts'
+import { useAuthState, resetTokenFromUrl } from './hooks/useAuth.ts'
+import { AuthScreen } from './components/AuthScreen.tsx'
 import { AppShell } from './components/AppShell.tsx'
 import { BootSplash } from './components/BootSplash.tsx'
 import { SetlistContextMenu } from './components/SetlistContextMenu.tsx'
@@ -27,6 +29,9 @@ const BulkImportModal = lazy(() =>
 const ExportModal = lazy(() =>
   import('./components/Modals.tsx').then((mod) => ({ default: mod.ExportModal })),
 )
+const SettingsPage = lazy(() =>
+  import('./components/SettingsPage.tsx').then((mod) => ({ default: mod.SettingsPage })),
+)
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,9 +48,32 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppInner />
+      <AuthGate />
     </QueryClientProvider>
   )
+}
+
+/**
+ * Nothing below this renders without a session, so the app never briefly shows
+ * a library the viewer is not signed in for.
+ */
+function AuthGate() {
+  const auth = useAuthState()
+  // A reset link wins over an existing session: whoever opened it is proving
+  // they own the account, and they may be on a shared tablet.
+  const [resetToken, setResetToken] = useState(resetTokenFromUrl)
+
+  if (auth.isPending) return <BootSplash />
+  if (resetToken || !auth.data?.user) {
+    return (
+      <AuthScreen
+        needsSetup={Boolean(auth.data?.needsSetup)}
+        resetToken={resetToken}
+        onResetDone={() => setResetToken(null)}
+      />
+    )
+  }
+  return <AppInner />
 }
 
 function AppInner() {
@@ -67,6 +95,7 @@ function AppInner() {
   const setlistModalId = useAppStore((s) => s.setlistModalId)
   const bulkImportOpen = useAppStore((s) => s.bulkImportOpen)
   const exportOpen = useAppStore((s) => s.exportOpen)
+  const settingsPageOpen = useAppStore((s) => s.settingsPageOpen)
   const activeSsId = useAppStore((s) => s.activeSetlistSongId)
   const setElapsed = useAppStore((s) => s.setElapsed)
   const setPlaying = useAppStore((s) => s.setPlaying)
@@ -203,6 +232,7 @@ function AppInner() {
         {exportOpen ? (
           <ExportModal setlistName={setlist?.name ?? 'Setlist'} songs={setlistSongs} />
         ) : null}
+        {settingsPageOpen ? <SettingsPage /> : null}
       </Suspense>
       <SetlistContextMenu />
       <ConfirmDialog />

@@ -1,6 +1,8 @@
 import { prisma } from './db.ts'
 import { REVOKE_PUBLIC_ACCESS_STATEMENTS, RLS_STATEMENTS, SCHEMA_STATEMENTS } from './schemaSql.ts'
+import { AUTH_SCHEMA_STATEMENTS } from './authSchema.ts'
 import { restoreLibraryIfEmpty } from './restoreLibrary.ts'
+import { seedAdminFromEnv } from './seedAdmin.ts'
 
 let ready: Promise<void> | null = null
 
@@ -20,8 +22,10 @@ export async function persistGithubWrites() {
 
 async function prepare() {
   await ensureSchema()
+  await ensureAuthSchema()
   await ensureRowLevelSecurity()
   await ensureWorkspace()
+  await seedAdminFromEnv()
   await restoreLibraryIfEmpty()
 }
 
@@ -46,6 +50,27 @@ async function ensureSchema() {
       throw err
     }
   }
+}
+
+/**
+ * Runs on every prepare, unlike `ensureSchema()`, which bails out as soon as
+ * the Song table exists. Databases deployed before accounts existed need these
+ * statements even though the rest of the schema is already there.
+ */
+let authSchemaReady = false
+
+export async function ensureAuthSchema() {
+  if (authSchemaReady) return
+  for (const statement of AUTH_SCHEMA_STATEMENTS) {
+    try {
+      await prisma.$executeRawUnsafe(statement)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      if (/already exists|duplicate|does not exist/i.test(message)) continue
+      throw err
+    }
+  }
+  authSchemaReady = true
 }
 
 const SAFE_TABLE = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -116,16 +141,7 @@ function nextSunday(): Date {
 }
 
 async function ensureWorkspace() {
-  await prisma.preference.upsert({
-    where: { id: 1 },
-    create: {
-      id: 1,
-      theme: 'dark',
-      presentationFontSize: 'medium',
-    },
-    update: {},
-  })
-
+  // Preferences are per account now, so there is no global row to seed here.
   if ((await prisma.setlist.count()) === 0) {
     await prisma.setlist.createMany({
       data: [
@@ -144,14 +160,4 @@ async function ensureWorkspace() {
     })
   }
 
-  const first = await prisma.setlist.findFirst({ orderBy: { createdAt: 'asc' } })
-  if (first) {
-    const prefs = await prisma.preference.findUnique({ where: { id: 1 } })
-    if (!prefs?.lastSetlistId) {
-      await prisma.preference.update({
-        where: { id: 1 },
-        data: { lastSetlistId: first.id },
-      })
-    }
-  }
 }

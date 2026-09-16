@@ -9,6 +9,19 @@ export class ApiError extends Error {
 type ConnListener = (online: boolean) => void
 const connListeners = new Set<ConnListener>()
 
+type AuthListener = () => void
+const authListeners = new Set<AuthListener>()
+
+/** Fires when the API says the session is gone, so the app can show sign-in. */
+export function onAuthLost(cb: AuthListener): () => void {
+  authListeners.add(cb)
+  return () => authListeners.delete(cb)
+}
+
+function notifyAuthLost() {
+  authListeners.forEach((cb) => cb())
+}
+
 /** One missed /api/health ping is not enough to show the offline banner. */
 export const HEALTH_FAILS_BEFORE_OFFLINE = 2
 /** After a real API response, ignore health blips for this long. */
@@ -90,16 +103,52 @@ function remapBody(body: unknown): unknown {
   return JSON.parse(next)
 }
 
+/** Set while the queue is parked on a 401 so a re-login can release it. */
+let queueParked = false
+
+export function isQueueParked(): boolean {
+  return queueParked
+}
+
+export function releaseQueue(): void {
+  queueParked = false
+}
+
+export function resetQueueForTests(): void {
+  queue.length = 0
+  idMap.clear()
+  queueParked = false
+}
+
 export async function flushQueue(): Promise<void> {
+  if (queueParked) return
   while (queue.length > 0) {
     const item = queue[0]
     const path = remapPath(item.path)
     const body = remapBody(item.body)
-    const result = await api<Record<string, unknown>>(path, {
-      method: item.method,
-      body: body === undefined ? undefined : JSON.stringify(body),
-      skipQueue: true,
-    })
+    let result: Record<string, unknown>
+    try {
+      result = await api<Record<string, unknown>>(path, {
+        method: item.method,
+        body: body === undefined ? undefined : JSON.stringify(body),
+        skipQueue: true,
+      })
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        // Signing back in releases the queue. Retrying now would just spin on
+        // the same item and block every write behind it.
+        queueParked = true
+        notifyAuthLost()
+        return
+      }
+      if (err instanceof ApiError && err.status === 403) {
+        // This account will never be allowed to make that call. Drop it rather
+        // than replay it forever.
+        queue.shift()
+        continue
+      }
+      throw err
+    }
     if (item.body && typeof item.body === 'object' && 'id' in item.body && result && typeof result === 'object' && 'id' in result) {
       const temp = String((item.body as { id?: string }).id)
       const real = String(result.id)
@@ -109,20 +158,28 @@ export async function flushQueue(): Promise<void> {
   }
 }
 
-type ApiInit = RequestInit & { skipQueue?: boolean; queueOnFail?: boolean; json?: unknown }
+type ApiInit = RequestInit & {
+  skipQueue?: boolean
+  queueOnFail?: boolean
+  json?: unknown
+  /** Set on the sign-in calls, whose 401 is an answer rather than a lost session. */
+  skipAuthNotify?: boolean
+}
 
 export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
-  const { skipQueue, queueOnFail, json, ...rest } = init
+  const { skipQueue, queueOnFail, json, skipAuthNotify, ...rest } = init
   const headers = new Headers(rest.headers)
   if (json !== undefined) headers.set('Content-Type', 'application/json')
   try {
     const res = await fetch(path, {
       ...rest,
       headers,
+      credentials: 'same-origin',
       body: json !== undefined ? JSON.stringify(json) : rest.body,
     })
     const ok = res.ok
     setOnline(true)
+    if (res.status === 401 && !skipAuthNotify) notifyAuthLost()
     if (!ok) {
       let message = res.statusText
       try {
@@ -167,7 +224,60 @@ export async function pingHealth(): Promise<boolean> {
   }
 }
 
+export type Role = 'admin' | 'user'
+
+export interface AccountUser {
+  id: string
+  email: string
+  name: string
+  role: Role
+}
+
+export interface ManagedUser extends AccountUser {
+  createdAt: string
+}
+
 export const endpoints = {
+  authState: () =>
+    api<{ needsSetup: boolean; user: AccountUser | null }>('/api/auth/state', { skipAuthNotify: true }),
+  login: (email: string, password: string) =>
+    api<{ user: AccountUser }>('/api/auth/login', {
+      method: 'POST',
+      json: { email, password },
+      skipAuthNotify: true,
+    }),
+  setupAdmin: (body: { email: string; password: string; name?: string }) =>
+    api<{ user: AccountUser }>('/api/auth/setup', { method: 'POST', json: body, skipAuthNotify: true }),
+  logout: () => api<{ ok: boolean }>('/api/auth/logout', { method: 'POST', skipAuthNotify: true }),
+  changePassword: (currentPassword: string, password: string) =>
+    api<{ ok: boolean }>('/api/auth/password', {
+      method: 'POST',
+      json: { currentPassword, password },
+      skipAuthNotify: true,
+    }),
+  updateProfile: (name: string) =>
+    api<{ user: AccountUser }>('/api/auth/me', { method: 'PATCH', json: { name } }),
+  checkResetToken: (token: string) =>
+    api<{ email: string; name: string }>(`/api/auth/reset/${encodeURIComponent(token)}`, {
+      skipAuthNotify: true,
+    }),
+  completeReset: (token: string, password: string) =>
+    api<{ user: AccountUser }>(`/api/auth/reset/${encodeURIComponent(token)}`, {
+      method: 'POST',
+      json: { password },
+      skipAuthNotify: true,
+    }),
+  createResetLink: (id: string) =>
+    api<{ email: string; link: string; expiresAt: string }>(`/api/auth/users/${id}/reset`, {
+      method: 'POST',
+      json: {},
+    }),
+  listUsers: () => api<ManagedUser[]>('/api/auth/users'),
+  createUser: (body: { email: string; password: string; name?: string; role: Role }) =>
+    api<ManagedUser>('/api/auth/users', { method: 'POST', json: body }),
+  updateUser: (id: string, body: { name?: string; role?: Role; password?: string }) =>
+    api<ManagedUser>(`/api/auth/users/${id}`, { method: 'PATCH', json: body }),
+  deleteUser: (id: string) => api<{ ok: boolean }>(`/api/auth/users/${id}`, { method: 'DELETE' }),
   health: () => api<{ ok: boolean; songs?: number; durable?: boolean; backend?: string }>('/api/health'),
   bootstrap: () =>
     api<{

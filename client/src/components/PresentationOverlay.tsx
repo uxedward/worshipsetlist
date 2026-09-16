@@ -6,6 +6,7 @@ import { LYRICS_PER_SLIDE, displaySections, firstSlideIndexForSection, slidesFro
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useSong } from '../hooks/useQueries.ts'
 import { useIsMobile } from '../hooks/useMediaQuery.ts'
+import { useIsAdmin } from '../hooks/useAuth.ts'
 import { cn } from '../lib/cn.ts'
 import { endpoints } from '../lib/api.ts'
 import {
@@ -70,6 +71,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
   const [fittedSize, setFittedSize] = useState(presentSettings.fontSize)
   const [customBackgrounds, setCustomBackgrounds] = useState<PresentBackground[]>([])
   const hostingEnabled = true
+  const isAdmin = useIsAdmin()
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [uploading, setUploading] = useState<{ current: number; total: number } | null>(null)
   const touchX = useRef<number | null>(null)
@@ -432,6 +434,7 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
 
       {pickerOpen ? (
         <BackgroundPicker
+          canManage={isAdmin}
           selectedId={background.id}
           customItems={customBackgrounds}
           hostingEnabled={hostingEnabled}
@@ -799,6 +802,7 @@ function BackgroundPicker({
   onSelect,
   onUpload,
   onDelete,
+  canManage,
 }: {
   selectedId: string
   customItems: PresentBackground[]
@@ -808,6 +812,8 @@ function BackgroundPicker({
   onSelect: (id: string) => void
   onUpload: (files: File[]) => void
   onDelete: (id: string) => void
+  /** Users pick a background for the service; only admins change the set. */
+  canManage: boolean
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
   const gradients = PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'gradient')
@@ -836,41 +842,45 @@ function BackgroundPicker({
               if (bg.pending || !bg.src) return
               onSelect(bg.id)
             }}
-            onDelete={bg.pending ? undefined : () => onDelete(bg.id)}
+            onDelete={bg.pending || !canManage ? undefined : () => onDelete(bg.id)}
           />
         ))}
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          disabled={Boolean(uploading) || !hostingEnabled}
-          className="flex h-[86px] w-[104px] shrink-0 flex-col items-center justify-center gap-1 rounded-[10px] text-caption"
-          style={{
-            border: '2px dashed var(--border-strong)',
-            color: 'var(--text-secondary)',
-            opacity: hostingEnabled ? 1 : 0.6,
-          }}
-        >
-          <Plus size={16} />
-          {uploading
-            ? uploading.total > 1
-              ? `Uploading ${uploading.current}/${uploading.total}`
-              : 'Uploading…'
-            : 'Add videos'}
-        </button>
-        <input
-          ref={fileRef}
-          type="file"
-          accept="video/mp4,video/webm,video/quicktime,video/x-m4v,.mp4,.webm,.mov,.m4v"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            const files = e.target.files ? Array.from(e.target.files) : []
-            e.target.value = ''
-            if (files.length) onUpload(files)
-          }}
-        />
+        {canManage ? (
+          <>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={Boolean(uploading) || !hostingEnabled}
+              className="flex h-[86px] w-[104px] shrink-0 flex-col items-center justify-center gap-1 rounded-[10px] text-caption"
+              style={{
+                border: '2px dashed var(--border-strong)',
+                color: 'var(--text-secondary)',
+                opacity: hostingEnabled ? 1 : 0.6,
+              }}
+            >
+              <Plus size={16} />
+              {uploading
+                ? uploading.total > 1
+                  ? `Uploading ${uploading.current}/${uploading.total}`
+                  : 'Uploading…'
+                : 'Add videos'}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="video/mp4,video/webm,video/quicktime,video/x-m4v,.mp4,.webm,.mov,.m4v"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const files = e.target.files ? Array.from(e.target.files) : []
+                e.target.value = ''
+                if (files.length) onUpload(files)
+              }}
+            />
+          </>
+        ) : null}
       </BackgroundRow>
-      {error ? (
+      {!canManage ? null : error ? (
         <p className="mt-2 text-[12px]" style={{ color: 'var(--warning)' }}>
           {error}
         </p>
