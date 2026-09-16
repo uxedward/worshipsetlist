@@ -73,6 +73,12 @@ export function emailProblem(email: unknown): string | null {
   return null
 }
 
+export function nameProblem(name: unknown): string | null {
+  if (typeof name !== 'string' || !name.trim()) return 'A name is required.'
+  if (name.trim().length > 80) return 'That name is too long.'
+  return null
+}
+
 /* ----------------------------------------------------------------- sessions */
 
 /**

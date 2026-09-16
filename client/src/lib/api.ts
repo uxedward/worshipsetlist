@@ -246,7 +246,7 @@ export const endpoints = {
       json: { email, password },
       skipAuthNotify: true,
     }),
-  setupAdmin: (body: { email: string; password: string; name?: string }) =>
+  setupAdmin: (body: { email: string; password: string; name: string }) =>
     api<{ user: AccountUser }>('/api/auth/setup', { method: 'POST', json: body, skipAuthNotify: true }),
   logout: () => api<{ ok: boolean }>('/api/auth/logout', { method: 'POST', skipAuthNotify: true }),
   changePassword: (currentPassword: string, password: string) =>
@@ -273,8 +273,8 @@ export const endpoints = {
       json: {},
     }),
   listUsers: () => api<ManagedUser[]>('/api/auth/users'),
-  createUser: (body: { email: string; password: string; name?: string; role: Role }) =>
-    api<ManagedUser>('/api/auth/users', { method: 'POST', json: body }),
+  createUser: (body: { email: string; name: string; role: Role }) =>
+    api<ManagedUser & { link: string; expiresAt: string }>('/api/auth/users', { method: 'POST', json: body }),
   updateUser: (id: string, body: { name?: string; role?: Role; password?: string }) =>
     api<ManagedUser>(`/api/auth/users/${id}`, { method: 'PATCH', json: body }),
   deleteUser: (id: string) => api<{ ok: boolean }>(`/api/auth/users/${id}`, { method: 'DELETE' }),

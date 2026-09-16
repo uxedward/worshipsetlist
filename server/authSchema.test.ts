@@ -26,8 +26,7 @@ describe('AUTH_SCHEMA_STATEMENTS', () => {
     expect(AUTH_SCHEMA_STATEMENTS.every((sql) => !/\bDO\s+\$\$/i.test(sql))).toBe(true)
   })
 
-  it('locks the new tables down to the database owner', () => {
-    expect(AUTH_SCHEMA_STATEMENTS).toContain('ALTER TABLE "User" ENABLE ROW LEVEL SECURITY')
-    expect(AUTH_SCHEMA_STATEMENTS).toContain('ALTER TABLE "AuthSetting" ENABLE ROW LEVEL SECURITY')
+  it('does not ALTER ENABLE RLS on the request path — that hangs pgbouncer', () => {
+    expect(AUTH_SCHEMA_STATEMENTS.every((sql) => !/ENABLE ROW LEVEL SECURITY/i.test(sql))).toBe(true)
   })
 })

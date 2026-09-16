@@ -271,21 +271,20 @@ function TeamSection() {
 
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
-  const [password, setPassword] = useState('')
   const [role, setRole] = useState<Role>('user')
   const [error, setError] = useState<string | null>(null)
-  const [resetLink, setResetLink] = useState<{ email: string; link: string } | null>(null)
+  const [inviteLink, setInviteLink] = useState<{ email: string; link: string } | null>(null)
 
   const refresh = () => qc.invalidateQueries({ queryKey: USERS_KEY })
 
   const createUser = useMutation({
     mutationFn: endpoints.createUser,
-    onSuccess: () => {
+    onSuccess: (data) => {
       setEmail('')
       setName('')
-      setPassword('')
       setRole('user')
       setError(null)
+      setInviteLink({ email: data.email, link: data.link })
       void refresh()
     },
     onError: (err) => setError(reason(err, 'Could not create that account.')),
@@ -307,7 +306,7 @@ function TeamSection() {
     mutationFn: endpoints.createResetLink,
     onSuccess: (data) => {
       setError(null)
-      setResetLink({ email: data.email, link: data.link })
+      setInviteLink({ email: data.email, link: data.link })
     },
     onError: (err) => setError(reason(err, 'Could not create a reset link.')),
   })
@@ -343,38 +342,34 @@ function TeamSection() {
           </ul>
         )}
         <Note tone="bad">{error}</Note>
-        {resetLink ? <ResetLinkPanel email={resetLink.email} link={resetLink.link} onDismiss={() => setResetLink(null)} /> : null}
+        {inviteLink ? (
+          <ResetLinkPanel
+            email={inviteLink.email}
+            link={inviteLink.link}
+            kind="invite"
+            onDismiss={() => setInviteLink(null)}
+          />
+        ) : null}
       </Section>
 
-      <Section title="Add someone" blurb="There is no public sign-up — accounts start here.">
+      <Section title="Add someone" blurb="There is no public sign-up. They get a link to set their own password, so you never have to invent one.">
         <form
           onSubmit={(e) => {
             e.preventDefault()
             setError(null)
-            if (password.length < MIN_PASSWORD) {
-              setError(`Use at least ${MIN_PASSWORD} characters for the password.`)
+            if (!name.trim()) {
+              setError('A name is required.')
               return
             }
-            createUser.mutate({ email, password, name: name.trim() || undefined, role })
+            createUser.mutate({ email, name: name.trim(), role })
           }}
           className="flex flex-col gap-3"
         >
+          <Field label="Name">
+            <input className={inputClass} style={inputStyle} required value={name} onChange={(e) => setName(e.target.value)} placeholder="Alex" />
+          </Field>
           <Field label="Email">
             <input className={inputClass} style={inputStyle} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          </Field>
-          <Field label="Name">
-            <input className={inputClass} style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="Optional" />
-          </Field>
-          <Field label="Temporary password">
-            <input
-              className={inputClass}
-              style={inputStyle}
-              type="text"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder={`At least ${MIN_PASSWORD} characters`}
-            />
           </Field>
           <Field label="Role">
             <select
@@ -387,12 +382,9 @@ function TeamSection() {
               <option value="admin">Admin</option>
             </select>
           </Field>
-          <p className="text-caption" style={{ color: 'var(--text-muted)' }}>
-            Share this password with them directly. They can change it in Settings once they are in.
-          </p>
           <div>
             <Btn accent type="submit" busy={createUser.isPending}>
-              Add account
+              Create invite link
             </Btn>
           </div>
         </form>
@@ -401,15 +393,25 @@ function TeamSection() {
   )
 }
 
-function ResetLinkPanel({ email, link, onDismiss }: { email: string; link: string; onDismiss: () => void }) {
+function ResetLinkPanel({
+  email,
+  link,
+  kind = 'reset',
+  onDismiss,
+}: {
+  email: string
+  link: string
+  kind?: 'invite' | 'reset'
+  onDismiss: () => void
+}) {
   const [copied, setCopied] = useState(false)
   return (
     <div className="flex flex-col gap-2 rounded-[10px] p-3" style={{ background: 'var(--accent-bg)' }}>
       <div className="text-label" style={{ color: 'var(--accent)' }}>
-        One-time reset link for {email}
+        {kind === 'invite' ? `Invite link for ${email}` : `One-time reset link for ${email}`}
       </div>
       <div className="text-caption" style={{ color: 'var(--text-secondary)' }}>
-        Send this to them directly. It works once and expires in 24 hours.
+        Send this to them directly. It works once, expires in 24 hours, and lets them choose their own password.
       </div>
       <div className="flex items-center gap-2">
         <input className={inputClass} style={inputStyle} readOnly value={link} onFocus={(e) => e.currentTarget.select()} />

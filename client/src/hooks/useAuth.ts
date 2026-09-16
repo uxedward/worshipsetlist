@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { endpoints, onAuthLost, releaseQueue, type AccountUser, type Role } from '../lib/api.ts'
+import { readAuthCache, writeAuthCache } from '../lib/authCache.ts'
 
 export const AUTH_KEY = ['auth', 'state'] as const
 
@@ -10,28 +11,36 @@ export function useAuthState() {
   useEffect(
     () =>
       onAuthLost(() => {
-        qc.setQueryData(AUTH_KEY, (prev: { needsSetup: boolean; user: AccountUser | null } | undefined) =>
-          prev ? { ...prev, user: null } : { needsSetup: false, user: null },
-        )
+        qc.setQueryData(AUTH_KEY, (prev: { needsSetup: boolean; user: AccountUser | null } | undefined) => {
+          const next = prev ? { ...prev, user: null } : { needsSetup: false, user: null }
+          writeAuthCache(next)
+          return next
+        })
       }),
     [qc],
   )
 
   return useQuery({
     queryKey: AUTH_KEY,
-    queryFn: endpoints.authState,
+    queryFn: async () => {
+      const data = await endpoints.authState()
+      writeAuthCache(data)
+      return data
+    },
     retry: 1,
     staleTime: 5 * 60_000,
+    placeholderData: readAuthCache(),
   })
 }
 
-/** Signing in clears the caches the previous account filled. */
+/** Signing in adopts the session without blowing the library cache. */
 function useAdoptSession() {
   const qc = useQueryClient()
   return (user: AccountUser) => {
     releaseQueue()
-    qc.setQueryData(AUTH_KEY, { needsSetup: false, user })
-    void qc.invalidateQueries()
+    const next = { needsSetup: false, user }
+    writeAuthCache(next)
+    qc.setQueryData(AUTH_KEY, next)
   }
 }
 
@@ -47,7 +56,7 @@ export function useLogin() {
 export function useSetupAdmin() {
   const adopt = useAdoptSession()
   return useMutation({
-    mutationFn: (body: { email: string; password: string; name?: string }) => endpoints.setupAdmin(body),
+    mutationFn: (body: { email: string; password: string; name: string }) => endpoints.setupAdmin(body),
     onSuccess: (data) => adopt(data.user),
   })
 }
@@ -92,6 +101,7 @@ export function useUpdateProfile() {
     mutationFn: (name: string) => endpoints.updateProfile(name),
     onSuccess: (data) => {
       qc.setQueryData(AUTH_KEY, { needsSetup: false, user: data.user })
+      writeAuthCache({ needsSetup: false, user: data.user })
     },
   })
 }
@@ -108,7 +118,9 @@ export function useLogout() {
   return useMutation({
     mutationFn: endpoints.logout,
     onSuccess: () => {
-      qc.setQueryData(AUTH_KEY, { needsSetup: false, user: null })
+      const next = { needsSetup: false, user: null }
+      writeAuthCache(next)
+      qc.setQueryData(AUTH_KEY, next)
       // Nothing cached belongs to the next person to sign in on this device.
       qc.clear()
     },

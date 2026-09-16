@@ -1,9 +1,11 @@
+import crypto from 'node:crypto'
 import { Router } from 'express'
 import { prisma } from '../db.js'
 import {
   clearSessionCookie,
   emailProblem,
   hashPassword,
+  nameProblem,
   normalizeEmail,
   passwordProblem,
   setSessionCookie,
@@ -20,6 +22,7 @@ import {
   resetTokenProblem,
 } from '../passwordReset.js'
 import { bumpSessionEpoch, issuingSessionEpoch } from '../sessionEpoch.js'
+import { needsDatabasePrepare } from '../skipPrepare.js'
 
 export const authRouter = Router()
 
@@ -38,13 +41,33 @@ async function userCount() {
   return prisma.user.count()
 }
 
+/**
+ * Auth routes skip the global schema/RLS prepare so sign-in is not a 30s hang.
+ * Writes that hit a missing table create just the account DDL and retry.
+ */
+async function withAuthSchema<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work()
+  } catch (err) {
+    if (!needsDatabasePrepare(err)) throw err
+    const { ensureAuthSchema } = await import('../cloneLibrary.js')
+    await ensureAuthSchema()
+    return await work()
+  }
+}
+
 /** Tells the client whether to show sign-in or first-run setup. */
 authRouter.get('/state', async (req, res) => {
+  if (req.user) {
+    res.json({ needsSetup: false, user: req.user })
+    return
+  }
   try {
     const count = await userCount()
-    res.json({ needsSetup: count === 0, user: req.user ?? null })
-  } catch {
-    res.json({ needsSetup: false, user: req.user ?? null })
+    res.json({ needsSetup: count === 0, user: null })
+  } catch (err) {
+    // A missing User table means nobody has signed up yet — not "go to sign-in".
+    res.json({ needsSetup: needsDatabasePrepare(err), user: null })
   }
 })
 
@@ -57,21 +80,24 @@ authRouter.get('/me', requireAuth, (req, res) => {
  * accounts come from an admin — there is no open sign-up on a public URL.
  */
 authRouter.post('/setup', async (req, res) => {
-  if ((await userCount()) > 0) {
-    res.status(409).json({ error: 'Setflow already has an account. Ask your admin to add you.' })
-    return
-  }
   const email = normalizeEmail(req.body?.email)
-  const problem = emailProblem(email) || passwordProblem(req.body?.password)
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : ''
+  const problem = nameProblem(name) || emailProblem(email) || passwordProblem(req.body?.password)
   if (problem) {
     res.status(400).json({ error: problem })
     return
   }
-  const name = typeof req.body?.name === 'string' && req.body.name.trim() ? req.body.name.trim() : email.split('@')[0]
-  const created = await prisma.user.create({
-    data: { email, name, role: 'admin', passwordHash: hashPassword(String(req.body.password)) },
-    select: publicUser,
+  const created = await withAuthSchema(async () => {
+    if ((await userCount()) > 0) return null
+    return prisma.user.create({
+      data: { email, name, role: 'admin', passwordHash: hashPassword(String(req.body.password)) },
+      select: publicUser,
+    })
   })
+  if (!created) {
+    res.status(409).json({ error: 'Setflow already has an account. Ask your admin to add you.' })
+    return
+  }
   const user = toSessionUser(created)
   await adoptLegacyPreference(user.id)
   setSessionCookie(req, res, user, await issuingSessionEpoch())
@@ -85,7 +111,7 @@ authRouter.post('/login', async (req, res) => {
     res.status(400).json({ error: 'Enter your email and password.' })
     return
   }
-  const row = await prisma.user.findUnique({ where: { email } })
+  const row = await withAuthSchema(() => prisma.user.findUnique({ where: { email } }))
   // Same message and roughly the same work either way, so a wrong email and a
   // wrong password are not distinguishable from the outside.
   const ok = row ? verifyPassword(password, row.passwordHash) : verifyPassword(password, DUMMY_HASH)
@@ -109,11 +135,13 @@ authRouter.patch('/me', requireAuth, async (req, res) => {
     res.status(400).json({ error: 'A name is required.' })
     return
   }
-  const updated = await prisma.user.update({
-    where: { id: req.user!.id },
-    data: { name },
-    select: publicUser,
-  })
+  const updated = await withAuthSchema(() =>
+    prisma.user.update({
+      where: { id: req.user!.id },
+      data: { name },
+      select: publicUser,
+    }),
+  )
   const user = toSessionUser(updated)
   // The name rides in the cookie, so refresh it rather than wait for expiry.
   setSessionCookie(req, res, user, await issuingSessionEpoch())
@@ -127,7 +155,7 @@ authRouter.post('/password', requireAuth, async (req, res) => {
     res.status(400).json({ error: problem })
     return
   }
-  const row = await prisma.user.findUnique({ where: { id: req.user!.id } })
+  const row = await withAuthSchema(() => prisma.user.findUnique({ where: { id: req.user!.id } }))
   if (!row || !verifyPassword(current, row.passwordHash)) {
     res.status(401).json({ error: 'Your current password is not right.' })
     return
@@ -147,7 +175,7 @@ authRouter.post('/password', requireAuth, async (req, res) => {
  * holds the link is the person being let back in.
  */
 authRouter.get('/reset/:token', async (req, res) => {
-  const record = await findReset(req.params.token)
+  const record = await withAuthSchema(() => findReset(req.params.token))
   const problem = resetTokenProblem(record)
   if (problem || !record) {
     res.status(400).json({ error: problem ?? 'That reset link is not valid.' })
@@ -162,7 +190,7 @@ authRouter.post('/reset/:token', async (req, res) => {
     res.status(400).json({ error: problem })
     return
   }
-  const record = await findReset(req.params.token)
+  const record = await withAuthSchema(() => findReset(req.params.token))
   const tokenProblem = resetTokenProblem(record)
   if (tokenProblem || !record) {
     res.status(400).json({ error: tokenProblem ?? 'That reset link is not valid.' })
@@ -192,7 +220,7 @@ authRouter.post('/reset/:token', async (req, res) => {
  * would let anyone reset anyone.
  */
 authRouter.post('/users/:id/reset', requireAdmin, async (req, res) => {
-  const row = await prisma.user.findUnique({ where: { id: req.params.id } })
+  const row = await withAuthSchema(() => prisma.user.findUnique({ where: { id: req.params.id } }))
   if (!row) {
     res.status(404).json({ error: 'That account no longer exists.' })
     return
@@ -215,28 +243,46 @@ authRouter.post('/users/:id/reset', requireAdmin, async (req, res) => {
 /* ------------------------------------------------------- admin: manage users */
 
 authRouter.get('/users', requireAdmin, async (_req, res) => {
-  const users = await prisma.user.findMany({ orderBy: [{ role: 'asc' }, { email: 'asc' }], select: publicUser })
+  const users = await withAuthSchema(() =>
+    prisma.user.findMany({ orderBy: [{ role: 'asc' }, { email: 'asc' }], select: publicUser }),
+  )
   res.json(users)
 })
 
 authRouter.post('/users', requireAdmin, async (req, res) => {
   const email = normalizeEmail(req.body?.email)
-  const problem = emailProblem(email) || passwordProblem(req.body?.password)
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : ''
+  const problem = nameProblem(name) || emailProblem(email)
   if (problem) {
     res.status(400).json({ error: problem })
     return
   }
   const role: Role = req.body?.role === 'admin' ? 'admin' : 'user'
-  const name = typeof req.body?.name === 'string' && req.body.name.trim() ? req.body.name.trim() : email.split('@')[0]
-  if (await prisma.user.findUnique({ where: { email } })) {
+  const { token, tokenHash, expiresAt } = createResetToken()
+  const created = await withAuthSchema(async () => {
+    if (await prisma.user.findUnique({ where: { email } })) return null
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name,
+        role,
+        // Unusable until they set a password from the invite link.
+        passwordHash: hashPassword(crypto.randomBytes(32).toString('hex')),
+      },
+      select: publicUser,
+    })
+    await prisma.passwordReset.create({ data: { userId: user.id, tokenHash, expiresAt } })
+    return user
+  })
+  if (!created) {
     res.status(409).json({ error: 'Someone already uses that email.' })
     return
   }
-  const created = await prisma.user.create({
-    data: { email, name, role, passwordHash: hashPassword(String(req.body.password)) },
-    select: publicUser,
+  res.status(201).json({
+    ...created,
+    expiresAt: expiresAt.toISOString(),
+    link: resetLinkFor(token, requestOrigin(req.headers)),
   })
-  res.status(201).json(created)
 })
 
 authRouter.patch('/users/:id', requireAdmin, async (req, res) => {

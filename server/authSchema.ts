@@ -38,9 +38,6 @@ export const AUTH_SCHEMA_STATEMENTS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "PasswordReset_tokenHash_key" ON "PasswordReset"("tokenHash")`,
   `CREATE INDEX IF NOT EXISTS "PasswordReset_userId_idx" ON "PasswordReset"("userId")`,
   `ALTER TABLE "Preference" ADD COLUMN IF NOT EXISTS "onboardingDoneAt" TIMESTAMP(3)`,
-  `ALTER TABLE "User" ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "PasswordReset" ENABLE ROW LEVEL SECURITY`,
-  `ALTER TABLE "AuthSetting" ENABLE ROW LEVEL SECURITY`,
 ]
 
 export const AUTH_TABLES = ['User', 'AuthSetting', 'PasswordReset'] as const
