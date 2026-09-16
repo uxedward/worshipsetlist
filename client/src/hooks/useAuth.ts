@@ -61,6 +61,14 @@ export function useSetupAdmin() {
   })
 }
 
+export function useSignup() {
+  const adopt = useAdoptSession()
+  return useMutation({
+    mutationFn: (body: { email: string; password: string; name: string }) => endpoints.signup(body),
+    onSuccess: (data) => adopt(data.user),
+  })
+}
+
 /** The reset link lands on the app root as ?reset=<token>. */
 export function resetTokenFromUrl(): string | null {
   if (typeof window === 'undefined') return null

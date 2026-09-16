@@ -352,7 +352,7 @@ function TeamSection() {
         ) : null}
       </Section>
 
-      <Section title="Add someone" blurb="There is no public sign-up. They get a link to set their own password, so you never have to invent one.">
+      <Section title="Add someone" blurb="People can also create an account from the sign-in page. Use this when you want to send them a set-password link instead.">
         <form
           onSubmit={(e) => {
             e.preventDefault()

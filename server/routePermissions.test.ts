@@ -76,6 +76,7 @@ describe('deliberately public auth routes', () => {
     ['check a reset link', 'get', '/reset/:token'],
     ['spend a reset link', 'post', '/reset/:token'],
     ['sign in', 'post', '/login'],
+    ['create an account', 'post', '/signup'],
     ['create the first admin', 'post', '/setup'],
     ['read the setup state', 'get', '/state'],
   ])('%s needs no session', (_label, method, path) => {
