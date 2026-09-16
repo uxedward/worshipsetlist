@@ -1,8 +1,13 @@
 import { Router } from 'express'
 import { prisma } from '../db.js'
 import { setlistWithSongMeta } from '../songInclude.js'
+import { requireAdmin, requireAuth } from '../authMiddleware.js'
 
 export const setlistsRouter = Router()
+
+// Building sets is the team's job, so users get everything here except
+// deleting a whole setlist.
+setlistsRouter.use(requireAuth)
 
 const setlistInclude = setlistWithSongMeta
 
@@ -100,7 +105,7 @@ setlistsRouter.patch('/:id', async (req, res) => {
   res.json(setlist)
 })
 
-setlistsRouter.delete('/:id', async (req, res) => {
+setlistsRouter.delete('/:id', requireAdmin, async (req, res) => {
   const existing = await prisma.setlist.findUnique({ where: { id: req.params.id } })
   if (!existing) {
     res.status(404).json({ error: 'Setlist not found' })
@@ -121,14 +126,11 @@ setlistsRouter.delete('/:id', async (req, res) => {
     remaining = [created]
   }
 
-  const prefs = await prisma.preference.findUnique({ where: { id: 1 } })
-  if (prefs?.lastSetlistId === req.params.id) {
-    await prisma.preference.upsert({
-      where: { id: 1 },
-      create: { id: 1, lastSetlistId: remaining[0].id },
-      update: { lastSetlistId: remaining[0].id },
-    })
-  }
+  // Every account pointing at the deleted setlist moves to the next one.
+  await prisma.preference.updateMany({
+    where: { lastSetlistId: req.params.id },
+    data: { lastSetlistId: remaining[0].id },
+  })
 
   res.json({ ok: true, nextId: remaining[0].id })
 })

@@ -8,6 +8,7 @@ import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useOpenEditor, usePrefetchSong, useSongs } from '../hooks/useQueries.ts'
 import { Btn, KeyBadge, Spinner } from './ui.tsx'
 import { AddToSetlistModal } from './AddToSetlistModal.tsx'
+import { useIsAdmin } from '../hooks/useAuth.ts'
 
 type Row =
   | { type: 'header'; id: string; artist: string; count: number }
@@ -30,6 +31,7 @@ export function LibraryView({
   const [addError, setAddError] = useState<string | null>(null)
   const [addingIds, setAddingIds] = useState<Set<string>>(() => new Set())
   const { deleteSong } = useMutations()
+  const isAdmin = useIsAdmin()
   const { data: songs = [], isLoading } = useSongs({ search, sort })
 
   const inSetlist = useMemo(() => new Set(setlistSongs.map((s) => s.songId)), [setlistSongs])
@@ -89,15 +91,21 @@ export function LibraryView({
     setPendingSong(song)
   }
 
-  const requestDelete = (song: Song) => {
-    askConfirm({
-      title: `Delete ${song.title}?`,
-      message: 'This removes it from the library and every setlist.',
-      danger: true,
-      confirmLabel: 'Delete',
-      onConfirm: () => deleteSong.mutate(song.id),
-    })
-  }
+  // Undefined rather than a no-op, so the row can drop the control instead of
+  // offering a button the server would refuse.
+  // Undefined rather than a no-op, so rows drop the control instead of
+  // offering a button the server would refuse.
+  const requestDelete = !isAdmin
+    ? undefined
+    : (song: Song) => {
+        askConfirm({
+          title: `Delete ${song.title}?`,
+          message: 'This removes it from the library and every setlist.',
+          danger: true,
+          confirmLabel: 'Delete',
+          onConfirm: () => deleteSong.mutate(song.id),
+        })
+      }
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -196,7 +204,7 @@ export function LibraryView({
                       hideArtist={!search && sort === 'artist'}
                       onAdd={() => addToSetlist(row.song)}
                       onEdit={() => openEditor(row.song.id)}
-                      onDelete={() => requestDelete(row.song)}
+                      onDelete={requestDelete ? () => requestDelete(row.song) : undefined}
                     />
                   )}
                 </div>
@@ -226,7 +234,7 @@ export function LibraryView({
               hideArtist={false}
               onAdd={() => addToSetlist(song)}
               onEdit={() => openEditor(song.id)}
-              onDelete={() => requestDelete(song)}
+              onDelete={requestDelete ? () => requestDelete(song) : undefined}
             />
           ))
         )}
@@ -331,7 +339,7 @@ function ArtistGroupCard({
   addingIds: Set<string>
   onAdd: (song: Song) => void
   onEdit: (song: Song) => void
-  onDelete: (song: Song) => void
+  onDelete?: (song: Song) => void
 }) {
   return (
     <section
@@ -353,7 +361,7 @@ function ArtistGroupCard({
             hideArtist
             onAdd={() => onAdd(song)}
             onEdit={() => onEdit(song)}
-            onDelete={() => onDelete(song)}
+            onDelete={onDelete ? () => onDelete(song) : undefined}
           />
         ))}
       </div>
@@ -374,7 +382,7 @@ function LibraryRow({
   hideArtist?: boolean
   onAdd: () => void
   onEdit: () => void
-  onDelete: () => void
+  onDelete?: () => void
 }) {
   const prefetchSong = usePrefetchSong()
   const meta = displaySongMeta(song)
@@ -404,19 +412,21 @@ function LibraryRow({
       <button type="button" className="shrink-0" onClick={onEdit} style={{ color: 'var(--text-secondary)' }} title="Edit song" aria-label="Edit song">
         <Pencil size={14} />
       </button>
-      <button
-        type="button"
-        className="shrink-0"
-        onClick={(e) => {
-          e.stopPropagation()
-          onDelete()
-        }}
-        style={{ color: 'var(--text-secondary)' }}
-        title="Delete song"
-        aria-label="Delete song"
-      >
-        <Trash2 size={14} />
-      </button>
+      {onDelete ? (
+        <button
+          type="button"
+          className="shrink-0"
+          onClick={(e) => {
+            e.stopPropagation()
+            onDelete()
+          }}
+          style={{ color: 'var(--text-secondary)' }}
+          title="Delete song"
+          aria-label="Delete song"
+        >
+          <Trash2 size={14} />
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={(e) => {

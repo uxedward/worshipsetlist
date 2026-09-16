@@ -72,8 +72,26 @@ model SetlistSong {
   @@index([songId])
 }
 
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String       @default("")
+  passwordHash String
+  role         String       @default("user")
+  createdAt    DateTime     @default(now())
+  preference   Preference?
+}
+
+/** Bumping sessionEpoch invalidates every issued session cookie at once. */
+model AuthSetting {
+  id           Int @id
+  sessionEpoch Int @default(1)
+}
+
 model Preference {
-  id                   Int     @id
+  id                   Int     @id @default(autoincrement())
+  userId               String? @unique
+  user                 User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   theme                String  @default("dark")
   presentationFontSize String  @default("medium")
   lastSetlistId        String?

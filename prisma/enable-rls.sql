@@ -1,6 +1,8 @@
 -- Run this in the Supabase SQL editor (SQL → New query).
 -- It closes the public Data API. Setflow keeps working through Prisma.
 
+ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "AuthSetting" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Song" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Section" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Line" ENABLE ROW LEVEL SECURITY;
@@ -10,6 +12,8 @@ ALTER TABLE "Preference" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "CustomBackground" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "BackgroundChunk" ENABLE ROW LEVEL SECURITY;
 
+REVOKE ALL ON TABLE "User" FROM anon, authenticated;
+REVOKE ALL ON TABLE "AuthSetting" FROM anon, authenticated;
 REVOKE ALL ON TABLE "Song" FROM anon, authenticated;
 REVOKE ALL ON TABLE "Section" FROM anon, authenticated;
 REVOKE ALL ON TABLE "Line" FROM anon, authenticated;

@@ -1,9 +1,9 @@
 import { prisma } from './db.ts'
 import { setlistWithSongCharts } from './songInclude.ts'
 
-export async function loadBootstrap() {
+export async function loadBootstrap(userId: string) {
   const [preferencesRow, setlists, songs] = await Promise.all([
-    prisma.preference.findUnique({ where: { id: 1 } }),
+    prisma.preference.findUnique({ where: { userId } }),
     prisma.setlist.findMany({
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       include: setlistWithSongCharts,
@@ -15,7 +15,7 @@ export async function loadBootstrap() {
   let preferences = preferencesRow
   if (!preferences) {
     preferences = await prisma.preference.create({
-      data: { id: 1, theme: 'dark', presentationFontSize: 'medium' },
+      data: { userId, theme: 'dark', presentationFontSize: 'medium' },
     })
   }
   const activeId = preferences.lastSetlistId ?? setlists[0]?.id ?? null

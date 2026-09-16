@@ -10,7 +10,14 @@ import {
   videoHostingStatus,
 } from '../videoHosting.js'
 
+import { requireAdmin, requireAuth } from '../authMiddleware.js'
+
 export const backgroundsRouter = Router()
+
+// Present mode needs to read and stream backgrounds, so any signed-in user can.
+// Adding and removing them is admin-only — /upload mints signed Storage upload
+// URLs, which is not something to hand out broadly.
+backgroundsRouter.use(requireAuth)
 
 function toClient(row: {
   id: string
@@ -71,7 +78,7 @@ backgroundsRouter.get('/', async (_req, res) => {
   }
 })
 
-backgroundsRouter.post('/upload', async (req, res) => {
+backgroundsRouter.post('/upload', requireAdmin, async (req, res) => {
   const id = typeof req.body?.id === 'string' ? req.body.id.trim() : ''
   const filename = typeof req.body?.filename === 'string' ? req.body.filename.trim() : ''
   const chunkIndexRaw = req.body?.chunkIndex
@@ -141,7 +148,7 @@ backgroundsRouter.get('/media/:id', async (req, res) => {
   res.status(404).json({ error: 'Video not found.' })
 })
 
-backgroundsRouter.post('/', async (req, res) => {
+backgroundsRouter.post('/', requireAdmin, async (req, res) => {
   const label = typeof req.body?.label === 'string' ? req.body.label.trim() : ''
   const src = typeof req.body?.src === 'string' ? req.body.src.trim() : ''
   const poster = typeof req.body?.poster === 'string' ? req.body.poster : null
@@ -191,7 +198,7 @@ backgroundsRouter.post('/', async (req, res) => {
   }
 })
 
-backgroundsRouter.delete('/:id', async (req, res) => {
+backgroundsRouter.delete('/:id', requireAdmin, async (req, res) => {
   const id = req.params.id
   try {
     const existing = await prisma.customBackground.findUnique({ where: { id } })

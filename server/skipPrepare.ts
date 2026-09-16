@@ -2,6 +2,8 @@ export function skipDatabasePrepare(method: string | undefined, url: string | un
   const path = (url || '').split('?')[0]
   const verb = (method || 'GET').toUpperCase()
   if (path === '/api/health') return true
+  // Sign-in, first-run setup, and user management all need real tables.
+  if (path === '/api/auth' || path.startsWith('/api/auth/')) return false
   if (path === '/api/backgrounds' || path.startsWith('/api/backgrounds/')) return true
   if (verb !== 'GET' && verb !== 'HEAD') return false
   if (path === '/api/bootstrap' || path === '/api/preferences') return true

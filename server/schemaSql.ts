@@ -94,6 +94,8 @@ export const SCHEMA_STATEMENTS = [
 
 /** Prisma table names in the public schema. PostgREST exposes these without RLS. */
 export const APP_TABLES = [
+  'User',
+  'AuthSetting',
   'Song',
   'Section',
   'Line',

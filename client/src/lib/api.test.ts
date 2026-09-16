@@ -3,9 +3,16 @@ import {
   HEALTH_FAILS_BEFORE_OFFLINE,
   HEALTH_GRACE_MS,
   api,
+  enqueue,
+  flushQueue,
   isOnline,
+  isQueueParked,
+  onAuthLost,
+  pendingCount,
   pingHealth,
+  releaseQueue,
   resetConnectionStateForTests,
+  resetQueueForTests,
 } from './api.ts'
 
 function jsonResponse(body: unknown, status = 200) {
@@ -79,5 +86,88 @@ describe('pingHealth', () => {
     vi.mocked(fetch).mockRejectedValueOnce(new TypeError('Failed to fetch'))
     await expect(pingHealth()).resolves.toBe(false)
     expect(isOnline()).toBe(false)
+  })
+})
+
+describe('offline queue under authentication', () => {
+  beforeEach(() => {
+    resetConnectionStateForTests()
+    resetQueueForTests()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    resetConnectionStateForTests()
+    resetQueueForTests()
+  })
+
+  it('parks the queue on a 401 rather than spinning on the same item', async () => {
+    const onLost = vi.fn()
+    const stop = onAuthLost(onLost)
+    enqueue({ path: '/api/songs', method: 'GET' })
+    enqueue({ path: '/api/setlists', method: 'GET' })
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ error: 'Sign in to continue.' }, 401)),
+    )
+
+    await flushQueue()
+
+    // The failing item is still first in line, and nothing behind it was tried.
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(pendingCount()).toBe(2)
+    expect(isQueueParked()).toBe(true)
+    expect(onLost).toHaveBeenCalled()
+
+    // A parked queue stays parked until a sign-in releases it.
+    await flushQueue()
+    expect(fetch).toHaveBeenCalledTimes(1)
+
+    releaseQueue()
+    vi.mocked(fetch).mockResolvedValue(jsonResponse({ ok: true }, 200) as never)
+    await flushQueue()
+    expect(pendingCount()).toBe(0)
+    stop()
+  })
+
+  it('drops a queued call this account may never make, instead of replaying it', async () => {
+    enqueue({ path: '/api/songs/abc', method: 'GET' })
+    enqueue({ path: '/api/setlists', method: 'GET' })
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ error: 'admins only' }, 403))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }, 200))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await flushQueue()
+
+    expect(pendingCount()).toBe(0)
+    expect(isQueueParked()).toBe(false)
+  })
+
+  it('reports a lost session from an ordinary call', async () => {
+    const onLost = vi.fn()
+    const stop = onAuthLost(onLost)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ error: 'Sign in to continue.' }, 401)),
+    )
+    await expect(api('/api/bootstrap')).rejects.toThrow()
+    expect(onLost).toHaveBeenCalledTimes(1)
+    stop()
+  })
+
+  it('does not report a lost session for a failed sign-in attempt', async () => {
+    const onLost = vi.fn()
+    const stop = onAuthLost(onLost)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => jsonResponse({ error: 'That email and password do not match.' }, 401)),
+    )
+    await expect(
+      api('/api/auth/login', { method: 'POST', json: {}, skipAuthNotify: true }),
+    ).rejects.toThrow()
+    expect(onLost).not.toHaveBeenCalled()
+    stop()
   })
 })

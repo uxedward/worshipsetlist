@@ -3,6 +3,8 @@ import { lazy, Suspense, useEffect, useRef } from 'react'
 import { useAppStore } from './store/useAppStore.ts'
 import { useMutations, usePreferences, useSetlist, useSetlists, useSongs, useBootstrap } from './hooks/useQueries.ts'
 import { useOfflineSync } from './hooks/useOfflineSync.ts'
+import { useAuthState } from './hooks/useAuth.ts'
+import { AuthScreen } from './components/AuthScreen.tsx'
 import { AppShell } from './components/AppShell.tsx'
 import { BootSplash } from './components/BootSplash.tsx'
 import { SetlistContextMenu } from './components/SetlistContextMenu.tsx'
@@ -43,9 +45,21 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppInner />
+      <AuthGate />
     </QueryClientProvider>
   )
+}
+
+/**
+ * Nothing below this renders without a session, so the app never briefly shows
+ * a library the viewer is not signed in for.
+ */
+function AuthGate() {
+  const auth = useAuthState()
+
+  if (auth.isPending) return <BootSplash />
+  if (!auth.data?.user) return <AuthScreen needsSetup={Boolean(auth.data?.needsSetup)} />
+  return <AppInner />
 }
 
 function AppInner() {

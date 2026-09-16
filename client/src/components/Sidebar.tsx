@@ -4,6 +4,7 @@ import { formatDate } from '@shared/duration.ts'
 import { cn } from '../lib/cn.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import { SaveStatusDot, SetlistThumb, ThemeToggle } from './ui.tsx'
+import { AccountMenu } from './AccountMenu.tsx'
 import { useMutations } from '../hooks/useQueries.ts'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -184,6 +185,8 @@ export function Sidebar({
         <Library size={16} />
         Song library · {songCount} {songCount === 1 ? 'song' : 'songs'}
       </button>
+
+      <AccountMenu />
     </aside>
   )
 }

@@ -13,6 +13,8 @@ describe('SCHEMA_STATEMENTS', () => {
 
   it('enables row level security so the Supabase Data API cannot read or write the library', () => {
     expect(APP_TABLES).toEqual([
+      'User',
+      'AuthSetting',
       'Song',
       'Section',
       'Line',
@@ -23,6 +25,10 @@ describe('SCHEMA_STATEMENTS', () => {
       'BackgroundChunk',
     ])
     expect(RLS_STATEMENTS).toContain('ALTER TABLE "Song" ENABLE ROW LEVEL SECURITY')
+    // Password hashes must never be reachable through the public Data API.
+    expect(RLS_STATEMENTS).toContain('ALTER TABLE "User" ENABLE ROW LEVEL SECURITY')
+    expect(REVOKE_PUBLIC_ACCESS_STATEMENTS).toContain('REVOKE ALL ON TABLE "User" FROM anon')
+    expect(REVOKE_PUBLIC_ACCESS_STATEMENTS).toContain('REVOKE ALL ON TABLE "User" FROM authenticated')
     expect(RLS_STATEMENTS).toContain('ALTER TABLE "CustomBackground" ENABLE ROW LEVEL SECURITY')
     expect(REVOKE_PUBLIC_ACCESS_STATEMENTS).toContain('REVOKE ALL ON TABLE "Song" FROM anon')
     expect(REVOKE_PUBLIC_ACCESS_STATEMENTS).toContain('REVOKE ALL ON TABLE "Song" FROM authenticated')

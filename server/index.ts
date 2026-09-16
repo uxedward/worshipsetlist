@@ -1,6 +1,7 @@
 import express from 'express'
 import cors from 'cors'
 import type { IncomingMessage } from 'node:http'
+import { authRouter } from './routes/auth.js'
 import { songsRouter } from './routes/songs.js'
 import { setlistsRouter } from './routes/setlists.js'
 import { preferencesRouter } from './routes/preferences.js'
@@ -11,6 +12,8 @@ import { loadBootstrap } from './bootstrap.js'
 import { readRequestBuffer, saveBackgroundChunk } from './backgroundMedia.js'
 import { needsDatabasePrepare, skipDatabasePrepare } from './skipPrepare.js'
 import { videoHostingStatus } from './videoHosting.js'
+import { attachUser, requireAdmin, requireAuth } from './authMiddleware.js'
+import { hasStrongSessionSecret } from './auth.js'
 
 export const app = express()
 
@@ -39,9 +42,12 @@ app.use((req, _res, next) => {
   next()
 })
 
+// Cookies only travel same-origin here, so credentialed cross-origin calls
+// stay off by design.
 app.use(cors())
+app.use(attachUser)
 
-app.put('/api/backgrounds/media/:id', async (req, res) => {
+app.put('/api/backgrounds/media/:id', attachUser, requireAdmin, async (req, res) => {
   const filename = typeof req.query.name === 'string' ? req.query.name : `${req.params.id}.mp4`
   const mimeType = typeof req.query.type === 'string' ? req.query.type : undefined
   const chunk = Number(typeof req.query.chunk === 'string' ? req.query.chunk : 0)
@@ -85,6 +91,8 @@ app.use(async (req, _res, next) => {
   next()
 })
 
+app.use('/api/auth', authRouter)
+
 app.get('/api/health', async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`
@@ -105,6 +113,7 @@ app.get('/api/health', async (_req, res) => {
       vendor: databaseVendor(process.env.DATABASE_URL || ''),
       customBackgrounds,
       customBackgroundReady,
+      sessionSecretConfigured: hasStrongSessionSecret(),
       ...videoHostingStatus(),
     })
   } catch (err) {
@@ -116,15 +125,16 @@ app.get('/api/health', async (_req, res) => {
   }
 })
 
-app.get('/api/bootstrap', async (_req, res) => {
+app.get('/api/bootstrap', requireAuth, async (req, res) => {
+  const userId = req.user!.id
   try {
     try {
-      res.json(await loadBootstrap())
+      res.json(await loadBootstrap(userId))
       return
     } catch (err) {
       if (!needsDatabasePrepare(err)) throw err
       await prepareDatabase()
-      res.json(await loadBootstrap())
+      res.json(await loadBootstrap(userId))
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

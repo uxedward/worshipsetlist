@@ -102,6 +102,26 @@ export function rememberDeletedSetlist(id: string) {
   })
 }
 
+/**
+ * Undoes a local delete the server then refused. Without this a user without
+ * permission would see the row vanish and quietly reappear on the next read.
+ */
+export function forgetDeletedSetlist(id: string) {
+  write((state) => {
+    state.deletedSetlistIds = state.deletedSetlistIds.filter((x) => x !== id)
+  })
+}
+
+export function forgetDeletedSong(id: string, fromSetlistIds: string[] = []) {
+  write((state) => {
+    state.deletedSongIds = state.deletedSongIds.filter((x) => x !== id)
+    for (const setlistId of fromSetlistIds) {
+      const edit = state.edits[setlistId]
+      if (edit) edit.removedSongIds = edit.removedSongIds.filter((x) => x !== id)
+    }
+  })
+}
+
 export function rememberSong(song: Song) {
   write((state) => {
     state.deletedSongIds = state.deletedSongIds.filter((id) => id !== song.id)
