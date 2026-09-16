@@ -374,8 +374,6 @@ authRouter.delete('/users/:id', requireAdmin, async (req, res) => {
     return
   }
   await prisma.setlist.deleteMany({ where: { userId: row.id } })
-  await prisma.setlistSong.deleteMany({ where: { song: { userId: row.id } } })
-  await prisma.song.deleteMany({ where: { userId: row.id } })
   await prisma.user.delete({ where: { id: row.id } })
   await bumpSessionEpoch()
   await reissueActingAdmin(req, res)

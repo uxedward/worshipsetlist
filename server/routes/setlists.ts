@@ -185,7 +185,7 @@ setlistsRouter.post('/:id/songs', async (req, res) => {
     return
   }
   const songId = String(req.body?.songId ?? '')
-  const song = await prisma.song.findFirst({ where: { id: songId, ...ownedBy(userId) } })
+  const song = await prisma.song.findUnique({ where: { id: songId } })
   if (!song) {
     res.status(404).json({ error: 'Song not found' })
     return

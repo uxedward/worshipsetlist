@@ -5,6 +5,8 @@ import {
 } from '@tanstack/react-query'
 import { useLayoutEffect } from 'react'
 import { ApiError, endpoints, flushQueue, pingHealth } from '../lib/api.ts'
+import { readAuthCache } from '../lib/authCache.ts'
+import { useIsAdmin } from './useAuth.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import type { Preference, Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
 import {
@@ -219,7 +221,9 @@ export function usePrefetchSong() {
 export function useOpenEditor() {
   const openEditor = useAppStore((s) => s.openEditor)
   const prefetch = usePrefetchSong()
+  const isAdmin = useIsAdmin()
   return (id: string | null) => {
+    if (!isAdmin) return
     prefetch(id)
     void import('../components/SongEditor.tsx')
     openEditor(id)
@@ -559,6 +563,7 @@ export function useMutations() {
         upsertSongInCaches(qc, created)
         return created
       } catch (err) {
+        if (isPermissionError(err)) throw err
         const local = songFromInput(body)
         rememberSong(local)
         upsertSongInCaches(qc, local)
@@ -573,6 +578,7 @@ export function useMutations() {
         upsertSongInCaches(qc, updated)
         return updated
       } catch (err) {
+        if (isPermissionError(err)) throw err
         const current = findSongInCache(qc, v.id)
         const local = { ...(current ?? { id: v.id }), ...v.body } as Song
         rememberSong(local)
@@ -634,7 +640,8 @@ export function useMutations() {
             created.push(song)
             existing.push(song)
             continue
-          } catch {
+          } catch (err) {
+            if (isPermissionError(err)) throw err
             remote = false
           }
         }
@@ -669,6 +676,7 @@ export function optimisticSetlistSongs(
 }
 
 export async function flushLocalSongsToDatabase() {
+  if (readAuthCache()?.user?.role === 'user') return
   const pending = extraSongs()
   if (pending.length === 0) return
   const res = await endpoints.syncLocalSongs(pending.map(songToInput))

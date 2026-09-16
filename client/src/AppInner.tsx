@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
 import { useAppStore } from './store/useAppStore.ts'
 import { useMutations, usePreferences, useSetlist, useSetlists, useSongs, useBootstrap } from './hooks/useQueries.ts'
+import { useIsAdmin } from './hooks/useAuth.ts'
 import { useOfflineSync } from './hooks/useOfflineSync.ts'
 import { AppShell } from './components/AppShell.tsx'
 import { BootSplash } from './components/BootSplash.tsx'
@@ -50,6 +51,7 @@ export function AppInner() {
   const bulkImportOpen = useAppStore((s) => s.bulkImportOpen)
   const exportOpen = useAppStore((s) => s.exportOpen)
   const settingsPageOpen = useAppStore((s) => s.settingsPageOpen)
+  const isAdmin = useIsAdmin()
   const activeSsId = useAppStore((s) => s.activeSetlistSongId)
   const setElapsed = useAppStore((s) => s.setElapsed)
   const setPlaying = useAppStore((s) => s.setPlaying)
@@ -178,11 +180,11 @@ export function AppInner() {
         songCount={songsQuery.data?.length ?? boot.data?.songs.length ?? 0}
       />
       <Suspense fallback={null}>
-        {editorOpen ? <SongEditor /> : null}
+        {isAdmin && editorOpen ? <SongEditor /> : null}
         {addPickerOpen ? <AddSongPicker /> : null}
         {presentationOpen ? <PresentationOverlay songs={setlistSongs} /> : null}
         {setlistModalId ? <SetlistEditModal setlists={setlists.data ?? boot.data?.setlists ?? []} /> : null}
-        {bulkImportOpen ? <BulkImportModal /> : null}
+        {isAdmin && bulkImportOpen ? <BulkImportModal /> : null}
         {exportOpen ? (
           <ExportModal setlistName={setlist?.name ?? 'Setlist'} songs={setlistSongs} />
         ) : null}

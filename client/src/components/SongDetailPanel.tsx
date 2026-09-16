@@ -11,6 +11,7 @@ import { Btn, KeyBadge, Pill } from './ui.tsx'
 import { ChordChart } from './ChordChart.tsx'
 import { displaySections } from '@shared/presentationSlides.ts'
 import { cn } from '../lib/cn.ts'
+import { useIsAdmin } from '../hooks/useAuth.ts'
 
 export function SongDetailPanel({
   setlistSong,
@@ -31,6 +32,7 @@ export function SongDetailPanel({
   const sectionIndex = useAppStore((s) => s.activeSectionIndex)
   const setSection = useAppStore((s) => s.setActiveSectionIndex)
   const { patchSetlistSong, deleteSong } = useMutations()
+  const isAdmin = useIsAdmin()
   const setlistId = setlistSong?.setlistId
   const qc = useQueryClient()
 
@@ -76,33 +78,37 @@ export function SongDetailPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="truncate text-title">{song.title}</h2>
-            <button
-              type="button"
-              onPointerEnter={() => prefetchSong(song.id)}
-              onClick={() => openEditor(song.id)}
-              aria-label="Edit song"
-              title="Edit song"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              <Pencil size={14} />
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                askConfirm({
-                  title: `Delete ${song.title}?`,
-                  message: 'This removes it from the library and every setlist.',
-                  danger: true,
-                  confirmLabel: 'Delete',
-                  onConfirm: () => deleteSong.mutate(song.id),
-                })
-              }}
-              aria-label="Delete song"
-              title="Delete song"
-              style={{ color: 'var(--text-secondary)' }}
-            >
-              <Trash2 size={14} />
-            </button>
+            {isAdmin ? (
+              <button
+                type="button"
+                onPointerEnter={() => prefetchSong(song.id)}
+                onClick={() => openEditor(song.id)}
+                aria-label="Edit song"
+                title="Edit song"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <Pencil size={14} />
+              </button>
+            ) : null}
+            {isAdmin ? (
+              <button
+                type="button"
+                onClick={() => {
+                  askConfirm({
+                    title: `Delete ${song.title}?`,
+                    message: 'This removes it from the library and every setlist.',
+                    danger: true,
+                    confirmLabel: 'Delete',
+                    onConfirm: () => deleteSong.mutate(song.id),
+                  })
+                }}
+                aria-label="Delete song"
+                title="Delete song"
+                style={{ color: 'var(--text-secondary)' }}
+              >
+                <Trash2 size={14} />
+              </button>
+            ) : null}
           </div>
           <div className="text-[12px]" style={{ color: 'var(--text-secondary)' }}>
             {song.artist}

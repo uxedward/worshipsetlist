@@ -8,6 +8,7 @@ import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useOpenEditor, usePrefetchSong, useSongs } from '../hooks/useQueries.ts'
 import { Btn, KeyBadge, Spinner } from './ui.tsx'
 import { AddToSetlistModal } from './AddToSetlistModal.tsx'
+import { useIsAdmin } from '../hooks/useAuth.ts'
 
 type Row =
   | { type: 'header'; id: string; artist: string; count: number }
@@ -30,6 +31,7 @@ export function LibraryView({
   const [addError, setAddError] = useState<string | null>(null)
   const [addingIds, setAddingIds] = useState<Set<string>>(() => new Set())
   const { deleteSong } = useMutations()
+  const isAdmin = useIsAdmin()
   const { data: songs = [], isLoading } = useSongs({ search, sort })
 
   const inSetlist = useMemo(() => new Set(setlistSongs.map((s) => s.songId)), [setlistSongs])
@@ -89,15 +91,19 @@ export function LibraryView({
     setPendingSong(song)
   }
 
-  const requestDelete = (song: Song) => {
-    askConfirm({
-      title: `Delete ${song.title}?`,
-      message: 'This removes it from the library and every setlist.',
-      danger: true,
-      confirmLabel: 'Delete',
-      onConfirm: () => deleteSong.mutate(song.id),
-    })
-  }
+  const requestDelete = !isAdmin
+    ? undefined
+    : (song: Song) => {
+        askConfirm({
+          title: `Delete ${song.title}?`,
+          message: 'This removes it from the library and every setlist.',
+          danger: true,
+          confirmLabel: 'Delete',
+          onConfirm: () => deleteSong.mutate(song.id),
+        })
+      }
+
+  const requestEdit = isAdmin ? (song: Song) => openEditor(song.id) : undefined
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -114,12 +120,16 @@ export function LibraryView({
           >
             Export
           </Btn>
-          <Btn onClick={() => setBulkImportOpen(true)}>
-            Spotify / Import
-          </Btn>
-          <Btn accent onClick={() => openEditor(null)}>
-            <Plus size={14} /> New song
-          </Btn>
+          {isAdmin ? (
+            <>
+              <Btn onClick={() => setBulkImportOpen(true)}>
+                Spotify / Import
+              </Btn>
+              <Btn accent onClick={() => openEditor(null)}>
+                <Plus size={14} /> New song
+              </Btn>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -166,9 +176,11 @@ export function LibraryView({
           </div>
         ) : grouped.length === 0 ? (
           <div className="px-4 py-12 text-center">
-            <p className="text-heading">Add your first song</p>
+            <p className="text-heading">{isAdmin ? 'Add your first song' : 'No songs yet'}</p>
             <p className="mt-2 text-body" style={{ color: 'var(--text-muted)' }}>
-              Import a public Spotify playlist or create a chart.
+              {isAdmin
+                ? 'Import a public Spotify playlist or create a chart.'
+                : 'The song library fills in when an admin adds charts.'}
             </p>
           </div>
         ) : useVirtual ? (
@@ -195,7 +207,7 @@ export function LibraryView({
                       adding={addingIds.has(row.song.id)}
                       hideArtist={!search && sort === 'artist'}
                       onAdd={() => addToSetlist(row.song)}
-                      onEdit={() => openEditor(row.song.id)}
+                      onEdit={requestEdit ? () => requestEdit(row.song) : undefined}
                       onDelete={requestDelete ? () => requestDelete(row.song) : undefined}
                     />
                   )}
@@ -212,7 +224,7 @@ export function LibraryView({
                 songs={group.songs}
                 addingIds={addingIds}
                 onAdd={addToSetlist}
-                onEdit={(song) => openEditor(song.id)}
+                onEdit={requestEdit}
                 onDelete={requestDelete}
               />
             ))}
@@ -225,7 +237,7 @@ export function LibraryView({
               adding={addingIds.has(song.id)}
               hideArtist={false}
               onAdd={() => addToSetlist(song)}
-              onEdit={() => openEditor(song.id)}
+              onEdit={requestEdit ? () => requestEdit(song) : undefined}
               onDelete={requestDelete ? () => requestDelete(song) : undefined}
             />
           ))
@@ -330,7 +342,7 @@ function ArtistGroupCard({
   songs: Song[]
   addingIds: Set<string>
   onAdd: (song: Song) => void
-  onEdit: (song: Song) => void
+  onEdit?: (song: Song) => void
   onDelete?: (song: Song) => void
 }) {
   return (
@@ -352,7 +364,7 @@ function ArtistGroupCard({
             adding={addingIds.has(song.id)}
             hideArtist
             onAdd={() => onAdd(song)}
-            onEdit={() => onEdit(song)}
+            onEdit={onEdit ? () => onEdit(song) : undefined}
             onDelete={onDelete ? () => onDelete(song) : undefined}
           />
         ))}
@@ -373,7 +385,7 @@ function LibraryRow({
   adding?: boolean
   hideArtist?: boolean
   onAdd: () => void
-  onEdit: () => void
+  onEdit?: () => void
   onDelete?: () => void
 }) {
   const prefetchSong = usePrefetchSong()
@@ -401,9 +413,11 @@ function LibraryRow({
       >
         {meta.tag}
       </span>
-      <button type="button" className="shrink-0" onClick={onEdit} style={{ color: 'var(--text-secondary)' }} title="Edit song" aria-label="Edit song">
-        <Pencil size={14} />
-      </button>
+      {onEdit ? (
+        <button type="button" className="shrink-0" onClick={onEdit} style={{ color: 'var(--text-secondary)' }} title="Edit song" aria-label="Edit song">
+          <Pencil size={14} />
+        </button>
+      ) : null}
       {onDelete ? (
         <button
           type="button"

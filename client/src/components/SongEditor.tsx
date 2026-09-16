@@ -10,6 +10,7 @@ import { useMutations, useSong } from '../hooks/useQueries.ts'
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback.ts'
 import { Btn, Field, Spinner, inputClass, inputStyle } from './ui.tsx'
 import { ChordChart } from './ChordChart.tsx'
+import { useIsAdmin } from '../hooks/useAuth.ts'
 
 const PLACEHOLDER = `Verse 1
 G              D
@@ -38,6 +39,7 @@ export function SongEditor() {
   const askConfirm = useAppStore((s) => s.askConfirm)
   const { data: existing, isLoading: songLoading } = useSong(songId)
   const { createSong, patchSong, deleteSong } = useMutations()
+  const isAdmin = useIsAdmin()
 
   const [form, setForm] = useState(emptyForm)
   const [baseline, setBaseline] = useState(emptyForm)
@@ -45,6 +47,10 @@ export function SongEditor() {
   const [tried, setTried] = useState(false)
   const [keyLocked, setKeyLocked] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (open && !isAdmin) closeEditor()
+  }, [open, isAdmin, closeEditor])
 
   useEffect(() => {
     if (!open) return
