@@ -17,11 +17,10 @@ export function resetSessionEpochCache() {
 export async function currentSessionEpoch(): Promise<number | null> {
   if (cached && Date.now() - cached.readAt < CACHE_MS) return cached.value
   try {
-    const row = await prisma.authSetting.upsert({
-      where: { id: 1 },
-      create: { id: 1, sessionEpoch: 1 },
-      update: {},
-    })
+    // Read-only on the hot path. An upsert here used to write AuthSetting on
+    // every request, including sign-in, and hung when the table was missing.
+    const row = await prisma.authSetting.findUnique({ where: { id: 1 } })
+    if (!row) return cached?.value ?? null
     cached = { value: row.sessionEpoch, readAt: Date.now() }
     return row.sessionEpoch
   } catch {
@@ -33,7 +32,17 @@ export async function currentSessionEpoch(): Promise<number | null> {
 
 /** The epoch to stamp on a new cookie. Writing one is worth a real read. */
 export async function issuingSessionEpoch(): Promise<number> {
-  return (await currentSessionEpoch()) ?? 1
+  try {
+    const row = await prisma.authSetting.upsert({
+      where: { id: 1 },
+      create: { id: 1, sessionEpoch: 1 },
+      update: {},
+    })
+    cached = { value: row.sessionEpoch, readAt: Date.now() }
+    return row.sessionEpoch
+  } catch {
+    return (await currentSessionEpoch()) ?? 1
+  }
 }
 
 /** Invalidates every issued cookie. Used when a user is removed or demoted. */

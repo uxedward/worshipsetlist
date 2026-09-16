@@ -4,6 +4,7 @@ import {
   createSessionToken,
   emailProblem,
   hashPassword,
+  nameProblem,
   hasStrongSessionSecret,
   normalizeEmail,
   parseCookies,
@@ -49,6 +50,14 @@ describe('emails', () => {
   it('flags an address that is not usable', () => {
     expect(emailProblem('nope')).toBeTruthy()
     expect(emailProblem('lead@church.org')).toBeNull()
+  })
+})
+
+describe('names', () => {
+  it('requires a real name on first-run setup', () => {
+    expect(nameProblem('')).toMatch(/required/)
+    expect(nameProblem('   ')).toMatch(/required/)
+    expect(nameProblem('Jordan')).toBeNull()
   })
 })
 

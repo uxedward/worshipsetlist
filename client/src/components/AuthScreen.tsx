@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { Loader2, Music4 } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Music4 } from 'lucide-react'
 import {
   useCompleteReset,
   useLogin,
@@ -29,14 +29,19 @@ export function AuthScreen({
   needsSetup,
   resetToken,
   onResetDone,
+  checking,
+  loadError,
 }: {
   needsSetup: boolean
   resetToken: string | null
   onResetDone: () => void
+  checking?: boolean
+  loadError?: string | null
 }) {
   if (resetToken) return <ResetPasswordPanel token={resetToken} onDone={onResetDone} />
+  if (checking) return <CheckingPanel />
   if (needsSetup) return <CreateAdminPanel />
-  return <SignInPanel />
+  return <SignInPanel loadError={loadError} />
 }
 
 /* ------------------------------------------------------------------- shell */
@@ -109,6 +114,61 @@ function SubmitButton({ busy, children }: { busy: boolean; children: ReactNode }
   )
 }
 
+function PasswordField({
+  label,
+  value,
+  onChange,
+  autoComplete,
+  placeholder,
+  autoFocus,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  autoComplete: string
+  placeholder?: string
+  autoFocus?: boolean
+}) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <Field label={label}>
+      <div className="relative">
+        <input
+          className={inputClass}
+          style={{ ...inputStyle, paddingRight: 40 }}
+          type={visible ? 'text' : 'password'}
+          required
+          autoComplete={autoComplete}
+          autoFocus={autoFocus}
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button
+          type="button"
+          className="absolute inset-y-0 right-0 flex w-10 items-center justify-center"
+          onClick={() => setVisible((v) => !v)}
+          aria-label={visible ? 'Hide password' : 'Show password'}
+          style={{ color: 'var(--text-muted)' }}
+        >
+          {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+        </button>
+      </div>
+    </Field>
+  )
+}
+
+function CheckingPanel() {
+  return (
+    <AuthShell title="Welcome to Setflow" blurb="Getting your sign-in ready.">
+      <div className="flex items-center gap-2 text-body" style={{ color: 'var(--text-secondary)' }}>
+        <Loader2 size={16} className="animate-spin" />
+        Almost there
+      </div>
+    </AuthShell>
+  )
+}
+
 /* --------------------------------------------------------- first run: admin */
 
 function CreateAdminPanel() {
@@ -121,17 +181,21 @@ function CreateAdminPanel() {
 
   function onSubmit(event: FormEvent) {
     event.preventDefault()
+    if (!name.trim()) {
+      setLocalError('A name is required.')
+      return
+    }
     const problem = newPasswordProblem(password, confirm)
     setLocalError(problem)
     if (problem) return
-    setup.mutate({ email, password, name: name.trim() || undefined })
+    setup.mutate({ email, password, name: name.trim() })
   }
 
   return (
     <AuthShell
       title="Create your admin account"
-      blurb="This is the first account, so it gets full control: songs, setlists, Present backgrounds, and everyone else's access."
-      footer="You will add the rest of your team after this."
+      blurb="You're first, so this account runs the library, Present, and who else can sign in. It only takes a few seconds."
+      footer="Add the rest of the team from Settings → Accounts. They get a link to choose their own password."
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <Field label="Your name">
@@ -139,10 +203,11 @@ function CreateAdminPanel() {
             className={inputClass}
             style={inputStyle}
             autoFocus
+            required
             autoComplete="name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Worship Leader"
+            placeholder="Jordan"
           />
         </Field>
         <Field label="Email">
@@ -156,29 +221,19 @@ function CreateAdminPanel() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </Field>
-        <Field label="Password">
-          <input
-            className={inputClass}
-            style={inputStyle}
-            type="password"
-            required
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={`At least ${MIN_PASSWORD} characters`}
-          />
-        </Field>
-        <Field label="Confirm password">
-          <input
-            className={inputClass}
-            style={inputStyle}
-            type="password"
-            required
-            autoComplete="new-password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-          />
-        </Field>
+        <PasswordField
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="new-password"
+          placeholder={`At least ${MIN_PASSWORD} characters`}
+        />
+        <PasswordField
+          label="Confirm password"
+          value={confirm}
+          onChange={setConfirm}
+          autoComplete="new-password"
+        />
         <ErrorNote>{localError ?? (setup.error ? message(setup.error, 'Could not create that account.') : null)}</ErrorNote>
         <SubmitButton busy={setup.isPending}>Create admin account</SubmitButton>
       </form>
@@ -188,7 +243,7 @@ function CreateAdminPanel() {
 
 /* ----------------------------------------------------------------- sign in */
 
-function SignInPanel() {
+function SignInPanel({ loadError }: { loadError?: string | null }) {
   const login = useLogin()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -201,7 +256,7 @@ function SignInPanel() {
       footer={
         showHelp ? (
           <span>
-            Ask an admin to open <strong>Settings → Accounts</strong> and send you a reset link. Links last 24 hours.
+            Ask an admin to open <strong>Settings → Accounts</strong> and send you a link. Links last 24 hours.
           </span>
         ) : (
           <button type="button" onClick={() => setShowHelp(true)} style={{ color: 'var(--accent)' }}>
@@ -229,18 +284,15 @@ function SignInPanel() {
             onChange={(e) => setEmail(e.target.value)}
           />
         </Field>
-        <Field label="Password">
-          <input
-            className={inputClass}
-            style={inputStyle}
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </Field>
-        <ErrorNote>{login.error ? message(login.error, 'Could not sign you in.') : null}</ErrorNote>
+        <PasswordField
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="current-password"
+        />
+        <ErrorNote>
+          {login.error ? message(login.error, 'Could not sign you in.') : loadError ?? null}
+        </ErrorNote>
         <SubmitButton busy={login.isPending}>Sign in</SubmitButton>
       </form>
     </AuthShell>
@@ -258,7 +310,7 @@ function ResetPasswordPanel({ token, onDone }: { token: string; onDone: () => vo
 
   if (check.isPending) {
     return (
-      <AuthShell title="Checking your link" blurb="One moment.">
+      <AuthShell title="Checking your link" blurb="This should only take a moment.">
         <Loader2 size={16} className="animate-spin" />
       </AuthShell>
     )
@@ -286,7 +338,10 @@ function ResetPasswordPanel({ token, onDone }: { token: string; onDone: () => vo
   }
 
   return (
-    <AuthShell title="Choose a new password" blurb={`Signing back in as ${check.data?.email}.`}>
+    <AuthShell
+      title="Set your password"
+      blurb={`This is how you'll sign in as ${check.data?.email}.`}
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault()
@@ -297,34 +352,24 @@ function ResetPasswordPanel({ token, onDone }: { token: string; onDone: () => vo
         }}
         className="flex flex-col gap-4"
       >
-        <Field label="New password">
-          <input
-            className={inputClass}
-            style={inputStyle}
-            type="password"
-            required
-            autoFocus
-            autoComplete="new-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={`At least ${MIN_PASSWORD} characters`}
-          />
-        </Field>
-        <Field label="Confirm new password">
-          <input
-            className={inputClass}
-            style={inputStyle}
-            type="password"
-            required
-            autoComplete="new-password"
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-          />
-        </Field>
+        <PasswordField
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="new-password"
+          autoFocus
+          placeholder={`At least ${MIN_PASSWORD} characters`}
+        />
+        <PasswordField
+          label="Confirm password"
+          value={confirm}
+          onChange={setConfirm}
+          autoComplete="new-password"
+        />
         <ErrorNote>
           {localError ?? (complete.error ? message(complete.error, 'Could not set that password.') : null)}
         </ErrorNote>
-        <SubmitButton busy={complete.isPending}>Set password and sign in</SubmitButton>
+        <SubmitButton busy={complete.isPending}>Save and sign in</SubmitButton>
       </form>
     </AuthShell>
   )

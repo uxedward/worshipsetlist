@@ -61,16 +61,32 @@ let authSchemaReady = false
 
 export async function ensureAuthSchema() {
   if (authSchemaReady) return
-  for (const statement of AUTH_SCHEMA_STATEMENTS) {
+  let timedOut = false
+  try {
+    await prisma.$executeRawUnsafe(`SET statement_timeout = '4000'`)
+    await prisma.$executeRawUnsafe(`SET lock_timeout = '1000'`)
+    for (const statement of AUTH_SCHEMA_STATEMENTS) {
+      try {
+        await prisma.$executeRawUnsafe(statement)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        if (/already exists|duplicate|does not exist/i.test(message)) continue
+        if (/timeout|lock/i.test(message)) {
+          timedOut = true
+          continue
+        }
+        throw err
+      }
+    }
+    if (!timedOut) authSchemaReady = true
+  } finally {
     try {
-      await prisma.$executeRawUnsafe(statement)
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      if (/already exists|duplicate|does not exist/i.test(message)) continue
-      throw err
+      await prisma.$executeRawUnsafe(`SET statement_timeout = '0'`)
+      await prisma.$executeRawUnsafe(`SET lock_timeout = '0'`)
+    } catch {
+      /* keep serving even if timeouts cannot be reset */
     }
   }
-  authSchemaReady = true
 }
 
 const SAFE_TABLE = /^[A-Za-z_][A-Za-z0-9_]*$/

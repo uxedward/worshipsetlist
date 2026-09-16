@@ -63,11 +63,14 @@ function AuthGate() {
   // they own the account, and they may be on a shared tablet.
   const [resetToken, setResetToken] = useState(resetTokenFromUrl)
 
-  if (auth.isPending) return <BootSplash />
   if (resetToken || !auth.data?.user) {
+    // Paint the sign-in / first-run screen immediately. Waiting on
+    // /api/auth/state used to hold a full-app splash until that call returned.
     return (
       <AuthScreen
         needsSetup={Boolean(auth.data?.needsSetup)}
+        checking={auth.isPending && !auth.data && !resetToken}
+        loadError={auth.isError ? 'Could not reach Setflow. You can still try signing in.' : null}
         resetToken={resetToken}
         onResetDone={() => setResetToken(null)}
       />
