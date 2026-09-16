@@ -12,6 +12,13 @@ import {
   type SessionUser,
 } from '../auth.js'
 import { requireAdmin, requireAuth } from '../authMiddleware.js'
+import {
+  createResetToken,
+  hashResetToken,
+  requestOrigin,
+  resetLinkFor,
+  resetTokenProblem,
+} from '../passwordReset.js'
 import { bumpSessionEpoch, issuingSessionEpoch } from '../sessionEpoch.js'
 
 export const authRouter = Router()
@@ -96,6 +103,23 @@ authRouter.post('/logout', (req, res) => {
   res.json({ ok: true })
 })
 
+authRouter.patch('/me', requireAuth, async (req, res) => {
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : ''
+  if (!name) {
+    res.status(400).json({ error: 'A name is required.' })
+    return
+  }
+  const updated = await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { name },
+    select: publicUser,
+  })
+  const user = toSessionUser(updated)
+  // The name rides in the cookie, so refresh it rather than wait for expiry.
+  setSessionCookie(req, res, user, await issuingSessionEpoch())
+  res.json({ user })
+})
+
 authRouter.post('/password', requireAuth, async (req, res) => {
   const current = typeof req.body?.currentPassword === 'string' ? req.body.currentPassword : ''
   const problem = passwordProblem(req.body?.password)
@@ -113,6 +137,79 @@ authRouter.post('/password', requireAuth, async (req, res) => {
     data: { passwordHash: hashPassword(String(req.body.password)) },
   })
   res.json({ ok: true })
+})
+
+/* --------------------------------------------------------- password resets */
+
+/**
+ * Checked before the reset screen renders, so a dead link says so instead of
+ * asking for a password it will refuse. Deliberately unauthenticated: whoever
+ * holds the link is the person being let back in.
+ */
+authRouter.get('/reset/:token', async (req, res) => {
+  const record = await findReset(req.params.token)
+  const problem = resetTokenProblem(record)
+  if (problem || !record) {
+    res.status(400).json({ error: problem ?? 'That reset link is not valid.' })
+    return
+  }
+  res.json({ email: record.user.email, name: record.user.name })
+})
+
+authRouter.post('/reset/:token', async (req, res) => {
+  const problem = passwordProblem(req.body?.password)
+  if (problem) {
+    res.status(400).json({ error: problem })
+    return
+  }
+  const record = await findReset(req.params.token)
+  const tokenProblem = resetTokenProblem(record)
+  if (tokenProblem || !record) {
+    res.status(400).json({ error: tokenProblem ?? 'That reset link is not valid.' })
+    return
+  }
+  const updated = await prisma.$transaction(async (tx) => {
+    await tx.passwordReset.update({ where: { id: record.id }, data: { usedAt: new Date() } })
+    // Any other outstanding link for this account dies with it.
+    await tx.passwordReset.updateMany({
+      where: { userId: record.userId, usedAt: null },
+      data: { usedAt: new Date() },
+    })
+    return tx.user.update({
+      where: { id: record.userId },
+      data: { passwordHash: hashPassword(String(req.body.password)) },
+      select: publicUser,
+    })
+  })
+  const user = toSessionUser(updated)
+  setSessionCookie(req, res, user, await issuingSessionEpoch())
+  res.json({ user })
+})
+
+/**
+ * Admins hand the returned link to the person directly. There is no mail
+ * provider configured, and a self-service "email me a link" flow without one
+ * would let anyone reset anyone.
+ */
+authRouter.post('/users/:id/reset', requireAdmin, async (req, res) => {
+  const row = await prisma.user.findUnique({ where: { id: req.params.id } })
+  if (!row) {
+    res.status(404).json({ error: 'That account no longer exists.' })
+    return
+  }
+  const { token, tokenHash, expiresAt } = createResetToken()
+  await prisma.$transaction(async (tx) => {
+    await tx.passwordReset.updateMany({
+      where: { userId: row.id, usedAt: null },
+      data: { usedAt: new Date() },
+    })
+    await tx.passwordReset.create({ data: { userId: row.id, tokenHash, expiresAt } })
+  })
+  res.json({
+    email: row.email,
+    expiresAt: expiresAt.toISOString(),
+    link: resetLinkFor(token, requestOrigin(req.headers)),
+  })
 })
 
 /* ------------------------------------------------------- admin: manage users */
@@ -205,6 +302,14 @@ async function reissueActingAdmin(
   if (!me) return
   const next = updatedSelf && updatedSelf.id === me.id ? toSessionUser(updatedSelf) : me
   setSessionCookie(req, res, next, await issuingSessionEpoch())
+}
+
+async function findReset(token: string) {
+  if (!token) return null
+  return prisma.passwordReset.findUnique({
+    where: { tokenHash: hashResetToken(token) },
+    include: { user: { select: { email: true, name: true } } },
+  })
 }
 
 const DUMMY_HASH = hashPassword('setflow-timing-equalizer')

@@ -143,6 +143,7 @@ export interface Preference {
   theme: Theme
   presentationFontSize: PresentationFontSize
   lastSetlistId: string | null
+  onboardingDoneAt?: string | null
 }
 
 export interface SongInput {

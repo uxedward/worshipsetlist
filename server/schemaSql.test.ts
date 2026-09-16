@@ -15,6 +15,7 @@ describe('SCHEMA_STATEMENTS', () => {
     expect(APP_TABLES).toEqual([
       'User',
       'AuthSetting',
+      'PasswordReset',
       'Song',
       'Section',
       'Line',

@@ -4,6 +4,7 @@ import { songsRouter } from './routes/songs.ts'
 import { setlistsRouter } from './routes/setlists.ts'
 import { backgroundsRouter } from './routes/backgrounds.ts'
 import { preferencesRouter } from './routes/preferences.ts'
+import { authRouter } from './routes/auth.ts'
 
 type Layer = {
   name?: string
@@ -23,6 +24,11 @@ function guardsFor(router: Router, method: string, path: string): string[] {
 }
 
 const ADMIN_ONLY: Array<[string, Router, string, string]> = [
+  ['issue a password reset link', authRouter, 'post', '/users/:id/reset'],
+  ['list accounts', authRouter, 'get', '/users'],
+  ['create an account', authRouter, 'post', '/users'],
+  ['change someone else\'s role', authRouter, 'patch', '/users/:id'],
+  ['remove an account', authRouter, 'delete', '/users/:id'],
   ['delete a song', songsRouter, 'delete', '/:id'],
   ['delete a setlist', setlistsRouter, 'delete', '/:id'],
   ['add a background', backgroundsRouter, 'post', '/'],
@@ -60,6 +66,30 @@ describe('routes open to any signed-in member', () => {
     const guards = guardsFor(router, method, path)
     expect(guards).toContain('requireAuth')
     expect(guards).not.toContain('requireAdmin')
+  })
+})
+
+describe('deliberately public auth routes', () => {
+  // Whoever holds a reset link is the person being let back in, so these
+  // cannot require the session they are there to restore.
+  it.each([
+    ['check a reset link', 'get', '/reset/:token'],
+    ['spend a reset link', 'post', '/reset/:token'],
+    ['sign in', 'post', '/login'],
+    ['create the first admin', 'post', '/setup'],
+    ['read the setup state', 'get', '/state'],
+  ])('%s needs no session', (_label, method, path) => {
+    const guards = guardsFor(authRouter, method, path)
+    expect(guards).not.toContain('requireAuth')
+    expect(guards).not.toContain('requireAdmin')
+  })
+
+  it('changing your own password still requires a session', () => {
+    expect(guardsFor(authRouter, 'post', '/password')).toContain('requireAuth')
+  })
+
+  it('editing your own profile still requires a session', () => {
+    expect(guardsFor(authRouter, 'patch', '/me')).toContain('requireAuth')
   })
 })
 

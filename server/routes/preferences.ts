@@ -24,7 +24,13 @@ preferencesRouter.patch('/', async (req, res) => {
     theme?: string
     presentationFontSize?: string
     lastSetlistId?: string | null
+    onboardingDoneAt?: Date | null
   } = {}
+  // The checklist itself is derived from real data; only "I'm done with it"
+  // needs storing, and it is per account so a new member still gets shown it.
+  if ('onboardingDone' in req.body) {
+    data.onboardingDoneAt = req.body.onboardingDone ? new Date() : null
+  }
   if (req.body.theme === 'dark' || req.body.theme === 'light') data.theme = req.body.theme
   if (
     req.body.presentationFontSize === 'small' ||

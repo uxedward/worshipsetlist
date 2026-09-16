@@ -26,8 +26,21 @@ export const AUTH_SCHEMA_STATEMENTS = [
   `CREATE SEQUENCE IF NOT EXISTS "Preference_id_seq" OWNED BY "Preference"."id"`,
   `SELECT setval('"Preference_id_seq"', COALESCE((SELECT MAX("id") FROM "Preference"), 0) + 1, false)`,
   `ALTER TABLE "Preference" ALTER COLUMN "id" SET DEFAULT nextval('"Preference_id_seq"')`,
+  `CREATE TABLE IF NOT EXISTS "PasswordReset" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "PasswordReset_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "PasswordReset_tokenHash_key" ON "PasswordReset"("tokenHash")`,
+  `CREATE INDEX IF NOT EXISTS "PasswordReset_userId_idx" ON "PasswordReset"("userId")`,
+  `ALTER TABLE "Preference" ADD COLUMN IF NOT EXISTS "onboardingDoneAt" TIMESTAMP(3)`,
   `ALTER TABLE "User" ENABLE ROW LEVEL SECURITY`,
+  `ALTER TABLE "PasswordReset" ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "AuthSetting" ENABLE ROW LEVEL SECURITY`,
 ]
 
-export const AUTH_TABLES = ['User', 'AuthSetting'] as const
+export const AUTH_TABLES = ['User', 'AuthSetting', 'PasswordReset'] as const

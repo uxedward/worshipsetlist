@@ -46,9 +46,39 @@ Editing is open to the team because Spotify imports arrive with an “Add lyrics
 placeholder that someone has to replace. Deleting is not: it destroys work
 other people depend on.
 
-There is no public sign-up. The first visit creates the admin; everyone else is
-added from **Accounts** in the sidebar. Removing someone or changing a role
-signs out every other device immediately.
+There is no public sign-up. The first visit walks you through creating the
+admin account; everyone else is added from **Settings → Accounts**. Removing
+someone or changing a role signs out every other device immediately.
+
+### Settings
+
+The gear next to your name opens Settings:
+
+- **Account** — display name, and change your own password.
+- **Appearance** — theme and Present mode text size, saved to your account.
+- **Accounts** (admin) — add people, change roles, remove access, send reset links.
+
+### Getting started checklist
+
+New accounts see a dismissible checklist above the setlist: add songs, build a
+setlist, invite the team, pick a Present background. Each step reads its state
+from real data rather than a stored step counter, so it cannot drift — import
+songs in another tab and the first box is already ticked. Dismissing it is
+per account.
+
+### Password reset
+
+Two paths, because there is no mail provider in this stack:
+
+- **You know your password** — change it in Settings → Account.
+- **You are locked out** — an admin opens Settings → Accounts, clicks the key
+  icon next to your name, and sends you the one-time link it produces. The link
+  works once, expires in 24 hours, and issuing a new one voids the old one.
+  Only the hash is stored, so the token cannot be recovered from the database.
+
+A self-service "email me a link" flow needs an email provider; without one it
+would let anyone reset anyone. `resetLinkFor` in `server/passwordReset.ts` is
+the single seam to send through if you add one later.
 
 Set `AUTH_SECRET` to a long random string in production — `GET /api/health`
 reports `sessionSecretConfigured` so you can check. Without it, sessions are

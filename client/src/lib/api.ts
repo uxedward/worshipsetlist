@@ -255,6 +255,23 @@ export const endpoints = {
       json: { currentPassword, password },
       skipAuthNotify: true,
     }),
+  updateProfile: (name: string) =>
+    api<{ user: AccountUser }>('/api/auth/me', { method: 'PATCH', json: { name } }),
+  checkResetToken: (token: string) =>
+    api<{ email: string; name: string }>(`/api/auth/reset/${encodeURIComponent(token)}`, {
+      skipAuthNotify: true,
+    }),
+  completeReset: (token: string, password: string) =>
+    api<{ user: AccountUser }>(`/api/auth/reset/${encodeURIComponent(token)}`, {
+      method: 'POST',
+      json: { password },
+      skipAuthNotify: true,
+    }),
+  createResetLink: (id: string) =>
+    api<{ email: string; link: string; expiresAt: string }>(`/api/auth/users/${id}/reset`, {
+      method: 'POST',
+      json: {},
+    }),
   listUsers: () => api<ManagedUser[]>('/api/auth/users'),
   createUser: (body: { email: string; password: string; name?: string; role: Role }) =>
     api<ManagedUser>('/api/auth/users', { method: 'POST', json: body }),

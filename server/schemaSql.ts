@@ -96,6 +96,7 @@ export const SCHEMA_STATEMENTS = [
 export const APP_TABLES = [
   'User',
   'AuthSetting',
+  'PasswordReset',
   'Song',
   'Section',
   'Line',

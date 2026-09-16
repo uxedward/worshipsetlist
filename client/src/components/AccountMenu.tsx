@@ -1,14 +1,12 @@
-import { useState } from 'react'
-import { LogOut, Users } from 'lucide-react'
+import { LogOut, Settings } from 'lucide-react'
 import { useCurrentUser, useLogout } from '../hooks/useAuth.ts'
-import { ManageUsersModal } from './ManageUsersModal.tsx'
+import { useAppStore } from '../store/useAppStore.ts'
 
 export function AccountMenu() {
   const user = useCurrentUser()
   const logout = useLogout()
-  const [manageOpen, setManageOpen] = useState(false)
+  const openSettings = useAppStore((s) => s.openSettingsPage)
   if (!user) return null
-  const isAdmin = user.role === 'admin'
 
   return (
     <div
@@ -20,21 +18,19 @@ export function AccountMenu() {
           {user.name || user.email}
         </div>
         <div className="truncate text-caption" style={{ color: 'var(--text-muted)' }}>
-          {isAdmin ? 'Admin' : 'Team member'}
+          {user.role === 'admin' ? 'Admin' : 'Team member'}
         </div>
       </div>
-      {isAdmin ? (
-        <button
-          type="button"
-          onClick={() => setManageOpen(true)}
-          title="Manage accounts"
-          aria-label="Manage accounts"
-          className="flex h-7 w-7 items-center justify-center rounded-[8px]"
-          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-        >
-          <Users size={14} />
-        </button>
-      ) : null}
+      <button
+        type="button"
+        onClick={openSettings}
+        title="Settings"
+        aria-label="Settings"
+        className="flex h-7 w-7 items-center justify-center rounded-[8px]"
+        style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+      >
+        <Settings size={14} />
+      </button>
       <button
         type="button"
         onClick={() => logout.mutate()}
@@ -46,7 +42,6 @@ export function AccountMenu() {
       >
         <LogOut size={14} />
       </button>
-      {manageOpen ? <ManageUsersModal onClose={() => setManageOpen(false)} /> : null}
     </div>
   )
 }
