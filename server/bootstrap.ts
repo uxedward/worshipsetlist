@@ -1,5 +1,5 @@
 import { prisma } from './db.ts'
-import { setlistWithSongCharts } from './songInclude.ts'
+import { setlistWithSongCharts, setlistWithSongMeta } from './songInclude.ts'
 import { ownedBy } from './userLibrary.ts'
 
 export async function loadBootstrap(userId: string) {
@@ -9,7 +9,7 @@ export async function loadBootstrap(userId: string) {
     prisma.setlist.findMany({
       where: owned,
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-      include: setlistWithSongCharts,
+      include: setlistWithSongMeta,
     }),
     prisma.song.findMany({
       where: owned,
@@ -23,6 +23,11 @@ export async function loadBootstrap(userId: string) {
     })
   }
   const activeId = preferences.lastSetlistId ?? setlists[0]?.id ?? null
-  const activeSetlist = setlists.find((setlist) => setlist.id === activeId) ?? null
+  const activeSetlist = activeId
+    ? await prisma.setlist.findFirst({
+        where: { id: activeId, ...owned },
+        include: setlistWithSongCharts,
+      })
+    : null
   return { preferences, setlists, songs, activeSetlist }
 }

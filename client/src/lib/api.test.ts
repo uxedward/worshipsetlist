@@ -3,6 +3,7 @@ import {
   HEALTH_FAILS_BEFORE_OFFLINE,
   HEALTH_GRACE_MS,
   api,
+  discardBootstrapInflight,
   enqueue,
   flushQueue,
   isOnline,
@@ -11,6 +12,7 @@ import {
   pendingCount,
   pingHealth,
   releaseQueue,
+  requestBootstrap,
   resetConnectionStateForTests,
   resetQueueForTests,
 } from './api.ts'
@@ -169,5 +171,24 @@ describe('offline queue under authentication', () => {
     ).rejects.toThrow()
     expect(onLost).not.toHaveBeenCalled()
     stop()
+  })
+})
+
+describe('requestBootstrap', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    discardBootstrapInflight()
+  })
+
+  it('shares one in-flight library request', async () => {
+    const payload = { preferences: { id: 1 }, setlists: [], songs: [], activeSetlist: null }
+    const fetchMock = vi.fn(async () => jsonResponse(payload))
+    vi.stubGlobal('fetch', fetchMock)
+    const [a, b] = await Promise.all([requestBootstrap(), requestBootstrap()])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(a).toEqual(payload)
+    expect(b).toEqual(payload)
+    await expect(requestBootstrap()).resolves.toEqual(payload)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

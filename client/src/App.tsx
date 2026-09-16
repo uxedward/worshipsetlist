@@ -1,11 +1,13 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useAuthState, resetTokenFromUrl } from './hooks/useAuth.ts'
 import { AuthScreen } from './components/AuthScreen.tsx'
 import { BootSplash } from './components/BootSplash.tsx'
+import { requestBootstrap } from './lib/api.ts'
 import { setLibraryOwner } from './lib/libraryOwner.ts'
 
-const AppInner = lazy(() => import('./AppInner.tsx').then((mod) => ({ default: mod.AppInner })))
+const loadAppInner = () => import('./AppInner.tsx').then((mod) => ({ default: mod.AppInner }))
+const AppInner = lazy(loadAppInner)
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +40,15 @@ function AuthGate() {
   const [resetToken, setResetToken] = useState(resetTokenFromUrl)
   const user = auth.data?.user ?? null
   if (user) setLibraryOwner(user.id)
+
+  useEffect(() => {
+    void loadAppInner()
+  }, [])
+
+  useEffect(() => {
+    if (!user || resetToken) return
+    void requestBootstrap()
+  }, [user, resetToken])
 
   if (resetToken || !user) {
     // Paint the sign-in / first-run screen immediately. Waiting on
