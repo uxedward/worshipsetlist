@@ -248,6 +248,8 @@ export const endpoints = {
     }),
   setupAdmin: (body: { email: string; password: string; name: string }) =>
     api<{ user: AccountUser }>('/api/auth/setup', { method: 'POST', json: body, skipAuthNotify: true }),
+  signup: (body: { email: string; password: string; name: string }) =>
+    api<{ user: AccountUser }>('/api/auth/signup', { method: 'POST', json: body, skipAuthNotify: true }),
   logout: () => api<{ ok: boolean }>('/api/auth/logout', { method: 'POST', skipAuthNotify: true }),
   changePassword: (currentPassword: string, password: string) =>
     api<{ ok: boolean }>('/api/auth/password', {

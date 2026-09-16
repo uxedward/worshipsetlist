@@ -5,6 +5,7 @@ import {
   useLogin,
   useResetToken,
   useSetupAdmin,
+  useSignup,
   clearResetTokenFromUrl,
 } from '../hooks/useAuth.ts'
 import { ApiError } from '../lib/api.ts'
@@ -41,7 +42,7 @@ export function AuthScreen({
   if (resetToken) return <ResetPasswordPanel token={resetToken} onDone={onResetDone} />
   if (checking) return <CheckingPanel />
   if (needsSetup) return <CreateAdminPanel />
-  return <SignInPanel loadError={loadError} />
+  return <SignInOrSignUp loadError={loadError} />
 }
 
 /* ------------------------------------------------------------------- shell */
@@ -195,7 +196,7 @@ function CreateAdminPanel() {
     <AuthShell
       title="Create your admin account"
       blurb="You're first, so this account runs the library, Present, and who else can sign in. It only takes a few seconds."
-      footer="Add the rest of the team from Settings → Accounts. They get a link to choose their own password."
+      footer="After this, your team can create their own accounts from the sign-in page."
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <Field label="Your name">
@@ -243,7 +244,19 @@ function CreateAdminPanel() {
 
 /* ----------------------------------------------------------------- sign in */
 
-function SignInPanel({ loadError }: { loadError?: string | null }) {
+function SignInOrSignUp({ loadError }: { loadError?: string | null }) {
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
+  if (mode === 'signup') return <SignUpPanel onSignIn={() => setMode('signin')} />
+  return <SignInPanel loadError={loadError} onSignUp={() => setMode('signup')} />
+}
+
+function SignInPanel({
+  loadError,
+  onSignUp,
+}: {
+  loadError?: string | null
+  onSignUp: () => void
+}) {
   const login = useLogin()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -254,15 +267,20 @@ function SignInPanel({ loadError }: { loadError?: string | null }) {
       title="Sign in"
       blurb="Your team's songs, charts, and Present mode."
       footer={
-        showHelp ? (
-          <span>
-            Ask an admin to open <strong>Settings → Accounts</strong> and send you a link. Links last 24 hours.
-          </span>
-        ) : (
-          <button type="button" onClick={() => setShowHelp(true)} style={{ color: 'var(--accent)' }}>
-            Forgot your password?
+        <div className="flex flex-col gap-2">
+          <button type="button" onClick={onSignUp} style={{ color: 'var(--accent)' }}>
+            Create an account
           </button>
-        )
+          {showHelp ? (
+            <span>
+              Ask an admin to open <strong>Settings → Accounts</strong> and send you a reset link. Links last 24 hours.
+            </span>
+          ) : (
+            <button type="button" onClick={() => setShowHelp(true)} style={{ color: 'var(--text-secondary)' }}>
+              Forgot your password?
+            </button>
+          )}
+        </div>
       }
     >
       <form
@@ -294,6 +312,80 @@ function SignInPanel({ loadError }: { loadError?: string | null }) {
           {login.error ? message(login.error, 'Could not sign you in.') : loadError ?? null}
         </ErrorNote>
         <SubmitButton busy={login.isPending}>Sign in</SubmitButton>
+      </form>
+    </AuthShell>
+  )
+}
+
+function SignUpPanel({ onSignIn }: { onSignIn: () => void }) {
+  const signup = useSignup()
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [localError, setLocalError] = useState<string | null>(null)
+
+  function onSubmit(event: FormEvent) {
+    event.preventDefault()
+    if (!name.trim()) {
+      setLocalError('A name is required.')
+      return
+    }
+    const problem = newPasswordProblem(password, confirm)
+    setLocalError(problem)
+    if (problem) return
+    signup.mutate({ email, password, name: name.trim() })
+  }
+
+  return (
+    <AuthShell
+      title="Create an account"
+      blurb="Join this Setflow library. You'll be able to add songs, build setlists, and run Present."
+      footer={
+        <button type="button" onClick={onSignIn} style={{ color: 'var(--accent)' }}>
+          Already have an account? Sign in
+        </button>
+      }
+    >
+      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        <Field label="Your name">
+          <input
+            className={inputClass}
+            style={inputStyle}
+            autoFocus
+            required
+            autoComplete="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Alex"
+          />
+        </Field>
+        <Field label="Email">
+          <input
+            className={inputClass}
+            style={inputStyle}
+            type="email"
+            required
+            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </Field>
+        <PasswordField
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="new-password"
+          placeholder={`At least ${MIN_PASSWORD} characters`}
+        />
+        <PasswordField
+          label="Confirm password"
+          value={confirm}
+          onChange={setConfirm}
+          autoComplete="new-password"
+        />
+        <ErrorNote>{localError ?? (signup.error ? message(signup.error, 'Could not create that account.') : null)}</ErrorNote>
+        <SubmitButton busy={signup.isPending}>Create account</SubmitButton>
       </form>
     </AuthShell>
   )

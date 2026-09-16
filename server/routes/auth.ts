@@ -76,8 +76,8 @@ authRouter.get('/me', requireAuth, (req, res) => {
 })
 
 /**
- * Creates the very first admin, and only while no user exists. Once one does,
- * accounts come from an admin — there is no open sign-up on a public URL.
+ * Creates the very first admin, and only while no user exists. After that,
+ * people create their own accounts at /api/auth/signup.
  */
 authRouter.post('/setup', async (req, res) => {
   const email = normalizeEmail(req.body?.email)
@@ -95,13 +95,57 @@ authRouter.post('/setup', async (req, res) => {
     })
   })
   if (!created) {
-    res.status(409).json({ error: 'Setflow already has an account. Ask your admin to add you.' })
+    res.status(409).json({ error: 'Setflow already has an account. Sign in, or create your own.' })
     return
   }
   const user = toSessionUser(created)
   await adoptLegacyPreference(user.id)
   setSessionCookie(req, res, user, await issuingSessionEpoch())
   res.status(201).json({ user })
+})
+
+/**
+ * Open sign-up. The first account is still admin (same as /setup). Everyone
+ * after that joins as a team member.
+ */
+authRouter.post('/signup', async (req, res) => {
+  const email = normalizeEmail(req.body?.email)
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : ''
+  const problem = nameProblem(name) || emailProblem(email) || passwordProblem(req.body?.password)
+  if (problem) {
+    res.status(400).json({ error: problem })
+    return
+  }
+  try {
+    const created = await withAuthSchema(async () => {
+      if (await prisma.user.findUnique({ where: { email } })) return 'taken' as const
+      const first = (await userCount()) === 0
+      return prisma.user.create({
+        data: {
+          email,
+          name,
+          role: first ? 'admin' : 'user',
+          passwordHash: hashPassword(String(req.body.password)),
+        },
+        select: publicUser,
+      })
+    })
+    if (created === 'taken') {
+      res.status(409).json({ error: 'Someone already uses that email. Sign in instead.' })
+      return
+    }
+    const user = toSessionUser(created)
+    if (user.role === 'admin') await adoptLegacyPreference(user.id)
+    setSessionCookie(req, res, user, await issuingSessionEpoch())
+    res.status(201).json({ user })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    if (/unique|duplicate/i.test(message)) {
+      res.status(409).json({ error: 'Someone already uses that email. Sign in instead.' })
+      return
+    }
+    throw err
+  }
 })
 
 authRouter.post('/login', async (req, res) => {

@@ -24,6 +24,7 @@ describe('skipDatabasePrepare', () => {
     expect(skipDatabasePrepare('GET', '/api/auth/me')).toBe(true)
     expect(skipDatabasePrepare('GET', '/api/auth/reset/abc')).toBe(true)
     expect(skipDatabasePrepare('POST', '/api/auth/login')).toBe(true)
+    expect(skipDatabasePrepare('POST', '/api/auth/signup')).toBe(true)
     expect(skipDatabasePrepare('POST', '/api/auth/logout')).toBe(true)
     expect(skipDatabasePrepare('POST', '/api/auth/setup')).toBe(true)
     expect(skipDatabasePrepare('POST', '/api/auth/users')).toBe(true)
