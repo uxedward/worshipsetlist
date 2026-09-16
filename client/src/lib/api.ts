@@ -224,6 +224,40 @@ export async function pingHealth(): Promise<boolean> {
   }
 }
 
+type BootstrapPayload = {
+  preferences: import('@shared/types.ts').Preference
+  setlists: import('@shared/types.ts').Setlist[]
+  songs: import('@shared/types.ts').Song[]
+  activeSetlist: import('@shared/types.ts').Setlist | null
+}
+
+let bootstrapInflight: Promise<BootstrapPayload> | null = null
+let bootstrapResult: { at: number; data: BootstrapPayload } | null = null
+const BOOTSTRAP_KEEP_MS = 10_000
+
+/** One GET /api/bootstrap shared by AuthGate prefetch and useBootstrap. */
+export function requestBootstrap() {
+  if (bootstrapResult && Date.now() - bootstrapResult.at < BOOTSTRAP_KEEP_MS) {
+    return Promise.resolve(bootstrapResult.data)
+  }
+  if (!bootstrapInflight) {
+    bootstrapInflight = api<BootstrapPayload>('/api/bootstrap')
+      .then((data) => {
+        bootstrapResult = { at: Date.now(), data }
+        return data
+      })
+      .finally(() => {
+        bootstrapInflight = null
+      })
+  }
+  return bootstrapInflight
+}
+
+export function discardBootstrapInflight() {
+  bootstrapInflight = null
+  bootstrapResult = null
+}
+
 export type Role = 'admin' | 'user'
 
 export interface AccountUser {

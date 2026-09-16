@@ -18,6 +18,13 @@ declare global {
  */
 export async function attachUser<P>(req: Request<P>, _res: Response, next: NextFunction) {
   try {
+    const path = (req.url || '').split('?')[0]
+    // Health is a connectivity ping. Resolving the session hits AuthSetting and
+    // used to stack on top of the health query itself.
+    if (path === '/api/health') {
+      next()
+      return
+    }
     const cookies = parseCookies(req.headers.cookie)
     const token = cookies[SESSION_COOKIE]
     req.user = token ? (readSessionToken(token, await currentSessionEpoch()) ?? undefined) : undefined

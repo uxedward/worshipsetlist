@@ -37,6 +37,9 @@ function toSessionUser(row: { id: string; email: string; name: string; role: str
 
 const publicUser = { id: true, email: true, name: true, role: true, createdAt: true } as const
 
+/** Once an account exists, first-run setup never comes back on this isolate. */
+let accountsExist: boolean | null = null
+
 async function userCount() {
   return prisma.user.count()
 }
@@ -59,11 +62,17 @@ async function withAuthSchema<T>(work: () => Promise<T>): Promise<T> {
 /** Tells the client whether to show sign-in or first-run setup. */
 authRouter.get('/state', async (req, res) => {
   if (req.user) {
+    accountsExist = true
     res.json({ needsSetup: false, user: req.user })
+    return
+  }
+  if (accountsExist) {
+    res.json({ needsSetup: false, user: null })
     return
   }
   try {
     const count = await userCount()
+    accountsExist = count > 0
     res.json({ needsSetup: count === 0, user: null })
   } catch (err) {
     // A missing User table means nobody has signed up yet — not "go to sign-in".
@@ -99,6 +108,7 @@ authRouter.post('/setup', async (req, res) => {
     return
   }
   const user = toSessionUser(created)
+  accountsExist = true
   await adoptLegacyPreference(user.id)
   setSessionCookie(req, res, user, await issuingSessionEpoch())
   res.status(201).json({ user })
@@ -135,6 +145,7 @@ authRouter.post('/signup', async (req, res) => {
       return
     }
     const user = toSessionUser(created)
+    accountsExist = true
     if (user.role === 'admin') await adoptLegacyPreference(user.id)
     setSessionCookie(req, res, user, await issuingSessionEpoch())
     res.status(201).json({ user })
@@ -164,6 +175,7 @@ authRouter.post('/login', async (req, res) => {
     return
   }
   const user = toSessionUser(row)
+  accountsExist = true
   setSessionCookie(req, res, user, await issuingSessionEpoch())
   res.json({ user })
 })

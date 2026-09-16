@@ -95,24 +95,14 @@ app.use('/api/auth', authRouter)
 
 app.get('/api/health', async (_req, res) => {
   try {
+    // Connectivity only. Extra counts here used to take multiple seconds and
+    // steal the isolate's one Postgres connection from library boot.
     await prisma.$queryRaw`SELECT 1`
-    let customBackgrounds = 0
-    let customBackgroundReady = 0
-    try {
-      customBackgrounds = await prisma.customBackground.count()
-      customBackgroundReady = await prisma.customBackground.count({
-        where: { OR: [{ sizeBytes: { gt: 0 } }, { src: { startsWith: 'http' } }] },
-      })
-    } catch {
-      /* schema may still be creating */
-    }
     res.json({
       ok: true,
       durable: durableDatabase,
       backend: databaseBackend,
       vendor: databaseVendor(process.env.DATABASE_URL || ''),
-      customBackgrounds,
-      customBackgroundReady,
       sessionSecretConfigured: hasStrongSessionSecret(),
       ...videoHostingStatus(),
     })

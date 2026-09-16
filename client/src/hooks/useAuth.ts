@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
-import { endpoints, onAuthLost, releaseQueue, type AccountUser, type Role } from '../lib/api.ts'
+import { discardBootstrapInflight, endpoints, onAuthLost, releaseQueue, type AccountUser, type Role } from '../lib/api.ts'
 import { readAuthCache, writeAuthCache } from '../lib/authCache.ts'
 import { setLibraryOwner } from '../lib/libraryOwner.ts'
 
@@ -39,6 +39,7 @@ function useAdoptSession() {
   const qc = useQueryClient()
   return (user: AccountUser) => {
     setLibraryOwner(user.id)
+    discardBootstrapInflight()
     releaseQueue()
     const next = { needsSetup: false, user }
     writeAuthCache(next)

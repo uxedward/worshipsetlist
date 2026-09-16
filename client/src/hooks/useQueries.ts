@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import { useLayoutEffect } from 'react'
-import { ApiError, endpoints, flushQueue, pingHealth } from '../lib/api.ts'
+import { ApiError, endpoints, flushQueue, pingHealth, requestBootstrap } from '../lib/api.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import type { Preference, Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
 import {
@@ -92,7 +92,7 @@ export function useBootstrap() {
     initialDataUpdatedAt: cachedBootstrap ? 0 : undefined,
     queryFn: async () => {
       try {
-        const data = await endpoints.bootstrap()
+        const data = await requestBootstrap()
         try {
           const setlists = overlaySetlists(data.setlists)
           const songs = overlaySongs(data.songs)

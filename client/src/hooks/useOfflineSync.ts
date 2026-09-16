@@ -45,7 +45,7 @@ export function useOfflineSync() {
     const unsub = onConnectionChange((online) => setOffline(!online))
     const iv = window.setInterval(() => {
       void pingHealth()
-    }, 30_000)
+    }, 60_000)
     // Flush leftover local edits after boot. Do not ping /api/health here —
     // that endpoint hits Postgres, and a single 503 was showing the
     // "Can't reach the Setflow API" banner even after bootstrap succeeded.

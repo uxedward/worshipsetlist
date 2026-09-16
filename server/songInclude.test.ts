@@ -7,7 +7,7 @@ describe('song includes', () => {
     expect(songWithChart.sections.include.lines).toEqual({ orderBy: { order: 'asc' } })
   })
 
-  it('loads setlist charts during bootstrap so Present does not wait on a second query', () => {
+  it('loads setlist charts only when Present needs the active set', () => {
     expect(setlistWithSongCharts.songs.include).toEqual({ song: { include: songWithChart } })
   })
 })
