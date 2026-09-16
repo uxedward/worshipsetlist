@@ -1,7 +1,9 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 
 const memory = new Map<string, string>()
+const session = new Map<string, string>()
 Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
   value: {
     getItem: (key: string) => memory.get(key) ?? null,
     setItem: (key: string, value: string) => {
@@ -13,6 +15,19 @@ Object.defineProperty(globalThis, 'localStorage', {
     clear: () => memory.clear(),
   },
 })
+Object.defineProperty(globalThis, 'sessionStorage', {
+  configurable: true,
+  value: {
+    getItem: (key: string) => session.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      session.set(key, value)
+    },
+    removeItem: (key: string) => {
+      session.delete(key)
+    },
+    clear: () => session.clear(),
+  },
+})
 
 import {
   appendSetlistSong,
@@ -20,6 +35,7 @@ import {
   forgetExtraSongs,
   overlaySetlist,
   overlaySetlists,
+  overlaySong,
   overlaySongs,
   rememberDeletedSetlist,
   rememberDeletedSong,
@@ -30,6 +46,7 @@ import {
   reorderPersistedSetlists,
   songToInput,
 } from './persist.ts'
+import { writeAuthCache } from './authCache.ts'
 import { setLibraryOwner } from './libraryOwner.ts'
 import type { Setlist, SetlistSong, Song } from '@shared/types.ts'
 
@@ -73,6 +90,7 @@ const row = (setlistId: string, s: Song, order = 0): SetlistSong => ({
 describe('persist overlays', () => {
   beforeEach(() => {
     localStorage.clear()
+    sessionStorage.clear()
     setLibraryOwner(null)
   })
 
@@ -251,6 +269,19 @@ describe('persist overlays', () => {
     expect(listed).toHaveLength(1)
     expect(listed[0].name).toBe('LG - 10 Sep')
     expect(listed[0].songs?.[0]?.songId).toBe('s1')
+  })
+
+  it('does not let a team member overlay local song edits onto the shared catalog', () => {
+    writeAuthCache({
+      needsSetup: false,
+      user: { id: 'member', email: 'member@church.org', name: 'Lawrence', role: 'user' },
+    })
+    rememberSong(song('mine', 'Original'))
+    rememberDeletedSong('oceans')
+    const songs = overlaySongs([song('oceans', 'Oceans')])
+    expect(songs.map((s) => s.title)).toEqual(['Oceans'])
+    expect(overlaySong('oceans', song('oceans', 'Oceans'))?.title).toBe('Oceans')
+    expect(overlaySong('mine', null)).toBeNull()
   })
 
   it('keeps each account\'s offline library on its own key', () => {

@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-query'
 import { useLayoutEffect } from 'react'
 import { ApiError, endpoints, flushQueue, pingHealth } from '../lib/api.ts'
+import { readAuthCache } from '../lib/authCache.ts'
 import { useIsAdmin } from './useAuth.ts'
 import { useAppStore } from '../store/useAppStore.ts'
 import type { Preference, Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
@@ -675,6 +676,7 @@ export function optimisticSetlistSongs(
 }
 
 export async function flushLocalSongsToDatabase() {
+  if (readAuthCache()?.user?.role === 'user') return
   const pending = extraSongs()
   if (pending.length === 0) return
   const res = await endpoints.syncLocalSongs(pending.map(songToInput))

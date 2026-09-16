@@ -1,6 +1,7 @@
 import type { Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
 import { displaySongMeta } from '@shared/bulkFormat.ts'
 import { resolveSongKey } from '@shared/detectKey.ts'
+import { readAuthCache } from './authCache.ts'
 import { libraryStorageKey } from './libraryOwner.ts'
 
 const KEY = 'setflow.persist.v2'
@@ -220,7 +221,13 @@ export function overlaySetlists(server: Setlist[]): Setlist[] {
   return out
 }
 
+/** Team members read the shared catalog as the server sent it. */
+function catalogMutationsAllowed() {
+  return readAuthCache()?.user?.role !== 'user'
+}
+
 export function overlaySongs(server: Song[]): Song[] {
+  if (!catalogMutationsAllowed()) return server.map(repairSong)
   const state = loadPersist()
   const byId = new Map(server.map((s) => [s.id, s]))
   for (const song of Object.values(state.extraSongs)) byId.set(song.id, song)
@@ -229,6 +236,7 @@ export function overlaySongs(server: Song[]): Song[] {
 }
 
 export function overlaySong(id: string, server: Song | null): Song | null {
+  if (!catalogMutationsAllowed()) return server ? repairSong(server) : null
   const state = loadPersist()
   if (state.deletedSongIds.includes(id)) return null
   const song = state.extraSongs[id] ?? server

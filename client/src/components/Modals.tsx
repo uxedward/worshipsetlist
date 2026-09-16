@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations } from '../hooks/useQueries.ts'
+import { useIsAdmin } from '../hooks/useAuth.ts'
 import { parseBulkImport } from '@shared/bulkFormat.ts'
 import { parseSpotifyUrl } from '@shared/spotify.ts'
 import { endpoints } from '../lib/api.ts'
@@ -19,6 +20,7 @@ type ImportSuccess = {
 export function BulkImportModal() {
   const open = useAppStore((s) => s.bulkImportOpen)
   const close = () => useAppStore.getState().setBulkImportOpen(false)
+  const isAdmin = useIsAdmin()
   const { bulkImport, spotifyImport } = useMutations()
   const [tab, setTab] = useState<'charts' | 'spotify'>('spotify')
   const [text, setText] = useState('')
@@ -28,6 +30,10 @@ export function BulkImportModal() {
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
+    if (open && !isAdmin) {
+      close()
+      return
+    }
     if (!open) return
     setTab('spotify')
     setText('')
@@ -35,7 +41,7 @@ export function BulkImportModal() {
     setSuccess(null)
     setError(null)
     setBusy(false)
-  }, [open])
+  }, [open, isAdmin])
 
   const preview = useMemo(() => parseBulkImport(text), [text])
   const ready = preview.filter((p) => p.input)
@@ -53,7 +59,7 @@ export function BulkImportModal() {
     setBusy(false)
   }
 
-  if (!open) return null
+  if (!open || !isAdmin) return null
 
   return (
     <div className="fixed inset-0 z-[75] flex items-center justify-center p-4" style={{ background: 'var(--present-scrim)' }}>
