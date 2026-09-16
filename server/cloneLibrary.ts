@@ -1,8 +1,8 @@
 import { prisma } from './db.ts'
 import { REVOKE_PUBLIC_ACCESS_STATEMENTS, RLS_STATEMENTS, SCHEMA_STATEMENTS } from './schemaSql.ts'
 import { AUTH_SCHEMA_STATEMENTS } from './authSchema.ts'
-import { restoreLibraryIfEmpty } from './restoreLibrary.ts'
 import { seedAdminFromEnv } from './seedAdmin.ts'
+import { claimUnownedLibrary } from './userLibrary.ts'
 
 let ready: Promise<void> | null = null
 
@@ -24,9 +24,8 @@ async function prepare() {
   await ensureSchema()
   await ensureAuthSchema()
   await ensureRowLevelSecurity()
-  await ensureWorkspace()
   await seedAdminFromEnv()
-  await restoreLibraryIfEmpty()
+  await claimUnownedLibrary()
 }
 
 export async function songTableExists() {
@@ -147,33 +146,3 @@ export async function ensureRowLevelSecurity() {
   }
 }
 
-function nextSunday(): Date {
-  const d = new Date()
-  d.setHours(10, 0, 0, 0)
-  const day = d.getDay()
-  const add = day === 0 ? 0 : 7 - day
-  d.setDate(d.getDate() + add)
-  return d
-}
-
-async function ensureWorkspace() {
-  // Preferences are per account now, so there is no global row to seed here.
-  if ((await prisma.setlist.count()) === 0) {
-    await prisma.setlist.createMany({
-      data: [
-        {
-          name: 'Sunday AM',
-          serviceName: 'Morning Worship',
-          date: nextSunday(),
-          colorIndex: 0,
-        },
-        {
-          name: 'Midweek',
-          serviceName: 'Wednesday Night',
-          colorIndex: 2,
-        },
-      ],
-    })
-  }
-
-}

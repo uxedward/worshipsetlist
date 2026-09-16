@@ -52,14 +52,14 @@ export function useOnboarding() {
     {
       id: 'setlist',
       title: 'Build a setlist',
-      blurb: 'Drop songs into Sunday AM and set the keys you play in.',
+      blurb: 'Name a service, then drop in the songs and keys you play.',
       action: 'Go to setlists',
       done: hasFullSetlist,
     },
     {
       id: 'team',
       title: 'Invite your team',
-      blurb: 'They can add songs and run Present mode, but not delete anything.',
+      blurb: 'Each person gets their own library and can run Present mode.',
       action: 'Add accounts',
       done: (team.data?.length ?? 1) > 1,
       adminOnly: true,

@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { BOOTSTRAP_CACHE_KEY, readBootstrapCache, writeBootstrapCache } from './bootstrapCache.ts'
 import type { BootstrapPayload } from './bootstrapCache.ts'
+import { setLibraryOwner } from './libraryOwner.ts'
 
 const memory = new Map<string, string>()
 Object.defineProperty(globalThis, 'localStorage', {
@@ -51,7 +52,10 @@ const sample: BootstrapPayload = {
 }
 
 describe('bootstrapCache', () => {
-  beforeEach(() => memory.clear())
+  beforeEach(() => {
+    memory.clear()
+    setLibraryOwner(null)
+  })
 
   it('stores metadata without chord charts so the next visit can paint immediately', () => {
     writeBootstrapCache(sample)
@@ -64,6 +68,14 @@ describe('bootstrapCache', () => {
 
   it('returns null for junk', () => {
     memory.set(BOOTSTRAP_CACHE_KEY, '{not json')
+    expect(readBootstrapCache()).toBeNull()
+  })
+
+  it('does not show another account\'s cached library after sign-up', () => {
+    setLibraryOwner('admin')
+    writeBootstrapCache(sample)
+    expect(readBootstrapCache()?.songs).toHaveLength(1)
+    setLibraryOwner('member')
     expect(readBootstrapCache()).toBeNull()
   })
 })

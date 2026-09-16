@@ -30,6 +30,7 @@ import {
   reorderPersistedSetlists,
   songToInput,
 } from './persist.ts'
+import { setLibraryOwner } from './libraryOwner.ts'
 import type { Setlist, SetlistSong, Song } from '@shared/types.ts'
 
 const song = (id: string, title: string): Song => ({
@@ -72,6 +73,7 @@ const row = (setlistId: string, s: Song, order = 0): SetlistSong => ({
 describe('persist overlays', () => {
   beforeEach(() => {
     localStorage.clear()
+    setLibraryOwner(null)
   })
 
   it('does not copy the server setlist into local storage', () => {
@@ -249,5 +251,16 @@ describe('persist overlays', () => {
     expect(listed).toHaveLength(1)
     expect(listed[0].name).toBe('LG - 10 Sep')
     expect(listed[0].songs?.[0]?.songId).toBe('s1')
+  })
+
+  it('keeps each account\'s offline library on its own key', () => {
+    setLibraryOwner('admin')
+    rememberSong(song('shared', 'Oceans'))
+    setLibraryOwner('member')
+    expect(overlaySongs([]).map((s) => s.title)).toEqual([])
+    rememberSong(song('mine', 'Original'))
+    expect(overlaySongs([]).map((s) => s.title)).toEqual(['Original'])
+    setLibraryOwner('admin')
+    expect(overlaySongs([]).map((s) => s.title)).toEqual(['Oceans'])
   })
 })

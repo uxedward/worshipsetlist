@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { endpoints, onAuthLost, releaseQueue, type AccountUser, type Role } from '../lib/api.ts'
 import { readAuthCache, writeAuthCache } from '../lib/authCache.ts'
+import { setLibraryOwner } from '../lib/libraryOwner.ts'
 
 export const AUTH_KEY = ['auth', 'state'] as const
 
@@ -33,14 +34,18 @@ export function useAuthState() {
   })
 }
 
-/** Signing in adopts the session without blowing the library cache. */
+/** Signing in switches to that account's library cache. */
 function useAdoptSession() {
   const qc = useQueryClient()
   return (user: AccountUser) => {
+    setLibraryOwner(user.id)
     releaseQueue()
     const next = { needsSetup: false, user }
     writeAuthCache(next)
     qc.setQueryData(AUTH_KEY, next)
+    qc.removeQueries({
+      predicate: (query) => query.queryKey[0] !== 'auth',
+    })
   }
 }
 
@@ -126,6 +131,7 @@ export function useLogout() {
   return useMutation({
     mutationFn: endpoints.logout,
     onSuccess: () => {
+      setLibraryOwner(null)
       const next = { needsSetup: false, user: null }
       writeAuthCache(next)
       qc.setQueryData(AUTH_KEY, next)

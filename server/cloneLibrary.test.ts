@@ -9,4 +9,11 @@ describe('ensureSchema', () => {
     expect(src).toContain('ENABLE ROW LEVEL SECURITY')
     expect(src).toContain("SET lock_timeout = '1000'")
   })
+
+  it('does not seed a shared Sunday AM setlist or restore songs on boot', () => {
+    const src = readFileSync(new URL('./cloneLibrary.ts', import.meta.url), 'utf8')
+    expect(src).not.toContain('Sunday AM')
+    expect(src).not.toContain('restoreLibraryIfEmpty')
+    expect(src).toContain('claimUnownedLibrary')
+  })
 })

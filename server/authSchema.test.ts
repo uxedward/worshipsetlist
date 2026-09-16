@@ -22,6 +22,17 @@ describe('AUTH_SCHEMA_STATEMENTS', () => {
     expect(AUTH_SCHEMA_STATEMENTS.some((sql) => sql.includes('SET DEFAULT nextval'))).toBe(true)
   })
 
+  it('scopes songs and setlists to an account and backfills the first admin', () => {
+    expect(AUTH_SCHEMA_STATEMENTS.some((sql) => sql.includes('ALTER TABLE "Song" ADD COLUMN IF NOT EXISTS "userId"'))).toBe(
+      true,
+    )
+    expect(
+      AUTH_SCHEMA_STATEMENTS.some((sql) => sql.includes('ALTER TABLE "Setlist" ADD COLUMN IF NOT EXISTS "userId"')),
+    ).toBe(true)
+    expect(AUTH_SCHEMA_STATEMENTS.some((sql) => /UPDATE "Song" SET "userId"/.test(sql))).toBe(true)
+    expect(AUTH_SCHEMA_STATEMENTS.some((sql) => /UPDATE "Setlist" SET "userId"/.test(sql))).toBe(true)
+  })
+
   it('avoids pgbouncer-unsafe DO blocks, like the rest of the bootstrap SQL', () => {
     expect(AUTH_SCHEMA_STATEMENTS.every((sql) => !/\bDO\s+\$\$/i.test(sql))).toBe(true)
   })

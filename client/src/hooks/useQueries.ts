@@ -47,7 +47,9 @@ function hydrateBootstrap(raw: BootstrapPayload | null): BootstrapPayload | null
   }
 }
 
-const cachedBootstrap = hydrateBootstrap(readBootstrapCache())
+function cachedLibraryBootstrap() {
+  return hydrateBootstrap(readBootstrapCache())
+}
 
 export function useBootstrap() {
   const qc = useQueryClient()
@@ -72,8 +74,11 @@ export function useBootstrap() {
     writeBootstrapCache({ ...payload, preferences })
   }
 
+  const cachedBootstrap = cachedLibraryBootstrap()
+
   useLayoutEffect(() => {
-    if (cachedBootstrap) seed(cachedBootstrap)
+    const cached = cachedLibraryBootstrap()
+    if (cached) seed(cached)
   }, [])
 
   return useQuery({
@@ -133,7 +138,7 @@ export function usePreferences(enabled = true) {
     enabled,
     staleTime: 60_000,
     refetchOnMount: false,
-    initialData: cachedBootstrap?.preferences,
+    initialData: cachedLibraryBootstrap()?.preferences,
   })
 }
 
@@ -144,11 +149,12 @@ export function useSetlists(enabled = true) {
     enabled,
     staleTime: 60_000,
     refetchOnMount: false,
-    initialData: cachedBootstrap?.setlists,
+    initialData: cachedLibraryBootstrap()?.setlists,
   })
 }
 
 export function useSetlist(id: string | null) {
+  const cachedBootstrap = cachedLibraryBootstrap()
   const cached =
     id && cachedBootstrap?.activeSetlist?.id === id ? cachedBootstrap.activeSetlist : undefined
   return useQuery({
@@ -178,7 +184,7 @@ export function useSongs(
     enabled,
     staleTime: 60_000,
     refetchOnMount: false,
-    initialData: defaultList ? cachedBootstrap?.songs : undefined,
+    initialData: defaultList ? cachedLibraryBootstrap()?.songs : undefined,
   })
 }
 

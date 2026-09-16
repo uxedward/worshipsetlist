@@ -1,18 +1,18 @@
 import { Router } from 'express'
 import { prisma } from '../db.js'
 import { setlistWithSongMeta } from '../songInclude.js'
-import { requireAdmin, requireAuth } from '../authMiddleware.js'
+import { requireAuth } from '../authMiddleware.js'
+import { ownedBy } from '../userLibrary.js'
 
 export const setlistsRouter = Router()
 
-// Building sets is the team's job, so users get everything here except
-// deleting a whole setlist.
 setlistsRouter.use(requireAuth)
 
 const setlistInclude = setlistWithSongMeta
 
-setlistsRouter.get('/', async (_req, res) => {
+setlistsRouter.get('/', async (req, res) => {
   const setlists = await prisma.setlist.findMany({
+    where: ownedBy(req.user!.id),
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     include: {
       songs: { select: { id: true, songId: true, order: true } },
@@ -23,18 +23,20 @@ setlistsRouter.get('/', async (_req, res) => {
 })
 
 setlistsRouter.put('/reorder', async (req, res) => {
+  const userId = req.user!.id
   const ids: string[] = Array.isArray(req.body?.orderedIds) ? req.body.orderedIds : []
   if (ids.length > 0) {
     await prisma.$transaction(
       ids.map((id, sortOrder) =>
-        prisma.setlist.update({
-          where: { id },
+        prisma.setlist.updateMany({
+          where: { id, userId },
           data: { sortOrder },
         }),
       ),
     )
   }
   const setlists = await prisma.setlist.findMany({
+    where: ownedBy(userId),
     orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     include: {
       songs: { select: { id: true, songId: true, order: true } },
@@ -45,8 +47,8 @@ setlistsRouter.put('/reorder', async (req, res) => {
 })
 
 setlistsRouter.get('/:id', async (req, res) => {
-  const setlist = await prisma.setlist.findUnique({
-    where: { id: req.params.id },
+  const setlist = await prisma.setlist.findFirst({
+    where: { id: req.params.id, ...ownedBy(req.user!.id) },
     include: setlistInclude,
   })
   if (!setlist) {
@@ -62,10 +64,13 @@ setlistsRouter.post('/', async (req, res) => {
     res.status(400).json({ error: 'Name is required' })
     return
   }
-  const count = await prisma.setlist.count()
-  const maxOrder = await prisma.setlist.aggregate({ _max: { sortOrder: true } })
+  const userId = req.user!.id
+  const owned = ownedBy(userId)
+  const count = await prisma.setlist.count({ where: owned })
+  const maxOrder = await prisma.setlist.aggregate({ where: owned, _max: { sortOrder: true } })
   const setlist = await prisma.setlist.create({
     data: {
+      userId,
       name,
       description: req.body.description ?? null,
       serviceName: req.body.serviceName ?? null,
@@ -79,7 +84,9 @@ setlistsRouter.post('/', async (req, res) => {
 })
 
 setlistsRouter.patch('/:id', async (req, res) => {
-  const existing = await prisma.setlist.findUnique({ where: { id: req.params.id } })
+  const existing = await prisma.setlist.findFirst({
+    where: { id: req.params.id, ...ownedBy(req.user!.id) },
+  })
   if (!existing) {
     res.status(404).json({ error: 'Setlist not found' })
     return
@@ -105,48 +112,48 @@ setlistsRouter.patch('/:id', async (req, res) => {
   res.json(setlist)
 })
 
-setlistsRouter.delete('/:id', requireAdmin, async (req, res) => {
-  const existing = await prisma.setlist.findUnique({ where: { id: req.params.id } })
+setlistsRouter.delete('/:id', async (req, res) => {
+  const userId = req.user!.id
+  const existing = await prisma.setlist.findFirst({
+    where: { id: req.params.id, ...ownedBy(userId) },
+  })
   if (!existing) {
     res.status(404).json({ error: 'Setlist not found' })
     return
   }
   await prisma.setlist.delete({ where: { id: req.params.id } })
 
-  let remaining = await prisma.setlist.findMany({ orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] })
-  if (remaining.length === 0) {
-    const created = await prisma.setlist.create({
-      data: {
-        name: 'New Setlist',
-        colorIndex: 0,
-        date: new Date(),
-        sortOrder: 0,
-      },
-    })
-    remaining = [created]
-  }
+  const remaining = await prisma.setlist.findMany({
+    where: ownedBy(userId),
+    orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+  })
+  const nextId = remaining[0]?.id ?? null
 
-  // Every account pointing at the deleted setlist moves to the next one.
   await prisma.preference.updateMany({
-    where: { lastSetlistId: req.params.id },
-    data: { lastSetlistId: remaining[0].id },
+    where: { userId, lastSetlistId: req.params.id },
+    data: { lastSetlistId: nextId },
   })
 
-  res.json({ ok: true, nextId: remaining[0].id })
+  res.json({ ok: true, nextId })
 })
 
 setlistsRouter.post('/:id/duplicate', async (req, res) => {
-  const source = await prisma.setlist.findUnique({
-    where: { id: req.params.id },
+  const userId = req.user!.id
+  const source = await prisma.setlist.findFirst({
+    where: { id: req.params.id, ...ownedBy(userId) },
     include: { songs: true },
   })
   if (!source) {
     res.status(404).json({ error: 'Setlist not found' })
     return
   }
-  const maxOrder = await prisma.setlist.aggregate({ _max: { sortOrder: true } })
+  const maxOrder = await prisma.setlist.aggregate({
+    where: ownedBy(userId),
+    _max: { sortOrder: true },
+  })
   const copy = await prisma.setlist.create({
     data: {
+      userId,
       name: `Copy of ${source.name}`,
       description: source.description,
       serviceName: source.serviceName,
@@ -168,8 +175,9 @@ setlistsRouter.post('/:id/duplicate', async (req, res) => {
 })
 
 setlistsRouter.post('/:id/songs', async (req, res) => {
-  const setlist = await prisma.setlist.findUnique({
-    where: { id: req.params.id },
+  const userId = req.user!.id
+  const setlist = await prisma.setlist.findFirst({
+    where: { id: req.params.id, ...ownedBy(userId) },
     include: { songs: true },
   })
   if (!setlist) {
@@ -177,7 +185,7 @@ setlistsRouter.post('/:id/songs', async (req, res) => {
     return
   }
   const songId = String(req.body?.songId ?? '')
-  const song = await prisma.song.findUnique({ where: { id: songId } })
+  const song = await prisma.song.findFirst({ where: { id: songId, ...ownedBy(userId) } })
   if (!song) {
     res.status(404).json({ error: 'Song not found' })
     return
@@ -204,6 +212,14 @@ setlistsRouter.post('/:id/songs', async (req, res) => {
 })
 
 setlistsRouter.patch('/:id/songs/:ssId', async (req, res) => {
+  const setlist = await prisma.setlist.findFirst({
+    where: { id: req.params.id, ...ownedBy(req.user!.id) },
+    select: { id: true },
+  })
+  if (!setlist) {
+    res.status(404).json({ error: 'Setlist not found' })
+    return
+  }
   const row = await prisma.setlistSong.findFirst({
     where: { id: req.params.ssId, setlistId: req.params.id },
   })
@@ -224,6 +240,14 @@ setlistsRouter.patch('/:id/songs/:ssId', async (req, res) => {
 })
 
 setlistsRouter.delete('/:id/songs/:ssId', async (req, res) => {
+  const setlist = await prisma.setlist.findFirst({
+    where: { id: req.params.id, ...ownedBy(req.user!.id) },
+    select: { id: true },
+  })
+  if (!setlist) {
+    res.status(404).json({ error: 'Setlist not found' })
+    return
+  }
   const row = await prisma.setlistSong.findFirst({
     where: { id: req.params.ssId, setlistId: req.params.id },
   })
@@ -237,8 +261,8 @@ setlistsRouter.delete('/:id/songs/:ssId', async (req, res) => {
 
 setlistsRouter.put('/:id/reorder', async (req, res) => {
   const ids: string[] = Array.isArray(req.body?.orderedIds) ? req.body.orderedIds : []
-  const setlist = await prisma.setlist.findUnique({
-    where: { id: req.params.id },
+  const setlist = await prisma.setlist.findFirst({
+    where: { id: req.params.id, ...ownedBy(req.user!.id) },
     include: { songs: true },
   })
   if (!setlist) {

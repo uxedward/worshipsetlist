@@ -38,6 +38,14 @@ export const AUTH_SCHEMA_STATEMENTS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "PasswordReset_tokenHash_key" ON "PasswordReset"("tokenHash")`,
   `CREATE INDEX IF NOT EXISTS "PasswordReset_userId_idx" ON "PasswordReset"("userId")`,
   `ALTER TABLE "Preference" ADD COLUMN IF NOT EXISTS "onboardingDoneAt" TIMESTAMP(3)`,
+  // Songs and setlists are per account. Existing rows go to the first admin so
+  // a new signup does not inherit the shared library that used to live here.
+  `ALTER TABLE "Song" ADD COLUMN IF NOT EXISTS "userId" TEXT`,
+  `ALTER TABLE "Setlist" ADD COLUMN IF NOT EXISTS "userId" TEXT`,
+  `CREATE INDEX IF NOT EXISTS "Song_userId_idx" ON "Song"("userId")`,
+  `CREATE INDEX IF NOT EXISTS "Setlist_userId_idx" ON "Setlist"("userId")`,
+  `UPDATE "Song" SET "userId" = (SELECT "id" FROM "User" ORDER BY "createdAt" ASC LIMIT 1) WHERE "userId" IS NULL AND EXISTS (SELECT 1 FROM "User")`,
+  `UPDATE "Setlist" SET "userId" = (SELECT "id" FROM "User" ORDER BY "createdAt" ASC LIMIT 1) WHERE "userId" IS NULL AND EXISTS (SELECT 1 FROM "User")`,
 ]
 
 export const AUTH_TABLES = ['User', 'AuthSetting', 'PasswordReset'] as const

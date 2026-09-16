@@ -2,6 +2,7 @@
 export const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "Song" (
     "id" TEXT NOT NULL,
+    "userId" TEXT,
     "title" TEXT NOT NULL,
     "artist" TEXT NOT NULL,
     "album" TEXT,
@@ -30,6 +31,7 @@ export const SCHEMA_STATEMENTS = [
   )`,
   `CREATE TABLE IF NOT EXISTS "Setlist" (
     "id" TEXT NOT NULL,
+    "userId" TEXT,
     "name" TEXT NOT NULL,
     "description" TEXT,
     "serviceName" TEXT,
@@ -82,6 +84,8 @@ export const SCHEMA_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS "Line_sectionId_idx" ON "Line"("sectionId")`,
   `CREATE INDEX IF NOT EXISTS "SetlistSong_setlistId_idx" ON "SetlistSong"("setlistId")`,
   `CREATE INDEX IF NOT EXISTS "SetlistSong_songId_idx" ON "SetlistSong"("songId")`,
+  `CREATE INDEX IF NOT EXISTS "Song_userId_idx" ON "Song"("userId")`,
+  `CREATE INDEX IF NOT EXISTS "Setlist_userId_idx" ON "Setlist"("userId")`,
   `ALTER TABLE "Song" ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "Section" ENABLE ROW LEVEL SECURITY`,
   `ALTER TABLE "Line" ENABLE ROW LEVEL SECURITY`,

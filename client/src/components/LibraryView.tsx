@@ -8,7 +8,6 @@ import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations, useOpenEditor, usePrefetchSong, useSongs } from '../hooks/useQueries.ts'
 import { Btn, KeyBadge, Spinner } from './ui.tsx'
 import { AddToSetlistModal } from './AddToSetlistModal.tsx'
-import { useIsAdmin } from '../hooks/useAuth.ts'
 
 type Row =
   | { type: 'header'; id: string; artist: string; count: number }
@@ -31,7 +30,6 @@ export function LibraryView({
   const [addError, setAddError] = useState<string | null>(null)
   const [addingIds, setAddingIds] = useState<Set<string>>(() => new Set())
   const { deleteSong } = useMutations()
-  const isAdmin = useIsAdmin()
   const { data: songs = [], isLoading } = useSongs({ search, sort })
 
   const inSetlist = useMemo(() => new Set(setlistSongs.map((s) => s.songId)), [setlistSongs])
@@ -91,21 +89,15 @@ export function LibraryView({
     setPendingSong(song)
   }
 
-  // Undefined rather than a no-op, so the row can drop the control instead of
-  // offering a button the server would refuse.
-  // Undefined rather than a no-op, so rows drop the control instead of
-  // offering a button the server would refuse.
-  const requestDelete = !isAdmin
-    ? undefined
-    : (song: Song) => {
-        askConfirm({
-          title: `Delete ${song.title}?`,
-          message: 'This removes it from the library and every setlist.',
-          danger: true,
-          confirmLabel: 'Delete',
-          onConfirm: () => deleteSong.mutate(song.id),
-        })
-      }
+  const requestDelete = (song: Song) => {
+    askConfirm({
+      title: `Delete ${song.title}?`,
+      message: 'This removes it from the library and every setlist.',
+      danger: true,
+      confirmLabel: 'Delete',
+      onConfirm: () => deleteSong.mutate(song.id),
+    })
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col">

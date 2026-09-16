@@ -3,7 +3,6 @@ import { useEffect } from 'react'
 import { Copy, Pencil, Trash2 } from 'lucide-react'
 import { useAppStore } from '../store/useAppStore.ts'
 import { useMutations } from '../hooks/useQueries.ts'
-import { useIsAdmin } from '../hooks/useAuth.ts'
 
 export function SetlistContextMenu() {
   const menu = useAppStore((s) => s.contextMenu)
@@ -13,7 +12,6 @@ export function SetlistContextMenu() {
   const activeId = useAppStore((s) => s.activeSetlistId)
   const setActive = useAppStore((s) => s.setActiveSetlistId)
   const { duplicateSetlist, deleteSetlist } = useMutations()
-  const isAdmin = useIsAdmin()
 
   useEffect(() => {
     if (!menu) return
@@ -57,30 +55,28 @@ export function SetlistContextMenu() {
           close()
         }}
       />
-      {isAdmin ? (
-        <MenuItem
-          icon={<Trash2 size={14} />}
-          label="Delete"
-          danger
-          onClick={() => {
-            askConfirm({
-              title: 'Delete setlist?',
-              message: 'This cannot be undone. Songs in your library will be kept.',
-              danger: true,
-              confirmLabel: 'Delete',
-              onConfirm: () => {
-                deleteSetlist.mutate(menu.id, {
-                  onSuccess: (res) => {
-                    const nextId = (res as { nextId?: string })?.nextId
-                    if (activeId === menu.id && nextId) setActive(nextId)
-                  },
-                })
-              },
-            })
-            close()
-          }}
-        />
-      ) : null}
+      <MenuItem
+        icon={<Trash2 size={14} />}
+        label="Delete"
+        danger
+        onClick={() => {
+          askConfirm({
+            title: 'Delete setlist?',
+            message: 'This cannot be undone. Songs in your library will be kept.',
+            danger: true,
+            confirmLabel: 'Delete',
+            onConfirm: () => {
+              deleteSetlist.mutate(menu.id, {
+                onSuccess: (res) => {
+                  const nextId = (res as { nextId?: string | null })?.nextId
+                  if (activeId === menu.id) setActive(nextId ?? null)
+                },
+              })
+            },
+          })
+          close()
+        }}
+      />
     </div>
   )
 }

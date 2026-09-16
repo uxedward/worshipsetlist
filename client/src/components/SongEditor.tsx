@@ -10,7 +10,6 @@ import { useMutations, useSong } from '../hooks/useQueries.ts'
 import { useDebouncedCallback } from '../hooks/useDebouncedCallback.ts'
 import { Btn, Field, Spinner, inputClass, inputStyle } from './ui.tsx'
 import { ChordChart } from './ChordChart.tsx'
-import { useIsAdmin } from '../hooks/useAuth.ts'
 
 const PLACEHOLDER = `Verse 1
 G              D
@@ -39,7 +38,6 @@ export function SongEditor() {
   const askConfirm = useAppStore((s) => s.askConfirm)
   const { data: existing, isLoading: songLoading } = useSong(songId)
   const { createSong, patchSong, deleteSong } = useMutations()
-  const isAdmin = useIsAdmin()
 
   const [form, setForm] = useState(emptyForm)
   const [baseline, setBaseline] = useState(emptyForm)
@@ -199,7 +197,7 @@ export function SongEditor() {
           <div className="text-title">{form.title || 'Untitled'}</div>
         </div>
         <div className="flex items-center gap-2">
-          {songId && isAdmin ? (
+          {songId ? (
             <Btn ghost onClick={requestDelete}>
               <span className="inline-flex items-center gap-1" style={{ color: 'var(--danger)' }}>
                 <Trash2 size={14} /> Delete
