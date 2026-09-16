@@ -48,6 +48,7 @@ export function useOnboarding() {
       blurb: 'Paste a Spotify playlist or type a chart by hand.',
       action: 'Open the library',
       done: songCount > 0,
+      adminOnly: true,
     },
     {
       id: 'setlist',
@@ -59,7 +60,7 @@ export function useOnboarding() {
     {
       id: 'team',
       title: 'Invite your team',
-      blurb: 'Each person gets their own library and can run Present mode.',
+      blurb: 'They share your song library, build their own setlists, and run Present mode.',
       action: 'Add accounts',
       done: (team.data?.length ?? 1) > 1,
       adminOnly: true,

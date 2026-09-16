@@ -11,8 +11,9 @@ export async function loadBootstrap(userId: string) {
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       include: setlistWithSongCharts,
     }),
+    // The song catalog is the admin library. Every signed-in account reads it;
+    // setlists stay per person so a new signup still starts empty.
     prisma.song.findMany({
-      where: owned,
       orderBy: [{ artist: 'asc' }, { title: 'asc' }],
     }),
   ])

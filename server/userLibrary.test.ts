@@ -9,9 +9,11 @@ describe('ownedBy', () => {
 })
 
 describe('loadBootstrap', () => {
-  it('loads only the signed-in account\'s songs and setlists', () => {
+  it('shares the song catalog and keeps setlists on the signed-in account', () => {
     const src = readFileSync(new URL('./bootstrap.ts', import.meta.url), 'utf8')
     expect(src).toContain('where: owned')
     expect(src).toContain('ownedBy(userId)')
+    expect(src).toContain('The song catalog is the admin library')
+    expect(src).not.toMatch(/prisma\.song\.findMany\(\{[\s\S]*where: owned/)
   })
 })
