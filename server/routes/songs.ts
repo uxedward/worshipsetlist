@@ -5,18 +5,18 @@ import { resolveSongKey } from '../../shared/detectKey.js'
 import { sameSongIdentity } from '../../shared/spotifyImport.js'
 import { durableDatabase, prisma } from '../db.js'
 import { songWithChart } from '../songInclude.js'
-import { requireAdmin, requireAuth } from '../authMiddleware.js'
+import { requireAuth } from '../authMiddleware.js'
+import { ownedBy } from '../userLibrary.js'
 
 export const songsRouter = Router()
 
-// Everyone signed in can read the library and add to it. Deleting is an admin
-// action: it is the one verb here that destroys work other people rely on.
 songsRouter.use(requireAuth)
 
 const fullSong = songWithChart
 
-songsRouter.get('/export', async (_req, res) => {
+songsRouter.get('/export', async (req, res) => {
   const songs = await prisma.song.findMany({
+    where: ownedBy(req.user!.id),
     orderBy: [{ artist: 'asc' }, { title: 'asc' }],
     include: fullSong,
   })
@@ -37,6 +37,7 @@ songsRouter.post('/bulk-import', async (req, res) => {
   let imported = 0
   let skipped = 0
   const reasons: string[] = []
+  const userId = req.user!.id
 
   for (const block of blocks) {
     if (!block.input) {
@@ -44,7 +45,7 @@ songsRouter.post('/bulk-import', async (req, res) => {
       if (block.skipReason) reasons.push(block.skipReason)
       continue
     }
-    await createSong(block.input)
+    await createSong(block.input, userId)
     imported++
   }
 
@@ -75,8 +76,12 @@ songsRouter.post('/spotify-lookup', async (req, res) => {
 })
 
 songsRouter.post('/sync-local', async (req, res) => {
+  const userId = req.user!.id
   const songs = Array.isArray(req.body?.songs) ? (req.body.songs as SongInput[]) : []
-  const existing = await prisma.song.findMany({ select: { title: true, artist: true } })
+  const existing = await prisma.song.findMany({
+    where: ownedBy(userId),
+    select: { title: true, artist: true },
+  })
   let imported = 0
   let skipped = 0
   for (const input of songs) {
@@ -88,7 +93,7 @@ songsRouter.post('/sync-local', async (req, res) => {
       skipped++
       continue
     }
-    const created = await createSong(input)
+    const created = await createSong(input, userId)
     existing.push({ title: created.title, artist: created.artist })
     imported++
   }
@@ -103,6 +108,7 @@ songsRouter.get('/', async (req, res) => {
 
   const songs = await prisma.song.findMany({
     where: {
+      ...ownedBy(req.user!.id),
       ...(artist ? { artist } : {}),
       ...(tag ? { tag } : {}),
       ...(search
@@ -126,8 +132,8 @@ songsRouter.get('/', async (req, res) => {
 })
 
 songsRouter.get('/:id', async (req, res) => {
-  const song = await prisma.song.findUnique({
-    where: { id: req.params.id },
+  const song = await prisma.song.findFirst({
+    where: { id: req.params.id, ...ownedBy(req.user!.id) },
     include: fullSong,
   })
   if (!song) {
@@ -145,12 +151,14 @@ songsRouter.post('/', async (req, res) => {
     res.status(400).json({ error: err })
     return
   }
-  const song = await createSong(input)
+  const song = await createSong(input, req.user!.id)
   res.status(201).json(song)
 })
 
 songsRouter.patch('/:id', async (req, res) => {
-  const existing = await prisma.song.findUnique({ where: { id: req.params.id } })
+  const existing = await prisma.song.findFirst({
+    where: { id: req.params.id, ...ownedBy(req.user!.id) },
+  })
   if (!existing) {
     res.status(404).json({ error: 'Song not found' })
     return
@@ -196,8 +204,10 @@ songsRouter.patch('/:id', async (req, res) => {
   res.json(song)
 })
 
-songsRouter.delete('/:id', requireAdmin, async (req, res) => {
-  const existing = await prisma.song.findUnique({ where: { id: req.params.id } })
+songsRouter.delete('/:id', async (req, res) => {
+  const existing = await prisma.song.findFirst({
+    where: { id: req.params.id, ...ownedBy(req.user!.id) },
+  })
   if (!existing) {
     res.status(404).json({ error: 'Song not found' })
     return
@@ -224,9 +234,10 @@ function validateSong(input: SongInput): string | null {
   return null
 }
 
-async function createSong(input: SongInput) {
+async function createSong(input: SongInput, userId: string) {
   return prisma.song.create({
     data: {
+      userId,
       title: input.title.trim(),
       artist: input.artist.trim(),
       album: input.album?.trim() || null,

@@ -4,6 +4,7 @@ import { SCHEMA_STATEMENTS, APP_TABLES, RLS_STATEMENTS, REVOKE_PUBLIC_ACCESS_STA
 describe('SCHEMA_STATEMENTS', () => {
   it('uses IF NOT EXISTS and avoids pgbouncer-unsafe DO blocks', () => {
     expect(SCHEMA_STATEMENTS.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS "Song"'))).toBe(true)
+    expect(SCHEMA_STATEMENTS.some((sql) => sql.includes('"userId" TEXT') && sql.includes('"title" TEXT NOT NULL'))).toBe(true)
     expect(SCHEMA_STATEMENTS.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS "CustomBackground"'))).toBe(true)
     expect(SCHEMA_STATEMENTS.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS "BackgroundChunk"'))).toBe(true)
     expect(SCHEMA_STATEMENTS.some((sql) => sql.includes('ADD COLUMN IF NOT EXISTS "sizeBytes"'))).toBe(true)

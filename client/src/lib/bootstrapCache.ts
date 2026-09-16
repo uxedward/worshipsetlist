@@ -1,4 +1,5 @@
 import type { Preference, Setlist, Song } from '@shared/types.ts'
+import { libraryStorageKey } from './libraryOwner.ts'
 
 export type BootstrapPayload = {
   preferences: Preference
@@ -12,7 +13,7 @@ export const BOOTSTRAP_CACHE_KEY = 'setflow.bootstrap.cache.v1'
 export function readBootstrapCache(): BootstrapPayload | null {
   if (typeof localStorage === 'undefined') return null
   try {
-    const raw = localStorage.getItem(BOOTSTRAP_CACHE_KEY)
+    const raw = localStorage.getItem(libraryStorageKey(BOOTSTRAP_CACHE_KEY))
     if (!raw) return null
     const parsed = JSON.parse(raw) as BootstrapPayload
     if (!parsed?.preferences || !Array.isArray(parsed.setlists) || !Array.isArray(parsed.songs)) return null
@@ -45,7 +46,7 @@ export function writeBootstrapCache(payload: BootstrapPayload) {
           }
         : null,
     }
-    localStorage.setItem(BOOTSTRAP_CACHE_KEY, JSON.stringify(slim))
+    localStorage.setItem(libraryStorageKey(BOOTSTRAP_CACHE_KEY), JSON.stringify(slim))
   } catch {
     /* quota / private mode */
   }

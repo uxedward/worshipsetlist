@@ -10,6 +10,8 @@ datasource db {
 
 model Song {
   id              String        @id @default(cuid())
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   title           String
   artist          String
   album           String?
@@ -21,6 +23,8 @@ model Song {
   createdAt       DateTime      @default(now())
   sections        Section[]
   setlistSongs    SetlistSong[]
+
+  @@index([userId])
 }
 
 model Section {
@@ -47,6 +51,8 @@ model Line {
 
 model Setlist {
   id          String        @id @default(cuid())
+  userId      String?
+  user        User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
   description String?
   serviceName String?
@@ -56,6 +62,8 @@ model Setlist {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   songs       SetlistSong[]
+
+  @@index([userId])
 }
 
 model SetlistSong {
@@ -81,6 +89,8 @@ model User {
   createdAt    DateTime        @default(now())
   preference   Preference?
   resets       PasswordReset[]
+  songs        Song[]
+  setlists     Setlist[]
 }
 
 /** One-time reset links. Only the hash is stored, never the token itself. */

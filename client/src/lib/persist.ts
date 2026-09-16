@@ -1,6 +1,7 @@
 import type { Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
 import { displaySongMeta } from '@shared/bulkFormat.ts'
 import { resolveSongKey } from '@shared/detectKey.ts'
+import { libraryStorageKey } from './libraryOwner.ts'
 
 const KEY = 'setflow.persist.v2'
 const LEGACY_KEYS = ['setflow.persist.v1']
@@ -46,7 +47,7 @@ export function loadPersist(): PersistState {
   if (typeof localStorage === 'undefined') return empty()
   discardLegacyPersist()
   try {
-    const raw = localStorage.getItem(KEY)
+    const raw = localStorage.getItem(libraryStorageKey(KEY))
     if (!raw) return empty()
     const parsed = JSON.parse(raw) as PersistState
     if (parsed?.v !== 2) return empty()
@@ -66,7 +67,7 @@ export function loadPersist(): PersistState {
 
 export function savePersist(state: PersistState) {
   if (typeof localStorage === 'undefined') return
-  localStorage.setItem(KEY, JSON.stringify(state))
+  localStorage.setItem(libraryStorageKey(KEY), JSON.stringify(state))
 }
 
 function write(patch: (state: PersistState) => void) {

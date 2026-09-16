@@ -32,7 +32,11 @@ export function loadRestoreSongs(): RestoreSong[] {
   return Array.isArray(parsed) ? parsed : []
 }
 
-export async function restoreLibraryIfEmpty() {
+/**
+ * Manual restore only. New accounts start with an empty library; do not call
+ * this from boot or every signup would inherit the same three charts.
+ */
+export async function restoreLibraryIfEmpty(userId?: string) {
   if ((await prisma.song.count()) > 0) return
   const songs = loadRestoreSongs()
   for (const song of songs) {
@@ -48,6 +52,7 @@ export async function restoreLibraryIfEmpty() {
         tag: song.tag,
         durationSeconds: song.durationSeconds ?? null,
         createdAt: song.createdAt ? new Date(song.createdAt) : undefined,
+        userId: userId ?? null,
         sections: {
           create: (song.sections ?? []).map((section) => ({
             label: section.label,

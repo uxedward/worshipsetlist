@@ -3,6 +3,7 @@ import { lazy, Suspense, useState } from 'react'
 import { useAuthState, resetTokenFromUrl } from './hooks/useAuth.ts'
 import { AuthScreen } from './components/AuthScreen.tsx'
 import { BootSplash } from './components/BootSplash.tsx'
+import { setLibraryOwner } from './lib/libraryOwner.ts'
 
 const AppInner = lazy(() => import('./AppInner.tsx').then((mod) => ({ default: mod.AppInner })))
 
@@ -35,8 +36,10 @@ function AuthGate() {
   // A reset link wins over an existing session: whoever opened it is proving
   // they own the account, and they may be on a shared tablet.
   const [resetToken, setResetToken] = useState(resetTokenFromUrl)
+  const user = auth.data?.user ?? null
+  if (user) setLibraryOwner(user.id)
 
-  if (resetToken || !auth.data?.user) {
+  if (resetToken || !user) {
     // Paint the sign-in / first-run screen immediately. Waiting on
     // /api/auth/state used to hold a full-app splash until that call returned.
     return (
