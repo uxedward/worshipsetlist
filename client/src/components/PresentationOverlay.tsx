@@ -18,7 +18,7 @@ import {
   presentBackgroundFill,
   type PresentBackground,
 } from '../lib/presentBackgrounds.ts'
-import { resolvePlayablePresentSrc } from '../lib/playPresentVideo.ts'
+import { resolvePlayablePresentSrc, bufferPresentVideoSrc } from '../lib/playPresentVideo.ts'
 import { bindPresentVideoManifest, installPresentVideoSw } from '../lib/presentVideoSw.ts'
 import { PRESENT_VIDEO_STORAGE_CHUNK_BYTES } from '@shared/presentVideo.ts'
 import {
@@ -573,9 +573,11 @@ function PresentBackdrop({
       : fallbackSrc,
   )
   const videoRef = useRef<HTMLVideoElement>(null)
+  const resumeAt = useRef<number | null>(null)
 
   useEffect(() => {
     let cancelled = false
+    resumeAt.current = null
     if (!background.custom) {
       setPlaySrc(fallbackSrc)
       return () => {
@@ -584,7 +586,16 @@ function PresentBackdrop({
     }
     setPlaySrc(background.src?.startsWith('blob:') ? background.src : undefined)
     void resolvePlayablePresentSrc(background).then((src) => {
-      if (!cancelled && src) setPlaySrc(src)
+      if (cancelled || !src) return
+      setPlaySrc((current) => (current?.startsWith('blob:') ? current : src))
+    })
+    void bufferPresentVideoSrc(background).then((src) => {
+      if (cancelled || !src?.startsWith('blob:')) return
+      const el = videoRef.current
+      if (el && !el.currentSrc.startsWith('blob:') && Number.isFinite(el.currentTime) && el.currentTime > 0) {
+        resumeAt.current = el.currentTime
+      }
+      setPlaySrc(src)
     })
     return () => {
       cancelled = true
@@ -595,14 +606,24 @@ function PresentBackdrop({
     const el = videoRef.current
     if (!el || !playSrc) return
     const tryPlay = () => {
+      if (resumeAt.current != null && Number.isFinite(resumeAt.current)) {
+        try {
+          el.currentTime = resumeAt.current
+        } catch {
+          /* some codecs reject a seek until more data arrives */
+        }
+        resumeAt.current = null
+      }
       void el.play().catch(() => undefined)
     }
     el.addEventListener('loadeddata', tryPlay)
     el.addEventListener('canplay', tryPlay)
+    el.addEventListener('waiting', tryPlay)
     tryPlay()
     return () => {
       el.removeEventListener('loadeddata', tryPlay)
       el.removeEventListener('canplay', tryPlay)
+      el.removeEventListener('waiting', tryPlay)
     }
   }, [playSrc])
 
@@ -639,7 +660,7 @@ function PresentBackdrop({
       {showVideo ? (
         <video
           ref={videoRef}
-          key={`${background.id}-${playSrc}`}
+          key={background.id}
           className="absolute inset-0 h-full w-full object-cover"
           src={playSrc}
           poster={background.poster}

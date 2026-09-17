@@ -71,7 +71,9 @@ export async function presentStreamUrl(background: PresentBackground): Promise<s
     chunkBytes: PRESENT_VIDEO_STORAGE_CHUNK_BYTES,
   })
   if (!ok) return undefined
-  const first = `${background.chunkBaseUrl.replace(/\/?$/, '/')}0`
-  void fetch(first, { headers: { Range: 'bytes=0-1048575' }, mode: 'cors' }).catch(() => undefined)
+  const base = background.chunkBaseUrl.replace(/\/?$/, '/')
+  for (let index = 0; index < 4; index++) {
+    void fetch(`${base}${index}`, { mode: 'cors' }).catch(() => undefined)
+  }
   return presentStreamSrc(background.id)
 }
