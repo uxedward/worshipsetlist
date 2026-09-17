@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 
 const memory = new Map<string, string>()
+const session = new Map<string, string>()
 Object.defineProperty(globalThis, 'localStorage', {
   value: {
     getItem: (key: string) => memory.get(key) ?? null,
@@ -13,11 +14,24 @@ Object.defineProperty(globalThis, 'localStorage', {
     clear: () => memory.clear(),
   },
 })
+Object.defineProperty(globalThis, 'sessionStorage', {
+  value: {
+    getItem: (key: string) => session.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      session.set(key, value)
+    },
+    removeItem: (key: string) => {
+      session.delete(key)
+    },
+    clear: () => session.clear(),
+  },
+})
 
 import {
   appendSetlistSong,
   extraSongs,
   forgetExtraSongs,
+  forgetLocalSetlist,
   overlaySetlist,
   overlaySetlists,
   overlaySongs,
@@ -30,6 +44,7 @@ import {
   reorderPersistedSetlists,
   songToInput,
 } from './persist.ts'
+import { writeAuthCache } from './authCache.ts'
 import { setLibraryOwner } from './libraryOwner.ts'
 import type { Setlist, SetlistSong, Song } from '@shared/types.ts'
 
@@ -73,6 +88,7 @@ const row = (setlistId: string, s: Song, order = 0): SetlistSong => ({
 describe('persist overlays', () => {
   beforeEach(() => {
     localStorage.clear()
+    sessionStorage.clear()
     setLibraryOwner(null)
   })
 
@@ -262,5 +278,26 @@ describe('persist overlays', () => {
     expect(overlaySongs([]).map((s) => s.title)).toEqual(['Original'])
     setLibraryOwner('admin')
     expect(overlaySongs([]).map((s) => s.title)).toEqual(['Oceans'])
+  })
+
+  it('does not overlay a private song catalog for team members', () => {
+    writeAuthCache({
+      needsSetup: false,
+      user: { id: 'member', email: 'member@example.com', name: 'Member', role: 'user' },
+    })
+    rememberSong(song('mine', 'Original'))
+    rememberDeletedSong('shared')
+    const songs = overlaySongs([song('shared', 'Oceans')])
+    expect(songs.map((s) => s.title)).toEqual(['Oceans'])
+  })
+
+  it('swaps a local setlist id for the server id without dropping it', () => {
+    const local = { ...setlist('local-abc', 'LG Puri 1'), id: 'local-abc' }
+    rememberSetlist(local)
+    const created = setlist('srv', 'LG Puri 1')
+    forgetLocalSetlist(local.id, created)
+    const listed = overlaySetlists([created])
+    expect(listed.map((s) => s.id)).toEqual(['srv'])
+    expect(listed[0].name).toBe('LG Puri 1')
   })
 })

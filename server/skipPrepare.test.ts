@@ -30,11 +30,16 @@ describe('skipDatabasePrepare', () => {
     expect(skipDatabasePrepare('POST', '/api/auth/users')).toBe(true)
   })
 
+  it('skips setlist writes so creating a setlist is not blocked by schema restore', () => {
+    expect(skipDatabasePrepare('POST', '/api/setlists')).toBe(true)
+    expect(skipDatabasePrepare('PATCH', '/api/setlists/abc')).toBe(true)
+    expect(skipDatabasePrepare('DELETE', '/api/setlists/abc')).toBe(true)
+  })
+
   it('still prepares song writes so a brand-new database can accept edits', () => {
     expect(skipDatabasePrepare('POST', '/api/songs')).toBe(false)
     expect(skipDatabasePrepare('PATCH', '/api/songs/abc123')).toBe(false)
     expect(skipDatabasePrepare('DELETE', '/api/songs/abc123')).toBe(false)
-    expect(skipDatabasePrepare('PATCH', '/api/setlists/abc')).toBe(false)
   })
 })
 

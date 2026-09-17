@@ -222,6 +222,16 @@ button:disabled {
   opacity: 0.5;
 }
 
+[data-theme="dark"] input[type="date"].date-input {
+  color-scheme: dark;
+}
+
+[data-theme="dark"] input[type="date"].date-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 1;
+  cursor: pointer;
+}
+
 :focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px var(--accent);

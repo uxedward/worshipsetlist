@@ -9,10 +9,19 @@ describe('ownedBy', () => {
 })
 
 describe('loadBootstrap', () => {
-  it('loads only the signed-in account\'s songs and setlists', () => {
+  it('loads only the signed-in account\'s setlists', () => {
     const src = readFileSync(new URL('./bootstrap.ts', import.meta.url), 'utf8')
     expect(src).toContain('where: owned')
     expect(src).toContain('ownedBy(userId)')
+  })
+
+  it('loads the shared song catalog for every signed-in account', () => {
+    const src = readFileSync(new URL('./bootstrap.ts', import.meta.url), 'utf8')
+    expect(src).toContain('loadSongCatalog()')
+    expect(src).not.toMatch(/prisma\.song\.findMany\(\s*\{[\s\S]*where:\s*owned/)
+    const lib = readFileSync(new URL('./userLibrary.ts', import.meta.url), 'utf8')
+    expect(lib).toContain('prisma.song.findMany({ orderBy: sharedSongOrder })')
+    expect(lib).not.toMatch(/loadSongCatalog[\s\S]*ownedBy/)
   })
 
   it('keeps chord charts off the setlist list and loads them for the active set only', () => {
@@ -28,5 +37,13 @@ describe('loadBootstrap', () => {
     expect(listInclude).toBeGreaterThan(findMany)
     expect(listInclude).toBeLessThan(findFirst)
     expect(chartInclude).toBeGreaterThan(findFirst)
+  })
+})
+
+describe('songs routes', () => {
+  it('lists songs without scoping them to the signed-in account', () => {
+    const src = readFileSync(new URL('./routes/songs.ts', import.meta.url), 'utf8')
+    expect(src).not.toMatch(/ownedBy/)
+    expect(src).toContain('sharedSongOrder')
   })
 })

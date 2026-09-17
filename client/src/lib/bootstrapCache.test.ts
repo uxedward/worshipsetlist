@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach } from 'vitest'
-import { BOOTSTRAP_CACHE_KEY, readBootstrapCache, writeBootstrapCache } from './bootstrapCache.ts'
+import { BOOTSTRAP_CACHE_KEY, cachedCatalogSongs, readBootstrapCache, writeBootstrapCache } from './bootstrapCache.ts'
 import type { BootstrapPayload } from './bootstrapCache.ts'
 import { setLibraryOwner } from './libraryOwner.ts'
 
@@ -77,5 +77,12 @@ describe('bootstrapCache', () => {
     expect(readBootstrapCache()?.songs).toHaveLength(1)
     setLibraryOwner('member')
     expect(readBootstrapCache()).toBeNull()
+  })
+
+  it('does not treat an empty member cache as a loaded catalog', () => {
+    writeBootstrapCache({ ...sample, songs: [] })
+    expect(cachedCatalogSongs(readBootstrapCache())).toBeUndefined()
+    writeBootstrapCache(sample)
+    expect(cachedCatalogSongs(readBootstrapCache())?.map((s) => s.title)).toEqual(['Oceans'])
   })
 })

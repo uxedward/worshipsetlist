@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef } from 'react'
 import { useAppStore } from './store/useAppStore.ts'
 import { useMutations, usePreferences, useSetlist, useSetlists, useSongs, useBootstrap } from './hooks/useQueries.ts'
 import { useOfflineSync } from './hooks/useOfflineSync.ts'
+import { useIsAdmin } from './hooks/useAuth.ts'
 import { AppShell } from './components/AppShell.tsx'
 import { BootSplash } from './components/BootSplash.tsx'
 import { SetlistContextMenu } from './components/SetlistContextMenu.tsx'
@@ -54,6 +55,7 @@ export function AppInner() {
   const setElapsed = useAppStore((s) => s.setElapsed)
   const setPlaying = useAppStore((s) => s.setPlaying)
   const { patchPrefs } = useMutations()
+  const isAdmin = useIsAdmin()
   const lastPrefWrite = useRef<string | null>(null)
   const hydratedPrefs = useRef(false)
 
@@ -95,7 +97,12 @@ export function AppInner() {
   }, [theme, prefs.data?.theme, patchPrefs, prefs.data])
 
   useEffect(() => {
-    if (activeSetlistId && prefs.data && prefs.data.lastSetlistId !== activeSetlistId) {
+    if (
+      activeSetlistId &&
+      !activeSetlistId.startsWith('local-') &&
+      prefs.data &&
+      prefs.data.lastSetlistId !== activeSetlistId
+    ) {
       patchPrefs.mutate({ lastSetlistId: activeSetlistId })
     }
   }, [activeSetlistId, patchPrefs, prefs.data])
@@ -178,11 +185,11 @@ export function AppInner() {
         songCount={songsQuery.data?.length ?? boot.data?.songs.length ?? 0}
       />
       <Suspense fallback={null}>
-        {editorOpen ? <SongEditor /> : null}
+        {editorOpen && isAdmin ? <SongEditor /> : null}
         {addPickerOpen ? <AddSongPicker /> : null}
         {presentationOpen ? <PresentationOverlay songs={setlistSongs} /> : null}
         {setlistModalId ? <SetlistEditModal setlists={setlists.data ?? boot.data?.setlists ?? []} /> : null}
-        {bulkImportOpen ? <BulkImportModal /> : null}
+        {bulkImportOpen && isAdmin ? <BulkImportModal /> : null}
         {exportOpen ? (
           <ExportModal setlistName={setlist?.name ?? 'Setlist'} songs={setlistSongs} />
         ) : null}

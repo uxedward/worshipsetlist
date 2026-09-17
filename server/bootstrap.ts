@@ -1,6 +1,6 @@
 import { prisma } from './db.ts'
 import { setlistWithSongCharts, setlistWithSongMeta } from './songInclude.ts'
-import { ownedBy } from './userLibrary.ts'
+import { loadSongCatalog, ownedBy } from './userLibrary.ts'
 
 export async function loadBootstrap(userId: string) {
   const owned = ownedBy(userId)
@@ -11,10 +11,7 @@ export async function loadBootstrap(userId: string) {
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       include: setlistWithSongMeta,
     }),
-    prisma.song.findMany({
-      where: owned,
-      orderBy: [{ artist: 'asc' }, { title: 'asc' }],
-    }),
+    loadSongCatalog(),
   ])
   let preferences = preferencesRow
   if (!preferences) {

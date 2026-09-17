@@ -18,7 +18,6 @@ export function SetlistEditModal({ setlists }: { setlists: Setlist[] }) {
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [serviceName, setServiceName] = useState('')
   const [date, setDate] = useState('')
 
   useEffect(() => {
@@ -26,30 +25,26 @@ export function SetlistEditModal({ setlists }: { setlists: Setlist[] }) {
     if (existing) {
       setName(existing.name)
       setDescription(existing.description ?? '')
-      setServiceName(existing.serviceName ?? '')
       setDate(formatDateInput(existing.date))
     } else {
       setName('')
       setDescription('')
-      setServiceName('')
       setDate('')
     }
   }, [id, existing])
 
   if (!id) return null
 
-  const save = async () => {
+  const save = () => {
     if (!name.trim()) return
     const body = {
       name: name.trim(),
       description: description.trim() || null,
-      serviceName: serviceName.trim() || null,
       date: date || null,
     }
     if (id === 'new') {
-      const created = (await createSetlist.mutateAsync(body)) as Setlist
-      if (created?.id) setActive(created.id)
       close()
+      createSetlist.mutate(body)
       return
     }
     patchSetlist.mutate({ id, body })
@@ -69,18 +64,10 @@ export function SetlistEditModal({ setlists }: { setlists: Setlist[] }) {
           <Field label="Name">
             <input className={inputClass} style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} />
           </Field>
-          <Field label="Service name">
-            <input
-              className={inputClass}
-              style={inputStyle}
-              value={serviceName}
-              onChange={(e) => setServiceName(e.target.value)}
-            />
-          </Field>
           <Field label="Date">
             <input
               type="date"
-              className={inputClass}
+              className={`${inputClass} date-input`}
               style={inputStyle}
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -130,7 +117,7 @@ export function SetlistEditModal({ setlists }: { setlists: Setlist[] }) {
             <Btn ghost onClick={close}>
               Cancel
             </Btn>
-            <Btn accent disabled={!name.trim()} onClick={() => void save()}>
+            <Btn accent disabled={!name.trim()} onClick={save}>
               {id === 'new' ? 'Create setlist' : 'Save'}
             </Btn>
           </div>
