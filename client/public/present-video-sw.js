@@ -1,4 +1,4 @@
-/* Streams 4K present videos from public Storage parts. Keep in sync with shared/presentVideo.ts. */
+/* Streams present videos from public Storage parts. Keep in sync with shared/presentVideo.ts. */
 const SLICE = 8 * 1024 * 1024
 const PREFIX = '/present-media/'
 const manifests = new Map()
