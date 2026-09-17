@@ -1,6 +1,6 @@
 import { prisma } from './db.ts'
 import { setlistWithSongCharts, setlistWithSongMeta } from './songInclude.ts'
-import { ownedBy } from './userLibrary.ts'
+import { loadSongCatalog, ownedBy } from './userLibrary.ts'
 
 export async function loadBootstrap(userId: string) {
   const owned = ownedBy(userId)
@@ -11,11 +11,7 @@ export async function loadBootstrap(userId: string) {
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
       include: setlistWithSongMeta,
     }),
-    prisma.song.findMany({
-      // The song catalog is the admin library. Every signed-in account reads it;
-      // setlists stay per person so a new signup still starts empty.
-      orderBy: [{ artist: 'asc' }, { title: 'asc' }],
-    }),
+    loadSongCatalog(),
   ])
   let preferences = preferencesRow
   if (!preferences) {

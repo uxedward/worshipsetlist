@@ -33,7 +33,7 @@ import {
 } from '../lib/persist.ts'
 import { songsListQueryKey } from '../lib/queryKeys.ts'
 import { sameSongIdentity, songInputFromSpotifyTrack } from '@shared/spotifyImport.ts'
-import { readBootstrapCache, writeBootstrapCache } from '../lib/bootstrapCache.ts'
+import { readBootstrapCache, writeBootstrapCache, cachedCatalogSongs } from '../lib/bootstrapCache.ts'
 import { cacheSetlistSongCharts, dropCachedSong, hasSongChart, readCachedSong, writeCachedSong } from '../lib/songChartCache.ts'
 import type { BootstrapPayload } from '../lib/bootstrapCache.ts'
 
@@ -55,14 +55,16 @@ function cachedLibraryBootstrap() {
 
 export function useBootstrap() {
   const qc = useQueryClient()
-  const seed = (payload: BootstrapPayload) => {
+  const seed = (payload: BootstrapPayload, fromCache = false) => {
     qc.setQueryData(['preferences'], (prev: Preference | undefined) =>
       prev
         ? { ...payload.preferences, theme: prev.theme, presentationFontSize: prev.presentationFontSize }
         : payload.preferences,
     )
     qc.setQueryData(['setlists'], payload.setlists)
-    qc.setQueryData(songsListQueryKey(), payload.songs)
+    if (!fromCache || payload.songs.length > 0) {
+      qc.setQueryData(songsListQueryKey(), payload.songs)
+    }
     if (payload.activeSetlist) {
       qc.setQueryData(['setlist', payload.activeSetlist.id], payload.activeSetlist)
     }
@@ -80,7 +82,7 @@ export function useBootstrap() {
 
   useLayoutEffect(() => {
     const cached = cachedLibraryBootstrap()
-    if (cached) seed(cached)
+    if (cached) seed(cached, true)
   }, [])
 
   return useQuery({
@@ -180,13 +182,14 @@ export function useSongs(
   if (params.sort) q.set('sort', params.sort)
   const qs = q.toString() ? `?${q.toString()}` : ''
   const defaultList = !params.search && !params.artist && !params.tag && (!params.sort || params.sort === 'artist')
+  const cachedSongs = defaultList ? cachedCatalogSongs(cachedLibraryBootstrap()) : undefined
   return useQuery({
     queryKey: songsListQueryKey(params),
     queryFn: async () => overlaySongs(await endpoints.songs(qs)),
     enabled,
     staleTime: 60_000,
-    refetchOnMount: false,
-    initialData: defaultList ? cachedLibraryBootstrap()?.songs : undefined,
+    refetchOnMount: !cachedSongs?.length,
+    initialData: cachedSongs,
   })
 }
 

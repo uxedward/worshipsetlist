@@ -51,3 +51,13 @@ export function writeBootstrapCache(payload: BootstrapPayload) {
     /* quota / private mode */
   }
 }
+
+/**
+ * An empty cached song list is not a catalog. Members used to keep a
+ * per-account empty snapshot from when songs were scoped to the signed-in
+ * user, and that snapshot blocked a refetch of the shared admin library.
+ */
+export function cachedCatalogSongs(payload: BootstrapPayload | null | undefined): Song[] | undefined {
+  if (!payload?.songs?.length) return undefined
+  return payload.songs
+}

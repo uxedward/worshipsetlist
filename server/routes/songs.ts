@@ -6,6 +6,7 @@ import { sameSongIdentity } from '../../shared/spotifyImport.js'
 import { durableDatabase, prisma } from '../db.js'
 import { songWithChart } from '../songInclude.js'
 import { requireAdmin, requireAuth } from '../authMiddleware.js'
+import { sharedSongOrder } from '../userLibrary.js'
 
 export const songsRouter = Router()
 
@@ -15,7 +16,7 @@ const fullSong = songWithChart
 
 songsRouter.get('/export', async (_req, res) => {
   const songs = await prisma.song.findMany({
-    orderBy: [{ artist: 'asc' }, { title: 'asc' }],
+    orderBy: sharedSongOrder,
     include: fullSong,
   })
   const body = serializeExport(
@@ -122,7 +123,7 @@ songsRouter.get('/', async (req, res) => {
         ? [{ title: 'asc' }, { artist: 'asc' }]
         : sort === 'bpm'
           ? [{ bpm: 'asc' }, { title: 'asc' }]
-          : [{ artist: 'asc' }, { title: 'asc' }],
+          : sharedSongOrder,
   })
   res.json(songs)
 })
