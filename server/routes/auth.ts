@@ -386,8 +386,9 @@ authRouter.delete('/users/:id', requireAdmin, async (req, res) => {
     return
   }
   await prisma.setlist.deleteMany({ where: { userId: row.id } })
-  await prisma.setlistSong.deleteMany({ where: { song: { userId: row.id } } })
-  await prisma.song.deleteMany({ where: { userId: row.id } })
+  // Songs are the shared admin catalog. Detach them so deleting an account
+  // cannot cascade-wipe charts everyone else still needs.
+  await prisma.song.updateMany({ where: { userId: row.id }, data: { userId: null } })
   await prisma.user.delete({ where: { id: row.id } })
   await bumpSessionEpoch()
   await reissueActingAdmin(req, res)

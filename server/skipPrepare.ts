@@ -6,10 +6,12 @@ export function skipDatabasePrepare(method: string | undefined, url: string | un
   // table is treated as first-run setup; writes create tables lazily.
   if (path === '/api/auth' || path.startsWith('/api/auth/')) return true
   if (path === '/api/backgrounds' || path.startsWith('/api/backgrounds/')) return true
+  // Setlist creates/edits must not wait on RLS DDL. A missing table retries
+  // after prepare; an existing database answers immediately.
+  if (path === '/api/setlists' || path.startsWith('/api/setlists/')) return true
   if (verb !== 'GET' && verb !== 'HEAD') return false
   if (path === '/api/bootstrap' || path === '/api/preferences') return true
   if (path === '/api/songs' || path.startsWith('/api/songs/')) return true
-  if (path === '/api/setlists' || path.startsWith('/api/setlists/')) return true
   return false
 }
 

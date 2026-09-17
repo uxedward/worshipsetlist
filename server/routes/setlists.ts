@@ -3,6 +3,18 @@ import { prisma } from '../db.js'
 import { setlistWithSongMeta } from '../songInclude.js'
 import { requireAuth } from '../authMiddleware.js'
 import { ownedBy } from '../userLibrary.js'
+import { needsDatabasePrepare } from '../skipPrepare.js'
+
+async function withSetlistSchema<T>(work: () => Promise<T>): Promise<T> {
+  try {
+    return await work()
+  } catch (err) {
+    if (!needsDatabasePrepare(err)) throw err
+    const { ensurePersistentDatabase } = await import('../cloneLibrary.js')
+    await ensurePersistentDatabase()
+    return await work()
+  }
+}
 
 export const setlistsRouter = Router()
 
@@ -65,22 +77,20 @@ setlistsRouter.post('/', async (req, res) => {
     return
   }
   const userId = req.user!.id
-  const owned = ownedBy(userId)
-  const count = await prisma.setlist.count({ where: owned })
-  const maxOrder = await prisma.setlist.aggregate({ where: owned, _max: { sortOrder: true } })
-  const setlist = await prisma.setlist.create({
-    data: {
-      userId,
-      name,
-      description: req.body.description ?? null,
-      serviceName: req.body.serviceName ?? null,
-      date: req.body.date ? new Date(req.body.date) : null,
-      colorIndex: typeof req.body.colorIndex === 'number' ? req.body.colorIndex : count % 5,
-      sortOrder: (maxOrder._max.sortOrder ?? -1) + 1,
-    },
-    include: setlistInclude,
-  })
-  res.status(201).json(setlist)
+  const setlist = await withSetlistSchema(() =>
+    prisma.setlist.create({
+      data: {
+        userId,
+        name,
+        description: req.body.description ?? null,
+        serviceName: req.body.serviceName ?? null,
+        date: req.body.date ? new Date(req.body.date) : null,
+        colorIndex: typeof req.body.colorIndex === 'number' ? req.body.colorIndex : 0,
+        sortOrder: 0,
+      },
+    }),
+  )
+  res.status(201).json({ ...setlist, songs: [], _count: { songs: 0 } })
 })
 
 setlistsRouter.patch('/:id', async (req, res) => {
@@ -185,7 +195,7 @@ setlistsRouter.post('/:id/songs', async (req, res) => {
     return
   }
   const songId = String(req.body?.songId ?? '')
-  const song = await prisma.song.findFirst({ where: { id: songId, ...ownedBy(userId) } })
+  const song = await prisma.song.findUnique({ where: { id: songId } })
   if (!song) {
     res.status(404).json({ error: 'Song not found' })
     return

@@ -1,6 +1,7 @@
 import type { Setlist, SetlistSong, Song, SongInput } from '@shared/types.ts'
 import { displaySongMeta } from '@shared/bulkFormat.ts'
 import { resolveSongKey } from '@shared/detectKey.ts'
+import { readAuthCache } from './authCache.ts'
 import { libraryStorageKey } from './libraryOwner.ts'
 
 const KEY = 'setflow.persist.v2'
@@ -77,6 +78,11 @@ function write(patch: (state: PersistState) => void) {
   return state
 }
 
+/** Team members read the admin catalog; they must not keep a private song overlay. */
+export function catalogMutationsAllowed() {
+  return readAuthCache()?.user?.role !== 'user'
+}
+
 export function rememberSetlist(setlist: Setlist) {
   write((state) => {
     state.deletedSetlistIds = state.deletedSetlistIds.filter((id) => id !== setlist.id)
@@ -91,6 +97,24 @@ export function rememberSetlist(setlist: Setlist) {
     }
     if (setlist.id.startsWith('local-')) {
       state.extraSetlists = [...state.extraSetlists.filter((s) => s.id !== setlist.id), setlist]
+      state.setlistOrder = [setlist.id, ...(state.setlistOrder ?? []).filter((id) => id !== setlist.id)]
+    }
+  })
+}
+
+/** Drops a placeholder setlist after the server id lands, keeping sidebar order. */
+export function forgetLocalSetlist(localId: string, server?: Setlist) {
+  write((state) => {
+    state.extraSetlists = state.extraSetlists.filter((s) => s.id !== localId)
+    const localEdit = state.edits[localId]
+    delete state.edits[localId]
+    const mapped = (state.setlistOrder ?? []).map((id) => (id === localId ? (server?.id ?? id) : id))
+    if (server) {
+      state.deletedSetlistIds = state.deletedSetlistIds.filter((id) => id !== server.id)
+      if (localEdit) state.edits[server.id] = { ...state.edits[server.id], ...localEdit }
+      state.setlistOrder = mapped.includes(server.id) ? mapped : [server.id, ...mapped]
+    } else {
+      state.setlistOrder = mapped.filter((id) => id !== localId)
     }
   })
 }
@@ -124,6 +148,7 @@ export function forgetDeletedSong(id: string, fromSetlistIds: string[] = []) {
 }
 
 export function rememberSong(song: Song) {
+  if (!catalogMutationsAllowed()) return
   write((state) => {
     state.deletedSongIds = state.deletedSongIds.filter((id) => id !== song.id)
     state.extraSongs[song.id] = song
@@ -131,6 +156,7 @@ export function rememberSong(song: Song) {
 }
 
 export function rememberDeletedSong(id: string, fromSetlistIds: string[] = []) {
+  if (!catalogMutationsAllowed()) return
   write((state) => {
     delete state.extraSongs[id]
     if (!state.deletedSongIds.includes(id)) state.deletedSongIds.push(id)
@@ -221,6 +247,7 @@ export function overlaySetlists(server: Setlist[]): Setlist[] {
 }
 
 export function overlaySongs(server: Song[]): Song[] {
+  if (!catalogMutationsAllowed()) return server.map(repairSong)
   const state = loadPersist()
   const byId = new Map(server.map((s) => [s.id, s]))
   for (const song of Object.values(state.extraSongs)) byId.set(song.id, song)
@@ -229,6 +256,7 @@ export function overlaySongs(server: Song[]): Song[] {
 }
 
 export function overlaySong(id: string, server: Song | null): Song | null {
+  if (!catalogMutationsAllowed()) return server ? repairSong(server) : null
   const state = loadPersist()
   if (state.deletedSongIds.includes(id)) return null
   const song = state.extraSongs[id] ?? server
@@ -270,7 +298,7 @@ export function forgetExtraSongs(ids: string[]) {
 }
 
 export function rememberSongs(songs: Song[]) {
-  if (songs.length === 0) return
+  if (songs.length === 0 || !catalogMutationsAllowed()) return
   write((state) => {
     for (const song of songs) {
       state.deletedSongIds = state.deletedSongIds.filter((id) => id !== song.id)

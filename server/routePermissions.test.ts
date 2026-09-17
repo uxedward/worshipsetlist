@@ -29,18 +29,18 @@ const ADMIN_ONLY: Array<[string, Router, string, string]> = [
   ['create an account', authRouter, 'post', '/users'],
   ['change someone else\'s role', authRouter, 'patch', '/users/:id'],
   ['remove an account', authRouter, 'delete', '/users/:id'],
-  ['add a background', backgroundsRouter, 'post', '/'],
-  ['mint a background upload URL', backgroundsRouter, 'post', '/upload'],
-  ['delete a background', backgroundsRouter, 'delete', '/:id'],
-]
-
-const ANY_MEMBER: Array<[string, Router, string, string]> = [
   ['add a song', songsRouter, 'post', '/'],
   ['edit a song', songsRouter, 'patch', '/:id'],
   ['delete a song', songsRouter, 'delete', '/:id'],
   ['bulk import songs', songsRouter, 'post', '/bulk-import'],
   ['import from Spotify', songsRouter, 'post', '/spotify-lookup'],
   ['sync offline songs', songsRouter, 'post', '/sync-local'],
+  ['add a background', backgroundsRouter, 'post', '/'],
+  ['mint a background upload URL', backgroundsRouter, 'post', '/upload'],
+  ['delete a background', backgroundsRouter, 'delete', '/:id'],
+]
+
+const ANY_MEMBER: Array<[string, Router, string, string]> = [
   ['read the library', songsRouter, 'get', '/'],
   ['create a setlist', setlistsRouter, 'post', '/'],
   ['rename a setlist', setlistsRouter, 'patch', '/:id'],

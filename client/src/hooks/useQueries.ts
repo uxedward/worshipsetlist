@@ -10,9 +10,11 @@ import type { Preference, Setlist, SetlistSong, Song, SongInput } from '@shared/
 import {
   appendSetlistSong,
   extraSongs,
+  catalogMutationsAllowed,
   forgetDeletedSetlist,
   forgetDeletedSong,
   forgetExtraSongs,
+  forgetLocalSetlist,
   overlaySetlist,
   overlaySetlists,
   overlaySong,
@@ -160,7 +162,7 @@ export function useSetlist(id: string | null) {
   return useQuery({
     queryKey: ['setlist', id],
     queryFn: async () => overlaySetlist(await endpoints.setlist(id!)),
-    enabled: Boolean(id),
+    enabled: Boolean(id) && !id.startsWith('local-'),
     staleTime: 60_000,
     refetchOnMount: false,
     initialData: cached,
@@ -220,6 +222,7 @@ export function useOpenEditor() {
   const openEditor = useAppStore((s) => s.openEditor)
   const prefetch = usePrefetchSong()
   return (id: string | null) => {
+    if (!catalogMutationsAllowed()) return
     prefetch(id)
     void import('../components/SongEditor.tsx')
     openEditor(id)
@@ -389,33 +392,43 @@ export function useMutations() {
       }
     }),
     createSetlist: useTrackedMutation(async (body: Record<string, unknown>) => {
+      const local: Setlist = {
+        id: `local-${crypto.randomUUID()}`,
+        name: String(body.name ?? 'Untitled'),
+        description: (body.description as string | null) ?? null,
+        serviceName: (body.serviceName as string | null) ?? null,
+        date: (body.date as string | null) ?? null,
+        colorIndex: typeof body.colorIndex === 'number' ? body.colorIndex : 0,
+        sortOrder: typeof body.sortOrder === 'number' ? body.sortOrder : Date.now(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        songs: [],
+        _count: { songs: 0 },
+      }
+      rememberSetlist(local)
+      qc.setQueryData(['setlist', local.id], local)
+      qc.setQueryData<Setlist[]>(['setlists'], (prev) => [local, ...(prev ?? []).filter((s) => s.id !== local.id)])
+      useAppStore.getState().setActiveSetlistId(local.id)
       try {
-        const created = await endpoints.createSetlist(body)
-        rememberSetlist(created as Setlist)
-        qc.setQueryData(['setlist', (created as Setlist).id], created)
-        qc.setQueryData<Setlist[]>(['setlists'], (prev) =>
-          prev?.some((s) => s.id === (created as Setlist).id)
-            ? prev
-            : [created as Setlist, ...(prev ?? [])],
-        )
-        return created
-      } catch (err) {
-        const local: Setlist = {
-          id: `local-${crypto.randomUUID()}`,
-          name: String(body.name ?? 'Untitled'),
-          description: (body.description as string | null) ?? null,
-          serviceName: (body.serviceName as string | null) ?? null,
-          date: (body.date as string | null) ?? null,
-          colorIndex: typeof body.colorIndex === 'number' ? body.colorIndex : 0,
-          sortOrder: typeof body.sortOrder === 'number' ? body.sortOrder : 0,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          songs: [],
-          _count: { songs: 0 },
+        const created = (await endpoints.createSetlist(body)) as Setlist
+        const next = {
+          ...created,
+          songs: created.songs ?? [],
+          _count: created._count ?? { songs: 0 },
         }
-        rememberSetlist(local)
-        qc.setQueryData(['setlist', local.id], local)
-        qc.setQueryData<Setlist[]>(['setlists'], (prev) => [local, ...(prev ?? [])])
+        forgetLocalSetlist(local.id, next)
+        rememberSetlist(next)
+        qc.removeQueries({ queryKey: ['setlist', local.id] })
+        qc.setQueryData(['setlist', next.id], next)
+        qc.setQueryData<Setlist[]>(['setlists'], (prev) => {
+          const without = (prev ?? []).filter((s) => s.id !== local.id && s.id !== next.id)
+          return [next, ...without]
+        })
+        if (useAppStore.getState().activeSetlistId === local.id) {
+          useAppStore.getState().setActiveSetlistId(next.id)
+        }
+        return next
+      } catch (err) {
         if (err instanceof Error && /not found/i.test(err.message)) throw err
         return local
       }
@@ -559,6 +572,7 @@ export function useMutations() {
         upsertSongInCaches(qc, created)
         return created
       } catch (err) {
+        if (isPermissionError(err)) throw err
         const local = songFromInput(body)
         rememberSong(local)
         upsertSongInCaches(qc, local)
@@ -573,6 +587,7 @@ export function useMutations() {
         upsertSongInCaches(qc, updated)
         return updated
       } catch (err) {
+        if (isPermissionError(err)) throw err
         const current = findSongInCache(qc, v.id)
         const local = { ...(current ?? { id: v.id }), ...v.body } as Song
         rememberSong(local)
@@ -634,7 +649,8 @@ export function useMutations() {
             created.push(song)
             existing.push(song)
             continue
-          } catch {
+          } catch (err) {
+            if (isPermissionError(err)) throw err
             remote = false
           }
         }
@@ -669,6 +685,7 @@ export function optimisticSetlistSongs(
 }
 
 export async function flushLocalSongsToDatabase() {
+  if (!catalogMutationsAllowed()) return
   const pending = extraSongs()
   if (pending.length === 0) return
   const res = await endpoints.syncLocalSongs(pending.map(songToInput))

@@ -5,8 +5,7 @@ import { resolveSongKey } from '../../shared/detectKey.js'
 import { sameSongIdentity } from '../../shared/spotifyImport.js'
 import { durableDatabase, prisma } from '../db.js'
 import { songWithChart } from '../songInclude.js'
-import { requireAuth } from '../authMiddleware.js'
-import { ownedBy } from '../userLibrary.js'
+import { requireAdmin, requireAuth } from '../authMiddleware.js'
 
 export const songsRouter = Router()
 
@@ -14,9 +13,8 @@ songsRouter.use(requireAuth)
 
 const fullSong = songWithChart
 
-songsRouter.get('/export', async (req, res) => {
+songsRouter.get('/export', async (_req, res) => {
   const songs = await prisma.song.findMany({
-    where: ownedBy(req.user!.id),
     orderBy: [{ artist: 'asc' }, { title: 'asc' }],
     include: fullSong,
   })
@@ -31,7 +29,7 @@ songsRouter.get('/export', async (req, res) => {
   res.send(body)
 })
 
-songsRouter.post('/bulk-import', async (req, res) => {
+songsRouter.post('/bulk-import', requireAdmin, async (req, res) => {
   const text = typeof req.body?.text === 'string' ? req.body.text : ''
   const blocks = parseBulkImport(text)
   let imported = 0
@@ -60,7 +58,7 @@ songsRouter.post('/bulk-import', async (req, res) => {
   })
 })
 
-songsRouter.post('/spotify-lookup', async (req, res) => {
+songsRouter.post('/spotify-lookup', requireAdmin, async (req, res) => {
   const url = typeof req.body?.url === 'string' ? req.body.url : ''
   try {
     const { lookupSpotify } = await import('../spotifyLookup.js')
@@ -75,11 +73,10 @@ songsRouter.post('/spotify-lookup', async (req, res) => {
   }
 })
 
-songsRouter.post('/sync-local', async (req, res) => {
+songsRouter.post('/sync-local', requireAdmin, async (req, res) => {
   const userId = req.user!.id
   const songs = Array.isArray(req.body?.songs) ? (req.body.songs as SongInput[]) : []
   const existing = await prisma.song.findMany({
-    where: ownedBy(userId),
     select: { title: true, artist: true },
   })
   let imported = 0
@@ -108,7 +105,6 @@ songsRouter.get('/', async (req, res) => {
 
   const songs = await prisma.song.findMany({
     where: {
-      ...ownedBy(req.user!.id),
       ...(artist ? { artist } : {}),
       ...(tag ? { tag } : {}),
       ...(search
@@ -132,8 +128,8 @@ songsRouter.get('/', async (req, res) => {
 })
 
 songsRouter.get('/:id', async (req, res) => {
-  const song = await prisma.song.findFirst({
-    where: { id: req.params.id, ...ownedBy(req.user!.id) },
+  const song = await prisma.song.findUnique({
+    where: { id: req.params.id },
     include: fullSong,
   })
   if (!song) {
@@ -144,7 +140,7 @@ songsRouter.get('/:id', async (req, res) => {
   res.json(song)
 })
 
-songsRouter.post('/', async (req, res) => {
+songsRouter.post('/', requireAdmin, async (req, res) => {
   const input = req.body as SongInput
   const err = validateSong(input)
   if (err) {
@@ -155,10 +151,8 @@ songsRouter.post('/', async (req, res) => {
   res.status(201).json(song)
 })
 
-songsRouter.patch('/:id', async (req, res) => {
-  const existing = await prisma.song.findFirst({
-    where: { id: req.params.id, ...ownedBy(req.user!.id) },
-  })
+songsRouter.patch('/:id', requireAdmin, async (req, res) => {
+  const existing = await prisma.song.findUnique({ where: { id: req.params.id } })
   if (!existing) {
     res.status(404).json({ error: 'Song not found' })
     return
@@ -204,10 +198,8 @@ songsRouter.patch('/:id', async (req, res) => {
   res.json(song)
 })
 
-songsRouter.delete('/:id', async (req, res) => {
-  const existing = await prisma.song.findFirst({
-    where: { id: req.params.id, ...ownedBy(req.user!.id) },
-  })
+songsRouter.delete('/:id', requireAdmin, async (req, res) => {
+  const existing = await prisma.song.findUnique({ where: { id: req.params.id } })
   if (!existing) {
     res.status(404).json({ error: 'Song not found' })
     return
