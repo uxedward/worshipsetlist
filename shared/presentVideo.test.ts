@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   PRESENT_VIDEO_STORAGE_CHUNK_BYTES,
+  PRESENT_VIDEO_STREAM_SLICE_BYTES,
   clampPresentStreamRange,
   parsePresentByteRange,
   presentChunkRangeFetches,
@@ -29,6 +30,10 @@ describe('present video helpers', () => {
     expect(presentVideoChunkCount(8 * 1024 * 1024 + 1, PRESENT_VIDEO_STORAGE_CHUNK_BYTES)).toBe(2)
   })
 
+  it('keeps a playback slice large enough that high-bitrate loops do not stall', () => {
+    expect(PRESENT_VIDEO_STREAM_SLICE_BYTES).toBe(4 * PRESENT_VIDEO_STORAGE_CHUNK_BYTES)
+  })
+
   it('builds public storage URLs for each 8MB part of a 4K file', () => {
     const urls = presentVideoChunkUrls(
       'https://example.supabase.co/storage/v1/object/public/present-videos/custom-a',
@@ -44,6 +49,7 @@ describe('present video helpers', () => {
     expect(presentStreamSrc('custom-abc')).toBe('/present-media/custom-abc')
     expect(parsePresentByteRange('bytes=0-', 100)).toEqual({ start: 0, end: 99 })
     expect(clampPresentStreamRange(0, 99, 100, 8)).toEqual({ start: 0, end: 7 })
+    expect(clampPresentStreamRange(0, 99, 100)).toEqual({ start: 0, end: 99 })
     expect(
       presentChunkRangeFetches(8 * 1024 * 1024 - 4, 8 * 1024 * 1024 + 4, 8 * 1024 * 1024, 'https://cdn.example/a/'),
     ).toEqual([

@@ -9,6 +9,7 @@ export type ResolvePresentSrcOptions = {
 
 const playableUrls = new Map<string, string>()
 const inflight = new Map<string, Promise<string | undefined>>()
+const bufferInflight = new Map<string, Promise<string | undefined>>()
 
 export function resetPresentVideoPlayCache() {
   for (const url of playableUrls.values()) {
@@ -20,6 +21,7 @@ export function resetPresentVideoPlayCache() {
   }
   playableUrls.clear()
   inflight.clear()
+  bufferInflight.clear()
 }
 
 function rememberUrl(id: string, file: Blob) {
@@ -97,6 +99,49 @@ export async function presentStreamLooksLikeVideo(url: string) {
   }
 }
 
+async function assemblePresentVideoBlob(background: PresentBackground): Promise<string | undefined> {
+  const cached = playableUrls.get(background.id)
+  if (cached) return cached
+
+  const local = await readLocalVideoFile(background.id)
+  if (local && local.size > 0) return rememberUrl(background.id, local)
+
+  const urls = chunkUrlsForBackground(background)
+  if (urls.length) {
+    const file = await downloadChunks(urls, background.mimeType, `${background.id}.mp4`)
+    await cacheLocalVideoFile(background.id, file).catch(() => undefined)
+    return rememberUrl(background.id, file)
+  }
+
+  if (background.src && background.sizeBytes && background.sizeBytes > 0) {
+    const file = await downloadViaRange(background.src, background.sizeBytes, background.mimeType)
+    await cacheLocalVideoFile(background.id, file).catch(() => undefined)
+    return rememberUrl(background.id, file)
+  }
+
+  return undefined
+}
+
+/** Local file URL for hitch-free looping. Safe to call while a stream is already playing. */
+export async function bufferPresentVideoSrc(background: PresentBackground): Promise<string | undefined> {
+  if (background.kind !== 'video' || !background.custom) return undefined
+  if (background.src?.startsWith('blob:')) return background.src
+  const cached = playableUrls.get(background.id)
+  if (cached) return cached
+  const pending = bufferInflight.get(background.id)
+  if (pending) return pending
+
+  const work = assemblePresentVideoBlob(background)
+  bufferInflight.set(background.id, work)
+  try {
+    return await work
+  } catch {
+    return undefined
+  } finally {
+    if (bufferInflight.get(background.id) === work) bufferInflight.delete(background.id)
+  }
+}
+
 export async function resolvePlayablePresentSrc(
   background: PresentBackground,
   options: ResolvePresentSrcOptions = {},
@@ -118,21 +163,13 @@ export async function resolvePlayablePresentSrc(
 
     if (allowStream) {
       const streamed = await presentStreamUrl(background)
+      const already = playableUrls.get(background.id)
+      if (already) return already
       if (streamed && (await presentStreamLooksLikeVideo(streamed))) return streamed
     }
 
-    const urls = chunkUrlsForBackground(background)
-    if (urls.length) {
-      const file = await downloadChunks(urls, background.mimeType, `${background.id}.mp4`)
-      await cacheLocalVideoFile(background.id, file).catch(() => undefined)
-      return rememberUrl(background.id, file)
-    }
-
-    if (background.src && background.sizeBytes && background.sizeBytes > 0) {
-      const file = await downloadViaRange(background.src, background.sizeBytes, background.mimeType)
-      await cacheLocalVideoFile(background.id, file).catch(() => undefined)
-      return rememberUrl(background.id, file)
-    }
+    const buffered = await bufferPresentVideoSrc(background)
+    if (buffered) return buffered
 
     if (background.src) return background.src
     return presentVideoSrc(background.id)
