@@ -25,15 +25,19 @@ export async function installPresentVideoSw() {
       .register('/present-video-sw.js', { scope: '/' })
       .then(async () => {
         await navigator.serviceWorker.ready
-        if (!navigator.serviceWorker.controller) {
-          await new Promise<void>((resolve) => {
-            const onChange = () => {
-              navigator.serviceWorker.removeEventListener('controllerchange', onChange)
-              resolve()
-            }
-            navigator.serviceWorker.addEventListener('controllerchange', onChange)
-            window.setTimeout(resolve, 1500)
-          })
+        if (navigator.serviceWorker.controller) return true
+        await new Promise<void>((resolve) => {
+          const onChange = () => {
+            navigator.serviceWorker.removeEventListener('controllerchange', onChange)
+            resolve()
+          }
+          navigator.serviceWorker.addEventListener('controllerchange', onChange)
+          window.setTimeout(resolve, 4000)
+        })
+        if (navigator.serviceWorker.controller) return true
+        for (let i = 0; i < 10; i++) {
+          if (navigator.serviceWorker.controller) return true
+          await new Promise((resolve) => window.setTimeout(resolve, 100))
         }
         return Boolean(navigator.serviceWorker.controller)
       })

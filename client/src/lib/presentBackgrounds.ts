@@ -33,7 +33,8 @@ const RETIRED_BACKGROUND_IDS = new Set([
   'lake-live',
 ])
 
-// Ocean live is muted looping 4K camera footage.
+// Ocean live is a muted 1080p loop. A 4K file is kept for optional use, but
+// projectors play 1080p first so the clip actually moves in HD.
 // Source and license: client/public/backgrounds/CREDITS.txt
 export const PRESENT_BACKGROUNDS: PresentBackground[] = [
   { id: 'horizon', label: 'Horizon', kind: 'gradient', group: 'still', fill: 'var(--present-horizon)' },
@@ -68,16 +69,14 @@ export function presentBackgroundFill(background: PresentBackground): string {
   return background.fill ?? 'var(--present-dusk)'
 }
 
-/** Retina / projector canvases get the 4K file; phones keep the 1080p loop. Uploaded clips stay at full resolution. */
+/** 1080p for built-in loops so Present starts with moving HD. Custom clips keep their stored file. */
 export function pickPresentVideoSrc(
   background: PresentBackground,
-  viewport: { width: number; height: number; dpr: number } = currentViewport(),
+  _viewport: { width: number; height: number; dpr: number } = currentViewport(),
 ): string | undefined {
   if (background.kind !== 'video') return background.src
-  if (background.custom) return background.src4k ?? background.src
-  const longEdge = Math.max(viewport.width, viewport.height) * Math.min(viewport.dpr, 2)
-  const wants4k = Boolean(background.src4k) && longEdge >= 1800
-  return wants4k ? background.src4k : background.src
+  if (background.custom) return background.src ?? background.src4k
+  return background.src
 }
 
 export function currentViewport() {

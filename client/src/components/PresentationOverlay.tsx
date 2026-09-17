@@ -19,7 +19,7 @@ import {
   type PresentBackground,
 } from '../lib/presentBackgrounds.ts'
 import { resolvePlayablePresentSrc } from '../lib/playPresentVideo.ts'
-import { bindPresentVideoManifest } from '../lib/presentVideoSw.ts'
+import { bindPresentVideoManifest, installPresentVideoSw } from '../lib/presentVideoSw.ts'
 import { PRESENT_VIDEO_STORAGE_CHUNK_BYTES } from '@shared/presentVideo.ts'
 import {
   deleteCustomBackground,
@@ -99,6 +99,10 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
       cancelled = true
       stop()
     }
+  }, [])
+
+  useEffect(() => {
+    void installPresentVideoSw()
   }, [])
 
   useEffect(() => {
@@ -562,7 +566,11 @@ function PresentBackdrop({
 }) {
   const fallbackSrc = pickPresentVideoSrc(background, currentViewport())
   const [playSrc, setPlaySrc] = useState<string | undefined>(() =>
-    background.custom ? undefined : fallbackSrc,
+    background.custom
+      ? background.src?.startsWith('blob:')
+        ? background.src
+        : undefined
+      : fallbackSrc,
   )
   const videoRef = useRef<HTMLVideoElement>(null)
 
@@ -589,10 +597,28 @@ function PresentBackdrop({
     const tryPlay = () => {
       void el.play().catch(() => undefined)
     }
+    el.addEventListener('loadeddata', tryPlay)
     el.addEventListener('canplay', tryPlay)
     tryPlay()
-    return () => el.removeEventListener('canplay', tryPlay)
+    return () => {
+      el.removeEventListener('loadeddata', tryPlay)
+      el.removeEventListener('canplay', tryPlay)
+    }
   }, [playSrc])
+
+  const handleVideoError = () => {
+    const hd = background.src
+    const fourK = background.src4k
+    if (fourK && playSrc === fourK && hd && hd !== fourK) {
+      setPlaySrc(hd)
+      return
+    }
+    if (playSrc?.includes('/present-media/')) {
+      void resolvePlayablePresentSrc(background, { allowStream: false }).then((src) => {
+        if (src && src !== playSrc) setPlaySrc(src)
+      })
+    }
+  }
 
   const showVideo = background.kind === 'video' && Boolean(playSrc) && !reduceMotion
   const showPoster =
@@ -622,6 +648,7 @@ function PresentBackdrop({
           muted
           loop
           playsInline
+          onError={handleVideoError}
         />
       ) : null}
       {background.kind !== 'gradient' ? (
