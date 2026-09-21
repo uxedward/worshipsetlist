@@ -487,6 +487,28 @@ export function PresentationOverlay({ songs }: { songs: SetlistSong[] }) {
               },
             })
           }}
+          onReclaim={async () => {
+            setUploadError(null)
+            try {
+              const result = await endpoints.reclaimBackgrounds()
+              await startPresentVideoSync()
+              const parts = [
+                result.droppedBackgrounds
+                  ? `${result.droppedBackgrounds} oversized or incomplete video${result.droppedBackgrounds === 1 ? '' : 's'}`
+                  : null,
+                result.droppedChunks
+                  ? `${result.droppedChunks} leftover database cop${result.droppedChunks === 1 ? 'y' : 'ies'}`
+                  : null,
+                result.droppedStoragePrefixes
+                  ? `${result.droppedStoragePrefixes} leftover storage folder${result.droppedStoragePrefixes === 1 ? '' : 's'}`
+                  : null,
+                result.emptiedBucket ? 'the present-videos bucket' : null,
+              ].filter(Boolean)
+              setUploadError(parts.length ? `Freed ${parts.join(', ')}.` : 'Storage was already as small as it can be.')
+            } catch (err) {
+              setUploadError(err instanceof Error ? err.message : 'Could not free storage.')
+            }
+          }}
         />
       ) : null}
       {settingsOpen ? (
@@ -829,6 +851,7 @@ function BackgroundPicker({
   onSelect,
   onUpload,
   onDelete,
+  onReclaim,
   canManage,
 }: {
   selectedId: string
@@ -839,10 +862,12 @@ function BackgroundPicker({
   onSelect: (id: string) => void
   onUpload: (files: File[]) => void
   onDelete: (id: string) => void
+  onReclaim?: () => Promise<void>
   /** Users pick a background for the service; only admins change the set. */
   canManage: boolean
 }) {
   const fileRef = useRef<HTMLInputElement>(null)
+  const [reclaiming, setReclaiming] = useState(false)
   const gradients = PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'gradient')
   const videos = PRESENT_BACKGROUNDS.filter((bg) => bg.kind === 'video')
   return (
@@ -917,7 +942,24 @@ function BackgroundPicker({
         </p>
       ) : hostingEnabled ? (
         <p className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-          Uploaded videos are saved to the shared library and then appear on every browser.
+          Uploaded videos under 40 MB are saved to the shared library and then appear on every browser.
+          {canManage && onReclaim ? (
+            <>
+              {' '}
+              <button
+                type="button"
+                disabled={reclaiming || Boolean(uploading)}
+                className="underline"
+                style={{ color: 'var(--text-secondary)' }}
+                onClick={() => {
+                  setReclaiming(true)
+                  void onReclaim().finally(() => setReclaiming(false))
+                }}
+              >
+                {reclaiming ? 'Freeing storage…' : 'Free storage'}
+              </button>
+            </>
+          ) : null}
         </p>
       ) : (
         <p className="mt-2 text-[12px]" style={{ color: 'var(--warning)' }}>

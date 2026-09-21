@@ -5,6 +5,17 @@ export const PRESENT_VIDEO_STORAGE_CHUNK_BYTES = 8 * 1024 * 1024
 export const PRESENT_VIDEO_RANGE_MAX_BYTES = 3 * 1024 * 1024
 /** First open-ended Range from the video element; one Storage part, enough to start 4K. */
 export const PRESENT_VIDEO_STREAM_SLICE_BYTES = PRESENT_VIDEO_STORAGE_CHUNK_BYTES
+/**
+ * Whole-file cap for custom Present clips. The free Storage plan is ~1GB;
+ * a 1GB upload filled it. Keep this under the ~50MB per-object bucket limit
+ * and never restore that 1GB bucket cap — it 413s on hosted plans.
+ */
+export const MAX_PRESENT_VIDEO_BYTES = 40 * 1024 * 1024
+export const MAX_PRESENT_VIDEO_MB = 40
+
+export function presentVideoFileTooLargeMessage() {
+  return `Choose an MP4, WebM, or MOV video under ${MAX_PRESENT_VIDEO_MB} MB.`
+}
 
 export function presentStreamSrc(id: string) {
   return `/present-media/${encodeURIComponent(id)}`

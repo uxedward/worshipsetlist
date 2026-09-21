@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach } from 'vitest'
 import {
   CUSTOM_BG_META_KEY,
   CUSTOM_BG_PREFIX,
+  MAX_CUSTOM_VIDEO_BYTES,
   asVideoFile,
   isAllowedVideoFile,
   isCustomBackgroundId,
@@ -41,6 +42,16 @@ describe('custom present backgrounds', () => {
     expect(isAllowedVideoFile(new File([new Uint8Array([1, 2, 3])], 'clip.mp4', { type: 'video/mp4' }))).toBe(true)
     expect(isAllowedVideoFile(new File([], 'clip.mp4', { type: 'video/mp4' }))).toBe(false)
     expect(isAllowedVideoFile(new File([new Uint8Array([1])], 'notes.pdf', { type: 'application/pdf' }))).toBe(false)
+  })
+
+  it('rejects clips over 40 MB so a handful cannot fill the 1GB Storage plan', () => {
+    expect(MAX_CUSTOM_VIDEO_BYTES).toBe(40 * 1024 * 1024)
+    const tooBig = new File([new Uint8Array([1])], 'clip.mp4', { type: 'video/mp4' })
+    const allowed = new File([new Uint8Array([1])], 'clip.mp4', { type: 'video/mp4' })
+    Object.defineProperty(tooBig, 'size', { value: MAX_CUSTOM_VIDEO_BYTES + 1 })
+    Object.defineProperty(allowed, 'size', { value: MAX_CUSTOM_VIDEO_BYTES })
+    expect(isAllowedVideoFile(tooBig)).toBe(false)
+    expect(isAllowedVideoFile(allowed)).toBe(true)
   })
 
   it('restores a nameless IndexedDB blob as an uploadable video file', () => {

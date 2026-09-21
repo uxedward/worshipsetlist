@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_PRESENT_VIDEO_BYTES,
   PRESENT_VIDEO_STORAGE_CHUNK_BYTES,
   clampPresentStreamRange,
   parsePresentByteRange,
@@ -7,6 +8,7 @@ import {
   presentStreamSrc,
   presentVideoChunkCount,
   presentVideoChunkUrls,
+  presentVideoFileTooLargeMessage,
   presentVideoSrc,
   presentVideoStorageChunkCount,
 } from './presentVideo.ts'
@@ -20,6 +22,12 @@ describe('present video helpers', () => {
     expect(presentVideoChunkCount(0)).toBe(1)
     expect(presentVideoChunkCount(2 * 1024 * 1024)).toBe(1)
     expect(presentVideoChunkCount(2 * 1024 * 1024 + 1)).toBe(2)
+  })
+
+  it('caps custom uploads at 40 MB without restoring the 1GB bucket file limit', () => {
+    expect(MAX_PRESENT_VIDEO_BYTES).toBe(40 * 1024 * 1024)
+    expect(MAX_PRESENT_VIDEO_BYTES).toBeLessThan(52_428_800)
+    expect(presentVideoFileTooLargeMessage()).toBe('Choose an MP4, WebM, or MOV video under 40 MB.')
   })
 
   it('splits 4K files into storage parts under the 50MB object cap', () => {

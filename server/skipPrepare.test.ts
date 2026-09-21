@@ -7,6 +7,7 @@ describe('skipDatabasePrepare', () => {
     expect(skipDatabasePrepare('GET', '/api/backgrounds')).toBe(true)
     expect(skipDatabasePrepare('GET', '/api/backgrounds/media/custom-abc')).toBe(true)
     expect(skipDatabasePrepare('POST', '/api/backgrounds')).toBe(true)
+    expect(skipDatabasePrepare('POST', '/api/backgrounds/reclaim')).toBe(true)
     expect(skipDatabasePrepare('DELETE', '/api/backgrounds/custom-abc')).toBe(true)
   })
 

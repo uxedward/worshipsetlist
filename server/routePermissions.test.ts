@@ -37,6 +37,7 @@ const ADMIN_ONLY: Array<[string, Router, string, string]> = [
   ['sync offline songs', songsRouter, 'post', '/sync-local'],
   ['add a background', backgroundsRouter, 'post', '/'],
   ['mint a background upload URL', backgroundsRouter, 'post', '/upload'],
+  ['reclaim present video storage', backgroundsRouter, 'post', '/reclaim'],
   ['delete a background', backgroundsRouter, 'delete', '/:id'],
 ]
 

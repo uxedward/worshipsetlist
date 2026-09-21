@@ -11,11 +11,27 @@ import {
   supabaseConfig,
   uploadSupabaseObject,
 } from './videoHosting.ts'
-import { PRESENT_VIDEO_CHUNK_BYTES, PRESENT_VIDEO_RANGE_MAX_BYTES } from '../shared/presentVideo.ts'
+import {
+  MAX_PRESENT_VIDEO_BYTES,
+  PRESENT_VIDEO_CHUNK_BYTES,
+  PRESENT_VIDEO_RANGE_MAX_BYTES,
+  PRESENT_VIDEO_STORAGE_CHUNK_BYTES,
+  presentVideoFileTooLargeMessage,
+} from '../shared/presentVideo.ts'
 
 export { PRESENT_VIDEO_CHUNK_BYTES, PRESENT_VIDEO_RANGE_MAX_BYTES }
 
 const MAX_CHUNK_BYTES = PRESENT_VIDEO_CHUNK_BYTES + 64 * 1024
+
+export function presentVideoUploadTooLarge(
+  chunkCount: number,
+  chunkBytes: number,
+  partBytes: number,
+  maxBytes = MAX_PRESENT_VIDEO_BYTES,
+) {
+  const minBytes = chunkCount <= 1 ? partBytes : (chunkCount - 1) * chunkBytes + 1
+  return minBytes > maxBytes || partBytes > maxBytes
+}
 
 export function mimeFromFilename(name: string) {
   const lower = sanitizeFilename(name).toLowerCase()
@@ -94,6 +110,10 @@ export async function saveBackgroundChunk(options: {
   const chunkIndex = Math.max(0, Math.floor(options.chunkIndex))
   const chunkCount = Math.max(1, Math.floor(options.chunkCount))
   if (chunkIndex >= chunkCount) throw new Error('That video chunk is out of range.')
+  const chunkBytes = supabaseConfig() ? PRESENT_VIDEO_STORAGE_CHUNK_BYTES : PRESENT_VIDEO_CHUNK_BYTES
+  if (presentVideoUploadTooLarge(chunkCount, chunkBytes, options.data.length)) {
+    throw new Error(presentVideoFileTooLargeMessage())
+  }
   const filename = options.filename || `${id}.mp4`
   const mimeType = options.mimeType || mimeFromFilename(filename)
   const src = localPublicSrc(id)

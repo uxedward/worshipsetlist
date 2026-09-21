@@ -1,3 +1,5 @@
+import { MAX_PRESENT_VIDEO_BYTES } from '../shared/presentVideo.ts'
+
 /** Idempotent-enough bootstrap for a fresh Supabase/Postgres database. */
 export const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "Song" (
@@ -124,3 +126,9 @@ export const REVOKE_PUBLIC_ACCESS_STATEMENTS = APP_TABLES.flatMap((table) => [
   revokePublicAccessStatement(table, 'anon'),
   revokePublicAccessStatement(table, 'authenticated'),
 ])
+
+/** Paste into the Supabase SQL editor to drop leftover BYTEA copies and oversized rows. */
+export const RECLAIM_STORAGE_SQL = [
+  `TRUNCATE TABLE "BackgroundChunk"`,
+  `DELETE FROM "CustomBackground" WHERE "sizeBytes" > ${MAX_PRESENT_VIDEO_BYTES} OR ("sizeBytes" <= 0 AND "src" NOT LIKE 'http%')`,
+]

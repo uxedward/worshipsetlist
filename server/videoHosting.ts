@@ -2,9 +2,10 @@ import { createWriteStream, existsSync, mkdirSync, readdirSync, unlinkSync } fro
 import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import type { IncomingMessage } from 'node:http'
+import { MAX_PRESENT_VIDEO_BYTES } from '../shared/presentVideo.ts'
 
 export const PRESENT_VIDEO_BUCKET = 'present-videos'
-export const MAX_PRESENT_VIDEO_BYTES = 1024 * 1024 * 1024
+export { MAX_PRESENT_VIDEO_BYTES }
 
 export type VideoHostingProvider = 'database' | 'blob' | 'supabase' | 'local' | 'none'
 
@@ -304,18 +305,50 @@ export async function listStoragePrefix(id: string, env: Env = process.env) {
   return rows.map((row) => row.name).filter((name): name is string => Boolean(name))
 }
 
+/** Top-level folders/objects in present-videos (custom-* prefixes). */
+export async function listStorageFolders(env: Env = process.env) {
+  const cfg = supabaseConfig(env)
+  if (!cfg) return []
+  const names: string[] = []
+  let offset = 0
+  for (;;) {
+    const listed = await supabaseFetch(cfg, `/object/list/${PRESENT_VIDEO_BUCKET}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefix: '', limit: 1000, offset }),
+    })
+    if (!listed.ok) break
+    const rows = (await listed.json()) as Array<{ name?: string }>
+    const batch = rows.map((row) => row.name).filter((name): name is string => Boolean(name))
+    names.push(...batch)
+    if (batch.length < 1000) break
+    offset += batch.length
+  }
+  return names
+}
+
+export function storageDeletePrefixes(id: string, names: string[]) {
+  const prefix = storagePrefix(id)
+  const paths = names.map((name) => (name.startsWith(prefix) ? name : `${prefix}${name}`))
+  return paths.length ? paths : [prefix]
+}
+
 export async function deleteSupabasePrefix(id: string, env: Env = process.env) {
   const cfg = supabaseConfig(env)
   if (!cfg) return
   const names = await listStoragePrefix(id, env)
-  const prefix = storagePrefix(id)
-  const paths = names.map((name) => (name.startsWith(prefix) ? name : `${prefix}${name}`))
-  if (!paths.length) return
+  const paths = storageDeletePrefixes(id, names)
   await supabaseFetch(cfg, `/object/${PRESENT_VIDEO_BUCKET}`, {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prefixes: paths }),
   })
+}
+
+export async function emptyPresentVideoBucket(env: Env = process.env) {
+  const cfg = supabaseConfig(env)
+  if (!cfg) return
+  await supabaseFetch(cfg, `/bucket/${PRESENT_VIDEO_BUCKET}/empty`, { method: 'POST' })
 }
 
 export async function deleteSupabaseObject(src: string, env: Env = process.env) {

@@ -9,6 +9,8 @@ import {
   presentVideoChunkBaseUrl,
   videoHostingStatus,
 } from '../videoHosting.js'
+import { reclaimPresentVideoData, reclaimPresentVideoDataOnce } from '../reclaimPresentStorage.js'
+import { MAX_PRESENT_VIDEO_BYTES, presentVideoFileTooLargeMessage } from '../../shared/presentVideo.ts'
 
 import { requireAdmin, requireAuth } from '../authMiddleware.js'
 
@@ -54,6 +56,7 @@ function hostingPayload() {
 
 backgroundsRouter.get('/', async (_req, res) => {
   const hosting = hostingPayload()
+  void reclaimPresentVideoDataOnce()
   try {
     const rows = await prisma.customBackground.findMany({ orderBy: { createdAt: 'asc' } })
     const ready = rows.filter(isPlayable)
@@ -171,6 +174,10 @@ backgroundsRouter.post('/', requireAdmin, async (req, res) => {
   const extra: { mimeType?: string; sizeBytes?: number } = {}
   if (mimeType) extra.mimeType = mimeType
   if (typeof sizeBytes === 'number' && Number.isFinite(sizeBytes) && sizeBytes > 0) extra.sizeBytes = Math.floor(sizeBytes)
+  if (extra.sizeBytes && extra.sizeBytes > MAX_PRESENT_VIDEO_BYTES) {
+    res.status(400).json({ error: presentVideoFileTooLargeMessage() })
+    return
+  }
   try {
     const row = await prisma.customBackground.upsert({
       where: { id },
@@ -194,6 +201,17 @@ backgroundsRouter.post('/', requireAdmin, async (req, res) => {
     }
     res.status(500).json({
       error: err instanceof Error ? err.message : 'Could not save that background.',
+    })
+  }
+})
+
+backgroundsRouter.post('/reclaim', requireAdmin, async (_req, res) => {
+  try {
+    const result = await reclaimPresentVideoData()
+    res.json({ ok: true, ...result })
+  } catch (err) {
+    res.status(500).json({
+      error: err instanceof Error ? err.message : 'Could not free storage.',
     })
   }
 })

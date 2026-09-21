@@ -14,6 +14,7 @@ import {
   PRESENT_VIDEO_CHUNK_BYTES,
   PRESENT_VIDEO_STORAGE_CHUNK_BYTES,
   presentVideoChunkCount,
+  presentVideoFileTooLargeMessage,
   presentVideoSrc,
   presentVideoStorageChunkCount,
 } from '@shared/presentVideo.ts'
@@ -161,7 +162,7 @@ export async function uploadPresentVideoFile(
 ): Promise<PresentBackground> {
   const upload = asVideoFile(file, existingId ? `${existingId}.mp4` : 'video.mp4')
   if (!isAllowedVideoFile(upload)) {
-    throw new Error('Choose an MP4, WebM, or MOV video under 1 GB.')
+    throw new Error(presentVideoFileTooLargeMessage())
   }
   const id = existingId?.startsWith(CUSTOM_BG_PREFIX) ? existingId : `${CUSTOM_BG_PREFIX}${crypto.randomUUID()}`
   const label = labelFromVideoName(upload.name)
