@@ -938,11 +938,11 @@ function BackgroundPicker({
         </p>
       ) : uploading ? (
         <p className="mt-2 text-[12px]" style={{ color: 'var(--accent)' }}>
-          Copying {uploading.current}/{uploading.total} to the shared library. Keep this browser open until it finishes.
+          Copying {uploading.current}/{uploading.total} to the shared library. Large 4K files are compressed first — keep this browser open until it finishes.
         </p>
       ) : hostingEnabled ? (
         <p className="mt-2 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-          Uploaded videos under 40 MB are saved to the shared library and then appear on every browser.
+          Uploaded 4K clips are compressed in this browser, then saved to the shared library (under 40 MB).
           {canManage && onReclaim ? (
             <>
               {' '}

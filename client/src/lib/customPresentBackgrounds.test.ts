@@ -44,14 +44,14 @@ describe('custom present backgrounds', () => {
     expect(isAllowedVideoFile(new File([new Uint8Array([1])], 'notes.pdf', { type: 'application/pdf' }))).toBe(false)
   })
 
-  it('rejects clips over 40 MB so a handful cannot fill the 1GB Storage plan', () => {
-    expect(MAX_CUSTOM_VIDEO_BYTES).toBe(40 * 1024 * 1024)
+  it('accepts a 4K source file so it can be compressed under 40 MB', () => {
+    expect(MAX_CUSTOM_VIDEO_BYTES).toBe(1024 * 1024 * 1024)
+    const source = new File([new Uint8Array([1])], 'clip.mp4', { type: 'video/mp4' })
     const tooBig = new File([new Uint8Array([1])], 'clip.mp4', { type: 'video/mp4' })
-    const allowed = new File([new Uint8Array([1])], 'clip.mp4', { type: 'video/mp4' })
+    Object.defineProperty(source, 'size', { value: 400 * 1024 * 1024 })
     Object.defineProperty(tooBig, 'size', { value: MAX_CUSTOM_VIDEO_BYTES + 1 })
-    Object.defineProperty(allowed, 'size', { value: MAX_CUSTOM_VIDEO_BYTES })
+    expect(isAllowedVideoFile(source)).toBe(true)
     expect(isAllowedVideoFile(tooBig)).toBe(false)
-    expect(isAllowedVideoFile(allowed)).toBe(true)
   })
 
   it('restores a nameless IndexedDB blob as an uploadable video file', () => {

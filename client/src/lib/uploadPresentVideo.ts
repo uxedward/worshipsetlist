@@ -11,13 +11,16 @@ import {
 } from './customPresentBackgrounds.ts'
 import type { PresentBackground } from './presentBackgrounds.ts'
 import {
+  MAX_PRESENT_VIDEO_BYTES,
   PRESENT_VIDEO_CHUNK_BYTES,
   PRESENT_VIDEO_STORAGE_CHUNK_BYTES,
   presentVideoChunkCount,
+  presentVideoCompressFailedMessage,
   presentVideoFileTooLargeMessage,
   presentVideoSrc,
   presentVideoStorageChunkCount,
 } from '@shared/presentVideo.ts'
+import { compressPresentVideoFile } from './compressPresentVideo.ts'
 
 function asSharedVideo(bg: PresentBackground, src: string): PresentBackground {
   return {
@@ -160,13 +163,17 @@ export async function uploadPresentVideoFile(
   existingId?: string,
   extras?: { poster?: string },
 ): Promise<PresentBackground> {
-  const upload = asVideoFile(file, existingId ? `${existingId}.mp4` : 'video.mp4')
-  if (!isAllowedVideoFile(upload)) {
+  const original = asVideoFile(file, existingId ? `${existingId}.mp4` : 'video.mp4')
+  if (!isAllowedVideoFile(original)) {
     throw new Error(presentVideoFileTooLargeMessage())
   }
   const id = existingId?.startsWith(CUSTOM_BG_PREFIX) ? existingId : `${CUSTOM_BG_PREFIX}${crypto.randomUUID()}`
-  const label = labelFromVideoName(upload.name)
-  const poster = extras?.poster ?? (await posterFromVideoFile(upload))
+  const label = labelFromVideoName(original.name)
+  const poster = extras?.poster ?? (await posterFromVideoFile(original))
+  const upload = await compressPresentVideoFile(original)
+  if (upload.size > MAX_PRESENT_VIDEO_BYTES) {
+    throw new Error(presentVideoCompressFailedMessage())
+  }
   const caps = await endpoints.backgrounds()
   const src = caps.supabaseEnabled ? await uploadToSupabase(id, upload) : await uploadToDatabase(id, upload)
   const saved = await saveBackgroundRecord({

@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import {
   MAX_PRESENT_VIDEO_BYTES,
+  PRESENT_ENCODE_BITRATE_1080,
+  PRESENT_ENCODE_BITRATE_4K,
+  PRESENT_ENCODE_MAX_SECONDS,
   PRESENT_VIDEO_STORAGE_CHUNK_BYTES,
   clampPresentStreamRange,
+  estimatedPresentEncodeBytes,
   parsePresentByteRange,
   presentChunkRangeFetches,
   presentStreamSrc,
   presentVideoChunkCount,
   presentVideoChunkUrls,
+  presentVideoEncodeFallback,
+  presentVideoEncodePlan,
   presentVideoFileTooLargeMessage,
   presentVideoSrc,
   presentVideoStorageChunkCount,
@@ -24,10 +30,63 @@ describe('present video helpers', () => {
     expect(presentVideoChunkCount(2 * 1024 * 1024 + 1)).toBe(2)
   })
 
-  it('caps custom uploads at 40 MB without restoring the 1GB bucket file limit', () => {
+  it('caps stored custom uploads at 40 MB without restoring the 1GB bucket file limit', () => {
     expect(MAX_PRESENT_VIDEO_BYTES).toBe(40 * 1024 * 1024)
     expect(MAX_PRESENT_VIDEO_BYTES).toBeLessThan(52_428_800)
-    expect(presentVideoFileTooLargeMessage()).toBe('Choose an MP4, WebM, or MOV video under 40 MB.')
+    expect(presentVideoFileTooLargeMessage()).toBe('Choose an MP4, WebM, or MOV video under 1 GB.')
+  })
+
+  it('compresses oversized 4K clips instead of storing the raw file', () => {
+    expect(presentVideoEncodePlan({
+      sizeBytes: 8 * 1024 * 1024,
+      width: 3840,
+      height: 2160,
+      durationSeconds: 12,
+    })).toEqual({ mode: 'original' })
+
+    const fourK = presentVideoEncodePlan({
+      sizeBytes: 400 * 1024 * 1024,
+      width: 3840,
+      height: 2160,
+      durationSeconds: 12,
+    })
+    expect(fourK).toMatchObject({
+      mode: 'encode',
+      width: 3840,
+      height: 2160,
+      durationSeconds: 12,
+      videoBitsPerSecond: PRESENT_ENCODE_BITRATE_4K,
+    })
+    if (fourK.mode === 'encode') {
+      expect(estimatedPresentEncodeBytes(fourK.durationSeconds, fourK.videoBitsPerSecond)).toBeLessThanOrEqual(
+        MAX_PRESENT_VIDEO_BYTES,
+      )
+    }
+
+    const longClip = presentVideoEncodePlan({
+      sizeBytes: 900 * 1024 * 1024,
+      width: 1920,
+      height: 1080,
+      durationSeconds: 240,
+    })
+    expect(longClip).toMatchObject({
+      mode: 'encode',
+      width: 1920,
+      height: 1080,
+      durationSeconds: PRESENT_ENCODE_MAX_SECONDS,
+      videoBitsPerSecond: PRESENT_ENCODE_BITRATE_1080,
+    })
+
+    const fallback = presentVideoEncodeFallback({
+      mode: 'encode',
+      width: 3840,
+      height: 2160,
+      durationSeconds: 30,
+      videoBitsPerSecond: PRESENT_ENCODE_BITRATE_4K,
+    })
+    expect(fallback.width).toBe(1920)
+    expect(fallback.height).toBe(1080)
+    expect(fallback.videoBitsPerSecond).toBe(PRESENT_ENCODE_BITRATE_1080)
   })
 
   it('splits 4K files into storage parts under the 50MB object cap', () => {

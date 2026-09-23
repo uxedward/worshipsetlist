@@ -1,11 +1,11 @@
 import type { PresentBackground } from './presentBackgrounds.ts'
-import { MAX_PRESENT_VIDEO_BYTES, presentVideoFileTooLargeMessage } from '@shared/presentVideo.ts'
+import { MAX_PRESENT_VIDEO_SOURCE_BYTES, presentVideoFileTooLargeMessage } from '@shared/presentVideo.ts'
 
 export const CUSTOM_BG_META_KEY = 'setflow.presentBackgrounds.custom.v1'
 const IDB_NAME = 'setflow-present-backgrounds'
 const IDB_STORE = 'files'
 export const CUSTOM_BG_PREFIX = 'custom-'
-export const MAX_CUSTOM_VIDEO_BYTES = MAX_PRESENT_VIDEO_BYTES
+export const MAX_CUSTOM_VIDEO_BYTES = MAX_PRESENT_VIDEO_SOURCE_BYTES
 
 export type CustomBackgroundMeta = {
   id: string
