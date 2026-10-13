@@ -399,4 +399,13 @@ export const endpoints = {
       json: body,
     }),
   deleteBackground: (id: string) => api(`/api/backgrounds/${id}`, { method: 'DELETE' }),
+  reclaimBackgrounds: () =>
+    api<{
+      ok: boolean
+      droppedChunks: number
+      droppedBackgrounds: number
+      droppedStoragePrefixes: number
+      emptiedBucket: boolean
+      keptBackgrounds: number
+    }>('/api/backgrounds/reclaim', { method: 'POST' }),
 }

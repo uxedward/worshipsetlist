@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { parseByteRange, sliceChunkRange } from './backgroundMedia.ts'
+import { parseByteRange, presentVideoUploadTooLarge, sliceChunkRange } from './backgroundMedia.ts'
+import { PRESENT_VIDEO_STORAGE_CHUNK_BYTES } from '../shared/presentVideo.ts'
 
 describe('background media ranges', () => {
   it('parses suffix, open-ended, and closed byte ranges', () => {
@@ -18,5 +19,15 @@ describe('background media ranges', () => {
     ]
     expect(sliceChunkRange(chunks, 6, 11, chunkSize).toString()).toBe('ghijkl')
     expect(sliceChunkRange(chunks, 16, 17, chunkSize).toString()).toBe('qr')
+  })
+
+  it('rejects a 1GB-style upload whose parts would refill Storage', () => {
+    expect(presentVideoUploadTooLarge(1, PRESENT_VIDEO_STORAGE_CHUNK_BYTES, 4_600_000)).toBe(false)
+    expect(presentVideoUploadTooLarge(5, PRESENT_VIDEO_STORAGE_CHUNK_BYTES, PRESENT_VIDEO_STORAGE_CHUNK_BYTES)).toBe(
+      false,
+    )
+    expect(presentVideoUploadTooLarge(128, PRESENT_VIDEO_STORAGE_CHUNK_BYTES, PRESENT_VIDEO_STORAGE_CHUNK_BYTES)).toBe(
+      true,
+    )
   })
 })

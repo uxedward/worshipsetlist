@@ -10,6 +10,7 @@ import {
   presentVideoSignHeaders,
   saveLocalMedia,
   storageChunkObjectPath,
+  storageDeletePrefixes,
   storagePublicObjectUrl,
   supabaseConfig,
   videoHostingStatus,
@@ -51,7 +52,16 @@ describe('present video hosting', () => {
     expect(presentVideoBucketCreateBody()).not.toHaveProperty('file_size_limit')
     expect(presentVideoBucketUpdateBody()).toEqual({ public: true, file_size_limit: 52_428_800 })
     expect(presentVideoBucketUpdateBody().file_size_limit).toBeLessThan(100 * 1024 * 1024)
+    expect(presentVideoBucketUpdateBody().file_size_limit).toBeLessThan(1024 * 1024 * 1024)
     expect(presentVideoSignHeaders()).toMatchObject({ 'x-upsert': 'true' })
+  })
+
+  it('still deletes a storage prefix when listing parts fails while over quota', () => {
+    expect(storageDeletePrefixes('custom-hosting-test', [])).toEqual(['custom-hosting-test/'])
+    expect(storageDeletePrefixes('custom-hosting-test', ['0', '1'])).toEqual([
+      'custom-hosting-test/0',
+      'custom-hosting-test/1',
+    ])
   })
 
   it('stores each 4K part under the video id so other browsers can stream it', () => {

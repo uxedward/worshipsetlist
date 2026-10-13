@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { SCHEMA_STATEMENTS, APP_TABLES, RLS_STATEMENTS, REVOKE_PUBLIC_ACCESS_STATEMENTS } from './schemaSql.ts'
+import { MAX_PRESENT_VIDEO_BYTES } from '../shared/presentVideo.ts'
+import {
+  SCHEMA_STATEMENTS,
+  APP_TABLES,
+  RLS_STATEMENTS,
+  REVOKE_PUBLIC_ACCESS_STATEMENTS,
+  RECLAIM_STORAGE_SQL,
+} from './schemaSql.ts'
 
 describe('SCHEMA_STATEMENTS', () => {
   it('uses IF NOT EXISTS and avoids pgbouncer-unsafe DO blocks', () => {
@@ -35,5 +42,14 @@ describe('SCHEMA_STATEMENTS', () => {
     expect(REVOKE_PUBLIC_ACCESS_STATEMENTS).toContain('REVOKE ALL ON TABLE "Song" FROM anon')
     expect(REVOKE_PUBLIC_ACCESS_STATEMENTS).toContain('REVOKE ALL ON TABLE "Song" FROM authenticated')
     expect(RLS_STATEMENTS.every((sql) => !/\bDO\s+\$\$/i.test(sql))).toBe(true)
+  })
+
+  it('includes SQL to drop leftover BYTEA copies and oversized Present rows', () => {
+    expect(RECLAIM_STORAGE_SQL.some((sql) => sql.includes('TRUNCATE TABLE "BackgroundChunk"'))).toBe(true)
+    expect(
+      RECLAIM_STORAGE_SQL.some(
+        (sql) => sql.includes(`"sizeBytes" > ${MAX_PRESENT_VIDEO_BYTES}`) && sql.includes('DELETE FROM "CustomBackground"'),
+      ),
+    ).toBe(true)
   })
 })

@@ -1,10 +1,11 @@
 import type { PresentBackground } from './presentBackgrounds.ts'
+import { MAX_PRESENT_VIDEO_SOURCE_BYTES, presentVideoFileTooLargeMessage } from '@shared/presentVideo.ts'
 
 export const CUSTOM_BG_META_KEY = 'setflow.presentBackgrounds.custom.v1'
 const IDB_NAME = 'setflow-present-backgrounds'
 const IDB_STORE = 'files'
 export const CUSTOM_BG_PREFIX = 'custom-'
-export const MAX_CUSTOM_VIDEO_BYTES = 1024 * 1024 * 1024
+export const MAX_CUSTOM_VIDEO_BYTES = MAX_PRESENT_VIDEO_SOURCE_BYTES
 
 export type CustomBackgroundMeta = {
   id: string
@@ -273,7 +274,7 @@ export async function listLocalCustomVideos(): Promise<
 
 export async function saveCustomVideoFile(file: File): Promise<PresentBackground> {
   if (!isAllowedVideoFile(file)) {
-    throw new Error('Choose an MP4, WebM, or MOV video under 1 GB.')
+    throw new Error(presentVideoFileTooLargeMessage())
   }
   const id = `${CUSTOM_BG_PREFIX}${crypto.randomUUID()}`
   const poster = await posterFromVideoFile(file)
