@@ -3,6 +3,7 @@ import {
   chunkUrlsForBackground,
   resetPresentVideoPlayCache,
   resolvePlayablePresentSrc,
+  bufferPresentVideoSrc,
 } from './playPresentVideo.ts'
 import type { PresentBackground } from './presentBackgrounds.ts'
 import { findPresentBackground } from './presentBackgrounds.ts'
@@ -85,10 +86,37 @@ describe('play present video', () => {
             },
           })
         }
-        return new Response('missing', { status: 404 })
+        return new Response(new Uint8Array(8), {
+          status: 200,
+          headers: { 'Content-Type': 'video/mp4' },
+        })
       }),
     )
     await expect(resolvePlayablePresentSrc(custom)).resolves.toBe('/present-media/custom-a')
+  })
+
+  it('buffers storage chunks into a blob so looping does not hitch on the stream', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo) => {
+        const url = String(input)
+        if (url.includes('/present-media/')) {
+          return new Response(new Uint8Array(16), {
+            status: 206,
+            headers: {
+              'Content-Type': 'video/mp4',
+              'Content-Range': 'bytes 0-15/100',
+            },
+          })
+        }
+        return new Response(new Uint8Array(8), {
+          status: 200,
+          headers: { 'Content-Type': 'video/mp4' },
+        })
+      }),
+    )
+    const src = await bufferPresentVideoSrc(custom)
+    expect(src).toMatch(/^blob:/)
   })
 
   it('assembles storage chunks when the stream is HTML instead of video', async () => {

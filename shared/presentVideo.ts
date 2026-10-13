@@ -3,8 +3,11 @@ export const PRESENT_VIDEO_CHUNK_BYTES = 2 * 1024 * 1024
 /** Hosted Storage rejects objects around 50MB; keep each part well under that cap. */
 export const PRESENT_VIDEO_STORAGE_CHUNK_BYTES = 8 * 1024 * 1024
 export const PRESENT_VIDEO_RANGE_MAX_BYTES = 3 * 1024 * 1024
-/** First open-ended Range from the video element; one Storage part, enough to start 4K. */
-export const PRESENT_VIDEO_STREAM_SLICE_BYTES = PRESENT_VIDEO_STORAGE_CHUNK_BYTES
+/**
+ * Open-ended Range from the video element. Four Storage parts keeps a high-bitrate
+ * loop buffered so it does not stall waiting on the next CDN object.
+ */
+export const PRESENT_VIDEO_STREAM_SLICE_BYTES = 4 * PRESENT_VIDEO_STORAGE_CHUNK_BYTES
 
 export function presentStreamSrc(id: string) {
   return `/present-media/${encodeURIComponent(id)}`
