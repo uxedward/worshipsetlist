@@ -6,7 +6,6 @@ export function AccountMenu() {
   const user = useCurrentUser()
   const logout = useLogout()
   const openSettings = useAppStore((s) => s.openSettingsPage)
-  if (!user) return null
 
   return (
     <div
@@ -15,10 +14,10 @@ export function AccountMenu() {
     >
       <div className="min-w-0 flex-1">
         <div className="truncate text-label" style={{ color: 'var(--text-primary)' }}>
-          {user.name || user.email}
+          {user?.name || user?.email || 'Guest'}
         </div>
         <div className="truncate text-caption" style={{ color: 'var(--text-muted)' }}>
-          {user.role === 'admin' ? 'Admin' : 'Team member'}
+          {user?.role === 'admin' ? 'Admin' : 'Visitor'}
         </div>
       </div>
       <button
@@ -31,17 +30,19 @@ export function AccountMenu() {
       >
         <Settings size={14} />
       </button>
-      <button
-        type="button"
-        onClick={() => logout.mutate()}
-        disabled={logout.isPending}
-        title="Sign out"
-        aria-label="Sign out"
-        className="flex h-7 w-7 items-center justify-center rounded-[8px]"
-        style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
-      >
-        <LogOut size={14} />
-      </button>
+      {user ? (
+        <button
+          type="button"
+          onClick={() => logout.mutate()}
+          disabled={logout.isPending}
+          title="Sign out"
+          aria-label="Sign out"
+          className="flex h-7 w-7 items-center justify-center rounded-[8px]"
+          style={{ background: 'var(--surface-2)', color: 'var(--text-secondary)' }}
+        >
+          <LogOut size={14} />
+        </button>
+      ) : null}
     </div>
   )
 }

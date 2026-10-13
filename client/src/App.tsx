@@ -30,8 +30,8 @@ export default function App() {
 }
 
 /**
- * Nothing below this renders without a session, so the app never briefly shows
- * a library the viewer is not signed in for.
+ * Guests use the library without signing in. First-run setup and password
+ * reset still take over the screen; admins sign in from Settings.
  */
 function AuthGate() {
   const auth = useAuthState()
@@ -39,6 +39,7 @@ function AuthGate() {
   // they own the account, and they may be on a shared tablet.
   const [resetToken, setResetToken] = useState(resetTokenFromUrl)
   const user = auth.data?.user ?? null
+  const needsSetup = Boolean(auth.data?.needsSetup)
   if (user) setLibraryOwner(user.id)
 
   useEffect(() => {
@@ -46,22 +47,18 @@ function AuthGate() {
   }, [])
 
   useEffect(() => {
-    if (!user || resetToken) return
+    if (resetToken || needsSetup) return
     void requestBootstrap()
-  }, [user, resetToken])
+  }, [user, resetToken, needsSetup])
 
-  if (resetToken || !user) {
-    // Paint the sign-in / first-run screen immediately. Waiting on
-    // /api/auth/state used to hold a full-app splash until that call returned.
-    return (
-      <AuthScreen
-        needsSetup={Boolean(auth.data?.needsSetup)}
-        checking={auth.isPending && !auth.data && !resetToken}
-        loadError={auth.isError ? 'Could not reach Setflow. You can still try signing in.' : null}
-        resetToken={resetToken}
-        onResetDone={() => setResetToken(null)}
-      />
-    )
+  if (resetToken) {
+    return <AuthScreen needsSetup={false} resetToken={resetToken} onResetDone={() => setResetToken(null)} />
+  }
+  if (auth.isPending && !auth.data) {
+    return <AuthScreen needsSetup={false} checking resetToken={null} onResetDone={() => setResetToken(null)} />
+  }
+  if (needsSetup) {
+    return <AuthScreen needsSetup checking={false} resetToken={null} onResetDone={() => setResetToken(null)} />
   }
   return (
     <Suspense fallback={<BootSplash />}>

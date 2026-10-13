@@ -110,18 +110,18 @@ export function LibraryView({
       <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-5">
         <h1 className="text-title">Song library</h1>
         <div className="flex gap-2">
-          <Btn
-            onClick={async () => {
-              const { endpoints } = await import('../lib/api.ts')
-              const { downloadText } = await import('../lib/download.ts')
-              const body = await endpoints.exportSongs()
-              downloadText('setflow-songs.txt', body)
-            }}
-          >
-            Export
-          </Btn>
           {isAdmin ? (
             <>
+              <Btn
+                onClick={async () => {
+                  const { endpoints } = await import('../lib/api.ts')
+                  const { downloadText } = await import('../lib/download.ts')
+                  const body = await endpoints.exportSongs()
+                  downloadText('setflow-songs.txt', body)
+                }}
+              >
+                Export
+              </Btn>
               <Btn onClick={() => setBulkImportOpen(true)}>
                 Spotify / Import
               </Btn>

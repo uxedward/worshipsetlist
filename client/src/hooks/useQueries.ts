@@ -20,6 +20,7 @@ import {
   overlaySong,
   overlaySongs,
   patchPersistedSetlistSong,
+  readLocalSetlist,
   rememberDeletedSetlist,
   rememberDeletedSong,
   rememberSetlist,
@@ -31,6 +32,7 @@ import {
   reorderPersistedSetlist,
   reorderPersistedSetlists,
 } from '../lib/persist.ts'
+import { hasSession } from '../lib/authCache.ts'
 import { songsListQueryKey } from '../lib/queryKeys.ts'
 import { sameSongIdentity, songInputFromSpotifyTrack } from '@shared/spotifyImport.ts'
 import { readBootstrapCache, writeBootstrapCache, cachedCatalogSongs } from '../lib/bootstrapCache.ts'
@@ -42,7 +44,11 @@ function hydrateBootstrap(raw: BootstrapPayload | null): BootstrapPayload | null
   try {
     const setlists = overlaySetlists(raw.setlists)
     const songs = overlaySongs(raw.songs)
-    const activeSetlist = raw.activeSetlist ? overlaySetlist(raw.activeSetlist) : null
+    const activeSetlist = raw.activeSetlist
+      ? overlaySetlist(raw.activeSetlist)
+      : setlists[0]
+        ? overlaySetlist(setlists[0])
+        : null
     return { preferences: raw.preferences, setlists, songs, activeSetlist }
   } catch {
     return raw
@@ -100,7 +106,11 @@ export function useBootstrap() {
         try {
           const setlists = overlaySetlists(data.setlists)
           const songs = overlaySongs(data.songs)
-          const activeSetlist = data.activeSetlist ? overlaySetlist(data.activeSetlist) : null
+          const activeSetlist = data.activeSetlist
+            ? overlaySetlist(data.activeSetlist)
+            : setlists[0]
+              ? overlaySetlist(setlists[0])
+              : null
           const payload = { preferences: data.preferences, setlists, songs, activeSetlist }
           seed(payload)
           return payload
@@ -135,10 +145,22 @@ export function useBootstrap() {
   })
 }
 
+const GUEST_PREFERENCES: Preference = {
+  id: 0,
+  theme: 'dark',
+  presentationFontSize: 'medium',
+  lastSetlistId: null,
+}
+
 export function usePreferences(enabled = true) {
   return useQuery({
     queryKey: ['preferences'],
-    queryFn: endpoints.prefs,
+    queryFn: async () => {
+      if (!hasSession()) {
+        return cachedLibraryBootstrap()?.preferences ?? GUEST_PREFERENCES
+      }
+      return endpoints.prefs()
+    },
     enabled,
     staleTime: 60_000,
     refetchOnMount: false,
@@ -149,7 +171,7 @@ export function usePreferences(enabled = true) {
 export function useSetlists(enabled = true) {
   return useQuery({
     queryKey: ['setlists'],
-    queryFn: async () => overlaySetlists(await endpoints.setlists()),
+    queryFn: async () => overlaySetlists(hasSession() ? await endpoints.setlists() : []),
     enabled,
     staleTime: 60_000,
     refetchOnMount: false,
@@ -160,11 +182,19 @@ export function useSetlists(enabled = true) {
 export function useSetlist(id: string | null) {
   const cachedBootstrap = cachedLibraryBootstrap()
   const cached =
-    id && cachedBootstrap?.activeSetlist?.id === id ? cachedBootstrap.activeSetlist : undefined
+    (id && cachedBootstrap?.activeSetlist?.id === id ? cachedBootstrap.activeSetlist : undefined) ??
+    (id ? readLocalSetlist(id) ?? undefined : undefined)
   return useQuery({
     queryKey: ['setlist', id],
-    queryFn: async () => overlaySetlist(await endpoints.setlist(id!)),
-    enabled: Boolean(id) && !id.startsWith('local-'),
+    queryFn: async () => {
+      if (id?.startsWith('local-') || !hasSession()) {
+        const local = readLocalSetlist(id!)
+        if (!local) throw new Error('Setlist not found')
+        return local
+      }
+      return overlaySetlist(await endpoints.setlist(id!))
+    },
+    enabled: Boolean(id),
     staleTime: 60_000,
     refetchOnMount: false,
     initialData: cached,
@@ -386,6 +416,7 @@ export function useMutations() {
       qc.setQueryData(['bootstrap'], (prev: BootstrapPayload | undefined) =>
         prev ? { ...prev, preferences: { ...prev.preferences, ...body } } : prev,
       )
+      if (!hasSession()) return body
       try {
         const next = (await endpoints.patchPrefs(body)) as Preference
         qc.setQueryData(['preferences'], next)
@@ -412,6 +443,7 @@ export function useMutations() {
       qc.setQueryData(['setlist', local.id], local)
       qc.setQueryData<Setlist[]>(['setlists'], (prev) => [local, ...(prev ?? []).filter((s) => s.id !== local.id)])
       useAppStore.getState().setActiveSetlistId(local.id)
+      if (!hasSession()) return local
       try {
         const created = (await endpoints.createSetlist(body)) as Setlist
         const next = {
@@ -441,6 +473,7 @@ export function useMutations() {
       patchSetlistCaches(qc, v.id, patch)
       const current = qc.getQueryData<Setlist>(['setlist', v.id])
       if (current) rememberSetlist(current)
+      if (!hasSession() || v.id.startsWith('local-')) return current
       try {
         const updated = (await endpoints.patchSetlist(v.id, v.body)) as Setlist
         rememberSetlist(overlaySetlist(updated))
@@ -454,6 +487,7 @@ export function useMutations() {
       rememberDeletedSetlist(id)
       qc.setQueryData<Setlist[]>(['setlists'], (prev) => prev?.filter((s) => s.id !== id))
       qc.removeQueries({ queryKey: ['setlist', id] })
+      if (!hasSession() || id.startsWith('local-')) return { ok: true }
       try {
         return await endpoints.deleteSetlist(id)
       } catch (err) {
@@ -466,32 +500,35 @@ export function useMutations() {
       }
     }),
     duplicateSetlist: useTrackedMutation(async (id: string) => {
-      try {
-        const copy = (await endpoints.duplicateSetlist(id)) as Setlist
-        rememberSetlist(copy)
-        qc.setQueryData(['setlist', copy.id], copy)
-        qc.setQueryData<Setlist[]>(['setlists'], (prev) => [copy, ...(prev ?? [])])
-        return copy
-      } catch {
-        const source = qc.getQueryData<Setlist>(['setlist', id])
-        const local: Setlist = {
-          id: `local-${crypto.randomUUID()}`,
-          name: `${source?.name ?? 'Setlist'} copy`,
-          description: source?.description ?? null,
-          serviceName: source?.serviceName ?? null,
-          date: source?.date ?? null,
-          colorIndex: source?.colorIndex ?? 0,
-          sortOrder: (source?.sortOrder ?? 0) + 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          songs: source?.songs ?? [],
-          _count: { songs: source?.songs?.length ?? 0 },
+      if (hasSession() && !id.startsWith('local-')) {
+        try {
+          const copy = (await endpoints.duplicateSetlist(id)) as Setlist
+          rememberSetlist(copy)
+          qc.setQueryData(['setlist', copy.id], copy)
+          qc.setQueryData<Setlist[]>(['setlists'], (prev) => [copy, ...(prev ?? [])])
+          return copy
+        } catch {
+          /* keep a local copy on this device */
         }
-        rememberSetlist(local)
-        qc.setQueryData(['setlist', local.id], local)
-        qc.setQueryData<Setlist[]>(['setlists'], (prev) => [local, ...(prev ?? [])])
-        return local
       }
+      const source = qc.getQueryData<Setlist>(['setlist', id]) ?? readLocalSetlist(id)
+      const local: Setlist = {
+        id: `local-${crypto.randomUUID()}`,
+        name: `${source?.name ?? 'Setlist'} copy`,
+        description: source?.description ?? null,
+        serviceName: source?.serviceName ?? null,
+        date: source?.date ?? null,
+        colorIndex: source?.colorIndex ?? 0,
+        sortOrder: (source?.sortOrder ?? 0) + 1,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        songs: source?.songs ?? [],
+        _count: { songs: source?.songs?.length ?? 0 },
+      }
+      rememberSetlist(local)
+      qc.setQueryData(['setlist', local.id], local)
+      qc.setQueryData<Setlist[]>(['setlists'], (prev) => [local, ...(prev ?? [])])
+      return local
     }),
     addSong: useTrackedMutation(async (v: { setlistId: string; songId: string }) => {
       const current = qc.getQueryData<Setlist>(['setlist', v.setlistId])
@@ -508,6 +545,7 @@ export function useMutations() {
         song: song ?? ({ id: v.songId, title: 'Song', artist: '', key: 'C', bpm: 80, timeSignature: '4/4', tag: 'Worship', album: null, durationSeconds: null, createdAt: new Date().toISOString() } as Song),
       }
       if (!existing) putSetlistSong(qc, v.setlistId, optimistic)
+      if (!hasSession() || v.setlistId.startsWith('local-')) return optimistic
       try {
         const row = await endpoints.addSongToSetlist(v.setlistId, v.songId)
         replaceSetlistSong(qc, v.setlistId, optimistic.id, row)
@@ -523,6 +561,7 @@ export function useMutations() {
           notes: (v.body.notes as string | null | undefined),
           order: typeof v.body.order === 'number' ? v.body.order : undefined,
         })
+        if (!hasSession() || v.setlistId.startsWith('local-')) return v.body
         try {
           return await endpoints.patchSetlistSong(v.setlistId, v.ssId, v.body)
         } catch {
@@ -545,6 +584,7 @@ export function useMutations() {
           prev?.map((s) => (s.id === v.setlistId ? { ...s, _count: { songs: nextCount } } : s)),
         )
       }
+      if (!hasSession() || v.setlistId.startsWith('local-')) return { ok: true }
       try {
         return await endpoints.removeSetlistSong(v.setlistId, v.ssId)
       } catch {
@@ -553,6 +593,7 @@ export function useMutations() {
     }),
     reorder: useTrackedMutation(async (v: { setlistId: string; orderedIds: string[] }) => {
       reorderPersistedSetlist(v.setlistId, v.orderedIds)
+      if (!hasSession() || v.setlistId.startsWith('local-')) return { ok: true }
       try {
         return await endpoints.reorder(v.setlistId, v.orderedIds)
       } catch {
@@ -561,6 +602,7 @@ export function useMutations() {
     }),
     reorderSetlists: useTrackedMutation(async (orderedIds: string[]) => {
       reorderPersistedSetlists(orderedIds)
+      if (!hasSession()) return { ok: true }
       try {
         return await endpoints.reorderSetlists(orderedIds)
       } catch {

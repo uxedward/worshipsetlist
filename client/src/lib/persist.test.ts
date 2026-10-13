@@ -90,6 +90,10 @@ describe('persist overlays', () => {
     localStorage.clear()
     sessionStorage.clear()
     setLibraryOwner(null)
+    writeAuthCache({
+      needsSetup: false,
+      user: { id: 'admin', email: 'lead@church.org', name: 'Lead', role: 'admin' },
+    })
   })
 
   it('does not copy the server setlist into local storage', () => {
@@ -289,6 +293,23 @@ describe('persist overlays', () => {
     rememberDeletedSong('shared')
     const songs = overlaySongs([song('shared', 'Oceans')])
     expect(songs.map((s) => s.title)).toEqual(['Oceans'])
+  })
+
+  it('does not overlay a private song catalog for guests', () => {
+    writeAuthCache({ needsSetup: false, user: null })
+    rememberSong(song('mine', 'Original'))
+    rememberDeletedSong('shared')
+    const songs = overlaySongs([song('shared', 'Oceans')])
+    expect(songs.map((s) => s.title)).toEqual(['Oceans'])
+  })
+
+  it('keeps guest setlists on the device when the server list is empty', () => {
+    writeAuthCache({ needsSetup: false, user: null })
+    const local = { ...setlist('local-sunday', 'Sunday AM'), id: 'local-sunday' }
+    rememberSetlist(local)
+    const listed = overlaySetlists([])
+    expect(listed.map((s) => s.id)).toEqual(['local-sunday'])
+    expect(listed[0].name).toBe('Sunday AM')
   })
 
   it('swaps a local setlist id for the server id without dropping it', () => {

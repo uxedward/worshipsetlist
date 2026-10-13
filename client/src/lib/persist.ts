@@ -78,9 +78,14 @@ function write(patch: (state: PersistState) => void) {
   return state
 }
 
-/** Team members read the admin catalog; they must not keep a private song overlay. */
+/** Only admins add or remove catalog songs. Guests read the shared library as-is. */
 export function catalogMutationsAllowed() {
-  return readAuthCache()?.user?.role !== 'user'
+  return readAuthCache()?.user?.role === 'admin'
+}
+
+export function readLocalSetlist(id: string): Setlist | null {
+  const extra = loadPersist().extraSetlists.find((s) => s.id === id)
+  return extra ? overlaySetlist(extra) : null
 }
 
 export function rememberSetlist(setlist: Setlist) {

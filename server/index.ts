@@ -8,11 +8,11 @@ import { preferencesRouter } from './routes/preferences.js'
 import { backgroundsRouter } from './routes/backgrounds.js'
 import { databaseBackend, durableDatabase, isPoolTimeout, prisma, releasePrisma } from './db.js'
 import { databaseVendor } from './hostedDatabase.js'
-import { loadBootstrap } from './bootstrap.js'
+import { loadBootstrap, loadGuestBootstrap } from './bootstrap.js'
 import { readRequestBuffer, saveBackgroundChunk } from './backgroundMedia.js'
 import { needsDatabasePrepare, skipDatabasePrepare } from './skipPrepare.js'
 import { videoHostingStatus } from './videoHosting.js'
-import { attachUser, requireAdmin, requireAuth } from './authMiddleware.js'
+import { attachUser, requireAdmin } from './authMiddleware.js'
 import { hasStrongSessionSecret } from './auth.js'
 
 export const app = express()
@@ -115,16 +115,17 @@ app.get('/api/health', async (_req, res) => {
   }
 })
 
-app.get('/api/bootstrap', requireAuth, async (req, res) => {
-  const userId = req.user!.id
+app.get('/api/bootstrap', async (req, res) => {
+  const userId = req.user?.id
+  const payload = () => (userId ? loadBootstrap(userId) : loadGuestBootstrap())
   try {
     try {
-      res.json(await loadBootstrap(userId))
+      res.json(await payload())
       return
     } catch (err) {
       if (!needsDatabasePrepare(err)) throw err
       await prepareDatabase()
-      res.json(await loadBootstrap(userId))
+      res.json(await payload())
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

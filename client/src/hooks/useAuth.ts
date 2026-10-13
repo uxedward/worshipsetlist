@@ -135,9 +135,10 @@ export function useLogout() {
       setLibraryOwner(null)
       const next = { needsSetup: false, user: null }
       writeAuthCache(next)
-      qc.setQueryData(AUTH_KEY, next)
-      // Nothing cached belongs to the next person to sign in on this device.
+      discardBootstrapInflight()
+      releaseQueue()
       qc.clear()
+      qc.setQueryData(AUTH_KEY, next)
     },
   })
 }

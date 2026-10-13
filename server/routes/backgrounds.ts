@@ -10,14 +10,12 @@ import {
   videoHostingStatus,
 } from '../videoHosting.js'
 
-import { requireAdmin, requireAuth } from '../authMiddleware.js'
+import { requireAdmin } from '../authMiddleware.js'
 
 export const backgroundsRouter = Router()
 
-// Present mode needs to read and stream backgrounds, so any signed-in user can.
-// Adding and removing them is admin-only — /upload mints signed Storage upload
-// URLs, which is not something to hand out broadly.
-backgroundsRouter.use(requireAuth)
+// Guests can list and stream Present backgrounds. Adding and removing them is
+// admin-only — /upload mints signed Storage upload URLs.
 
 function toClient(row: {
   id: string

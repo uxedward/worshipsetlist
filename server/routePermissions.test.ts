@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import type { Router } from 'express'
 import { songsRouter } from './routes/songs.ts'
 import { setlistsRouter } from './routes/setlists.ts'
@@ -29,6 +30,7 @@ const ADMIN_ONLY: Array<[string, Router, string, string]> = [
   ['create an account', authRouter, 'post', '/users'],
   ['change someone else\'s role', authRouter, 'patch', '/users/:id'],
   ['remove an account', authRouter, 'delete', '/users/:id'],
+  ['export songs', songsRouter, 'get', '/export'],
   ['add a song', songsRouter, 'post', '/'],
   ['edit a song', songsRouter, 'patch', '/:id'],
   ['delete a song', songsRouter, 'delete', '/:id'],
@@ -40,8 +42,14 @@ const ADMIN_ONLY: Array<[string, Router, string, string]> = [
   ['delete a background', backgroundsRouter, 'delete', '/:id'],
 ]
 
-const ANY_MEMBER: Array<[string, Router, string, string]> = [
+const PUBLIC_READ: Array<[string, Router, string, string]> = [
   ['read the library', songsRouter, 'get', '/'],
+  ['read a song', songsRouter, 'get', '/:id'],
+  ['list backgrounds for Present mode', backgroundsRouter, 'get', '/'],
+  ['stream a background', backgroundsRouter, 'get', '/media/:id'],
+]
+
+const ANY_MEMBER: Array<[string, Router, string, string]> = [
   ['create a setlist', setlistsRouter, 'post', '/'],
   ['rename a setlist', setlistsRouter, 'patch', '/:id'],
   ['delete a setlist', setlistsRouter, 'delete', '/:id'],
@@ -51,8 +59,6 @@ const ANY_MEMBER: Array<[string, Router, string, string]> = [
   ['drop a song from a setlist', setlistsRouter, 'delete', '/:id/songs/:ssId'],
   ['reorder a setlist', setlistsRouter, 'put', '/:id/reorder'],
   ['reorder setlists', setlistsRouter, 'put', '/reorder'],
-  ['list backgrounds for Present mode', backgroundsRouter, 'get', '/'],
-  ['stream a background', backgroundsRouter, 'get', '/media/:id'],
 ]
 
 describe('admin-only routes', () => {
@@ -65,6 +71,14 @@ describe('routes open to any signed-in member', () => {
   it.each(ANY_MEMBER)('any member can %s', (_label, router, method, path) => {
     const guards = guardsFor(router, method, path)
     expect(guards).toContain('requireAuth')
+    expect(guards).not.toContain('requireAdmin')
+  })
+})
+
+describe('guest-readable routes', () => {
+  it.each(PUBLIC_READ)('guests can %s', (_label, router, method, path) => {
+    const guards = guardsFor(router, method, path)
+    expect(guards).not.toContain('requireAuth')
     expect(guards).not.toContain('requireAdmin')
   })
 })
@@ -94,15 +108,22 @@ describe('deliberately public auth routes', () => {
   })
 })
 
-describe('no route is left unauthenticated', () => {
+describe('account-scoped routers still require a session', () => {
   it.each([
-    ['songs', songsRouter],
     ['setlists', setlistsRouter],
-    ['backgrounds', backgroundsRouter],
     ['preferences', preferencesRouter],
   ])('%s requires a session', (_name, router) => {
     const stack = (router as unknown as { stack: Layer[] }).stack
     const routerLevel = stack.filter((layer) => !layer.route).map((layer) => layer.handle?.name)
     expect(routerLevel).toContain('requireAuth')
+  })
+})
+
+describe('admin-only sign-in', () => {
+  it('login refuses a non-admin session', () => {
+    const src = readFileSync(new URL('./routes/auth.ts', import.meta.url), 'utf8')
+    expect(src).toContain("user.role !== 'admin'")
+    expect(src).toContain('Only admins can sign in.')
+    expect(src).toContain('Public sign-up is off')
   })
 })

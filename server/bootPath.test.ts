@@ -27,4 +27,12 @@ describe('boot path', () => {
     expect(src('../client/src/App.tsx')).toContain('requestBootstrap')
     expect(src('../client/src/App.tsx')).toContain('loadAppInner')
   })
+
+  it('does not block the library behind a guest sign-in wall', () => {
+    const app = src('../client/src/App.tsx')
+    expect(app).toContain('needsSetup')
+    expect(app).not.toContain('if (resetToken || !user)')
+    expect(src('../client/src/components/SettingsPage.tsx')).toContain('AdminSignInForm')
+    expect(src('../client/src/components/AccountMenu.tsx')).toContain('Guest')
+  })
 })

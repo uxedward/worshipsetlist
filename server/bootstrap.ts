@@ -2,6 +2,25 @@ import { prisma } from './db.ts'
 import { setlistWithSongCharts, setlistWithSongMeta } from './songInclude.ts'
 import { loadSongCatalog, ownedBy } from './userLibrary.ts'
 
+const GUEST_PREFERENCES = {
+  id: 0,
+  theme: 'dark' as const,
+  presentationFontSize: 'medium' as const,
+  lastSetlistId: null,
+  onboardingDoneAt: null,
+}
+
+/** Songs and Present backgrounds are shared. Guest setlists stay on the device. */
+export async function loadGuestBootstrap() {
+  const songs = await loadSongCatalog()
+  return {
+    preferences: GUEST_PREFERENCES,
+    setlists: [] as Awaited<ReturnType<typeof loadBootstrap>>['setlists'],
+    songs,
+    activeSetlist: null,
+  }
+}
+
 export async function loadBootstrap(userId: string) {
   const owned = ownedBy(userId)
   const [preferencesRow, setlists, songs] = await Promise.all([
