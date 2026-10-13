@@ -30,8 +30,8 @@ export default function App() {
 }
 
 /**
- * Guests use the library without signing in. First-run setup and password
- * reset still take over the screen; admins sign in from Settings.
+ * Guests use the library without signing in. Password reset still takes over
+ * the screen; first-run admin setup and later admin sign-in live in Settings.
  */
 function AuthGate() {
   const auth = useAuthState()
@@ -39,7 +39,6 @@ function AuthGate() {
   // they own the account, and they may be on a shared tablet.
   const [resetToken, setResetToken] = useState(resetTokenFromUrl)
   const user = auth.data?.user ?? null
-  const needsSetup = Boolean(auth.data?.needsSetup)
   if (user) setLibraryOwner(user.id)
 
   useEffect(() => {
@@ -47,18 +46,12 @@ function AuthGate() {
   }, [])
 
   useEffect(() => {
-    if (resetToken || needsSetup) return
+    if (resetToken) return
     void requestBootstrap()
-  }, [user, resetToken, needsSetup])
+  }, [user, resetToken])
 
   if (resetToken) {
-    return <AuthScreen needsSetup={false} resetToken={resetToken} onResetDone={() => setResetToken(null)} />
-  }
-  if (auth.isPending && !auth.data) {
-    return <AuthScreen needsSetup={false} checking resetToken={null} onResetDone={() => setResetToken(null)} />
-  }
-  if (needsSetup) {
-    return <AuthScreen needsSetup checking={false} resetToken={null} onResetDone={() => setResetToken(null)} />
+    return <AuthScreen resetToken={resetToken} onResetDone={() => setResetToken(null)} />
   }
   return (
     <Suspense fallback={<BootSplash />}>

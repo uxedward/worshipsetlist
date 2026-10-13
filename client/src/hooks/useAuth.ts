@@ -158,6 +158,16 @@ export function useCurrentUser(): AccountUser | null {
   return data?.user ?? null
 }
 
+export function useNeedsSetup(): boolean {
+  const { data } = useQuery({
+    queryKey: AUTH_KEY,
+    queryFn: endpoints.authState,
+    enabled: false,
+    staleTime: Infinity,
+  })
+  return Boolean(data?.needsSetup)
+}
+
 export function useRole(): Role | null {
   return useCurrentUser()?.role ?? null
 }

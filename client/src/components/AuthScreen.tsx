@@ -26,13 +26,13 @@ export function newPasswordProblem(password: string, confirm: string): string | 
 }
 
 export function AuthScreen({
-  needsSetup,
+  needsSetup = false,
   resetToken,
   onResetDone,
   checking,
   loadError,
 }: {
-  needsSetup: boolean
+  needsSetup?: boolean
   resetToken: string | null
   onResetDone: () => void
   checking?: boolean
@@ -175,7 +175,7 @@ function CheckingPanel() {
 
 /* --------------------------------------------------------- first run: admin */
 
-function CreateAdminPanel() {
+export function CreateAdminForm() {
   const setup = useSetupAdmin()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -196,51 +196,57 @@ function CreateAdminPanel() {
   }
 
   return (
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <Field label="Your name">
+        <input
+          className={inputClass}
+          style={inputStyle}
+          autoFocus
+          required
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Jordan"
+        />
+      </Field>
+      <Field label="Email">
+        <input
+          className={inputClass}
+          style={inputStyle}
+          type="email"
+          required
+          autoComplete="username"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </Field>
+      <PasswordField
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="new-password"
+        placeholder={`At least ${MIN_PASSWORD} characters`}
+      />
+      <PasswordField
+        label="Confirm password"
+        value={confirm}
+        onChange={setConfirm}
+        autoComplete="new-password"
+      />
+      <ErrorNote>{localError ?? (setup.error ? message(setup.error, 'Could not create that account.') : null)}</ErrorNote>
+      <SubmitButton busy={setup.isPending}>Create admin account</SubmitButton>
+    </form>
+  )
+}
+
+function CreateAdminPanel() {
+  return (
     <AuthShell
       title="Create your admin account"
       blurb="You're first, so this account runs the song library and everything that can be added or removed. Guests will not need to sign in."
       footer="After this, visitors can open Setflow without an account. Admins sign in from Settings."
     >
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <Field label="Your name">
-          <input
-            className={inputClass}
-            style={inputStyle}
-            autoFocus
-            required
-            autoComplete="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Jordan"
-          />
-        </Field>
-        <Field label="Email">
-          <input
-            className={inputClass}
-            style={inputStyle}
-            type="email"
-            required
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Field>
-        <PasswordField
-          label="Password"
-          value={password}
-          onChange={setPassword}
-          autoComplete="new-password"
-          placeholder={`At least ${MIN_PASSWORD} characters`}
-        />
-        <PasswordField
-          label="Confirm password"
-          value={confirm}
-          onChange={setConfirm}
-          autoComplete="new-password"
-        />
-        <ErrorNote>{localError ?? (setup.error ? message(setup.error, 'Could not create that account.') : null)}</ErrorNote>
-        <SubmitButton busy={setup.isPending}>Create admin account</SubmitButton>
-      </form>
+      <CreateAdminForm />
     </AuthShell>
   )
 }

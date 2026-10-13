@@ -3,10 +3,10 @@ import { Check, Copy, KeyRound, Trash2, X } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, endpoints, type ManagedUser, type Role } from '../lib/api.ts'
 import { useAppStore } from '../store/useAppStore.ts'
-import { useChangePassword, useCurrentUser, useUpdateProfile } from '../hooks/useAuth.ts'
+import { useChangePassword, useCurrentUser, useNeedsSetup, useUpdateProfile } from '../hooks/useAuth.ts'
 import { useMutations, usePreferences } from '../hooks/useQueries.ts'
 import { Btn, Field, Spinner, inputClass, inputStyle } from './ui.tsx'
-import { AdminSignInForm, MIN_PASSWORD, newPasswordProblem } from './AuthScreen.tsx'
+import { AdminSignInForm, CreateAdminForm, MIN_PASSWORD, newPasswordProblem } from './AuthScreen.tsx'
 import type { PresentationFontSize, Theme } from '@shared/types.ts'
 
 const USERS_KEY = ['auth', 'users'] as const
@@ -221,6 +221,17 @@ function AccountSection() {
 const FONT_SIZES: PresentationFontSize[] = ['small', 'medium', 'large']
 
 function GuestSignInSection() {
+  const needsSetup = useNeedsSetup()
+  if (needsSetup) {
+    return (
+      <Section
+        title="Create the admin account"
+        blurb="This account can add and remove songs and other shared settings. Visitors keep using chords, lyrics, Present, and setlists without signing in."
+      >
+        <CreateAdminForm />
+      </Section>
+    )
+  }
   return (
     <Section
       title="Admin sign in"
