@@ -26,3 +26,7 @@ export function writeAuthCache(state: AuthCacheState) {
     /* private mode / quota */
   }
 }
+
+export function hasSession() {
+  return Boolean(readAuthCache()?.user)
+}

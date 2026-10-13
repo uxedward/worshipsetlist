@@ -5,16 +5,14 @@ import { resolveSongKey } from '../../shared/detectKey.js'
 import { sameSongIdentity } from '../../shared/spotifyImport.js'
 import { durableDatabase, prisma } from '../db.js'
 import { songWithChart } from '../songInclude.js'
-import { requireAdmin, requireAuth } from '../authMiddleware.js'
+import { requireAdmin } from '../authMiddleware.js'
 import { sharedSongOrder } from '../userLibrary.js'
 
 export const songsRouter = Router()
 
-songsRouter.use(requireAuth)
-
 const fullSong = songWithChart
 
-songsRouter.get('/export', async (_req, res) => {
+songsRouter.get('/export', requireAdmin, async (_req, res) => {
   const songs = await prisma.song.findMany({
     orderBy: sharedSongOrder,
     include: fullSong,

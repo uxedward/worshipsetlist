@@ -24,6 +24,17 @@ describe('loadBootstrap', () => {
     expect(lib).not.toMatch(/loadSongCatalog[\s\S]*ownedBy/)
   })
 
+  it('gives guests the song catalog without creating a preference row', () => {
+    const src = readFileSync(new URL('./bootstrap.ts', import.meta.url), 'utf8')
+    const guest = src.slice(src.indexOf('export async function loadGuestBootstrap'), src.indexOf('export async function loadBootstrap'))
+    expect(guest).toContain('loadSongCatalog()')
+    expect(guest).toContain('setlists: []')
+    expect(guest).not.toContain('preference.create')
+    const index = readFileSync(new URL('./index.ts', import.meta.url), 'utf8')
+    expect(index).toContain('loadGuestBootstrap')
+    expect(index).not.toMatch(/app\.get\('\/api\/bootstrap', requireAuth/)
+  })
+
   it('keeps chord charts off the setlist list and loads them for the active set only', () => {
     const src = readFileSync(new URL('./bootstrap.ts', import.meta.url), 'utf8')
     expect(src).toContain('include: setlistWithSongMeta')

@@ -135,9 +135,10 @@ export function useLogout() {
       setLibraryOwner(null)
       const next = { needsSetup: false, user: null }
       writeAuthCache(next)
-      qc.setQueryData(AUTH_KEY, next)
-      // Nothing cached belongs to the next person to sign in on this device.
+      discardBootstrapInflight()
+      releaseQueue()
       qc.clear()
+      qc.setQueryData(AUTH_KEY, next)
     },
   })
 }
@@ -155,6 +156,16 @@ export function useCurrentUser(): AccountUser | null {
     staleTime: Infinity,
   })
   return data?.user ?? null
+}
+
+export function useNeedsSetup(): boolean {
+  const { data } = useQuery({
+    queryKey: AUTH_KEY,
+    queryFn: endpoints.authState,
+    enabled: false,
+    staleTime: Infinity,
+  })
+  return Boolean(data?.needsSetup)
 }
 
 export function useRole(): Role | null {

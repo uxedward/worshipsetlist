@@ -3,10 +3,10 @@ import { Check, Copy, KeyRound, Trash2, X } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiError, endpoints, type ManagedUser, type Role } from '../lib/api.ts'
 import { useAppStore } from '../store/useAppStore.ts'
-import { useChangePassword, useCurrentUser, useUpdateProfile } from '../hooks/useAuth.ts'
+import { useChangePassword, useCurrentUser, useNeedsSetup, useUpdateProfile } from '../hooks/useAuth.ts'
 import { useMutations, usePreferences } from '../hooks/useQueries.ts'
 import { Btn, Field, Spinner, inputClass, inputStyle } from './ui.tsx'
-import { MIN_PASSWORD, newPasswordProblem } from './AuthScreen.tsx'
+import { AdminSignInForm, CreateAdminForm, MIN_PASSWORD, newPasswordProblem } from './AuthScreen.tsx'
 import type { PresentationFontSize, Theme } from '@shared/types.ts'
 
 const USERS_KEY = ['auth', 'users'] as const
@@ -24,8 +24,8 @@ export function SettingsPage() {
   const close = useAppStore((s) => s.closeSettingsPage)
   const me = useCurrentUser()
   const [tab, setTab] = useState<Tab>('account')
-  if (!open || !me) return null
-  const isAdmin = me.role === 'admin'
+  if (!open) return null
+  const isAdmin = me?.role === 'admin'
 
   return (
     <div className="fixed inset-0 z-[78] flex items-center justify-center p-4" style={{ background: 'var(--present-scrim)' }}>
@@ -55,7 +55,7 @@ export function SettingsPage() {
         </nav>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-4">
-          {tab === 'account' ? <AccountSection /> : null}
+          {tab === 'account' ? me ? <AccountSection /> : <GuestSignInSection /> : null}
           {tab === 'appearance' ? <AppearanceSection /> : null}
           {tab === 'team' && isAdmin ? <TeamSection /> : null}
         </div>
@@ -164,7 +164,7 @@ function AccountSection() {
           </Btn>
         </form>
         <div className="text-caption" style={{ color: 'var(--text-muted)' }}>
-          You are signed in as {me.role === 'admin' ? 'an admin' : 'a team member'}.
+          You are signed in as an admin. Guests can view songs, Present, and manage setlists without signing in.
         </div>
       </Section>
 
@@ -220,7 +220,30 @@ function AccountSection() {
 
 const FONT_SIZES: PresentationFontSize[] = ['small', 'medium', 'large']
 
+function GuestSignInSection() {
+  const needsSetup = useNeedsSetup()
+  if (needsSetup) {
+    return (
+      <Section
+        title="Create the admin account"
+        blurb="This account can add and remove songs and other shared settings. Visitors keep using chords, lyrics, Present, and setlists without signing in."
+      >
+        <CreateAdminForm />
+      </Section>
+    )
+  }
+  return (
+    <Section
+      title="Admin sign in"
+      blurb="Only admins can change the song library and other shared settings. Visitors keep using chords, lyrics, Present, and setlists without an account."
+    >
+      <AdminSignInForm compact />
+    </Section>
+  )
+}
+
 function AppearanceSection() {
+  const me = useCurrentUser()
   const theme = useAppStore((s) => s.theme)
   const setTheme = useAppStore((s) => s.setTheme)
   const fontSize = useAppStore((s) => s.fontSize)
@@ -230,7 +253,10 @@ function AppearanceSection() {
 
   return (
     <>
-      <Section title="Theme" blurb="Saved to your account, so it follows you to any device.">
+      <Section
+        title="Theme"
+        blurb={me ? 'Saved to your account, so it follows you to any device.' : 'Applies on this device.'}
+      >
         <div className="flex gap-2">
           {(['dark', 'light'] as Theme[]).map((option) => (
             <Btn key={option} accent={theme === option} onClick={() => setTheme(option)}>
@@ -271,7 +297,7 @@ function TeamSection() {
 
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
-  const [role, setRole] = useState<Role>('user')
+  const [role, setRole] = useState<Role>('admin')
   const [error, setError] = useState<string | null>(null)
   const [inviteLink, setInviteLink] = useState<{ email: string; link: string } | null>(null)
 
@@ -282,7 +308,7 @@ function TeamSection() {
     onSuccess: (data) => {
       setEmail('')
       setName('')
-      setRole('user')
+      setRole('admin')
       setError(null)
       setInviteLink({ email: data.email, link: data.link })
       void refresh()
@@ -313,7 +339,7 @@ function TeamSection() {
 
   return (
     <>
-      <Section title="Who has access" blurb="Team members add songs and run Present mode. Admins can also delete and manage backgrounds.">
+      <Section title="Who has access" blurb="Only admins can sign in. Guests can view songs, run Present, and manage setlists on this device without an account.">
         {users.isPending ? (
           <Spinner />
         ) : users.isError ? (
@@ -352,7 +378,7 @@ function TeamSection() {
         ) : null}
       </Section>
 
-      <Section title="Add someone" blurb="People can also create an account from the sign-in page. Use this when you want to send them a set-password link instead.">
+      <Section title="Add an admin" blurb="Send a set-password link. Only admin accounts can sign in from Settings.">
         <form
           onSubmit={(e) => {
             e.preventDefault()

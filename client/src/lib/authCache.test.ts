@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { AUTH_CACHE_KEY, readAuthCache, writeAuthCache } from './authCache.ts'
+import { AUTH_CACHE_KEY, hasSession, readAuthCache, writeAuthCache } from './authCache.ts'
 
 const memory = new Map<string, string>()
 Object.defineProperty(globalThis, 'sessionStorage', {
@@ -34,5 +34,16 @@ describe('authCache', () => {
   it('ignores a malformed payload', () => {
     sessionStorage.setItem(AUTH_CACHE_KEY, '{not json')
     expect(readAuthCache()).toBeUndefined()
+  })
+
+  it('treats a missing user as a guest session', () => {
+    expect(hasSession()).toBe(false)
+    writeAuthCache({ needsSetup: false, user: null })
+    expect(hasSession()).toBe(false)
+    writeAuthCache({
+      needsSetup: false,
+      user: { id: 'u1', email: 'lead@church.org', name: 'Lead', role: 'admin' },
+    })
+    expect(hasSession()).toBe(true)
   })
 })

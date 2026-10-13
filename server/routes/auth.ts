@@ -115,8 +115,8 @@ authRouter.post('/setup', async (req, res) => {
 })
 
 /**
- * Open sign-up. The first account is still admin (same as /setup). Everyone
- * after that joins as a team member.
+ * Open only while no account exists (same as /setup). After that, guests use
+ * the library without signing in and admins sign in from Settings.
  */
 authRouter.post('/signup', async (req, res) => {
   const email = normalizeEmail(req.body?.email)
@@ -129,12 +129,12 @@ authRouter.post('/signup', async (req, res) => {
   try {
     const created = await withAuthSchema(async () => {
       if (await prisma.user.findUnique({ where: { email } })) return 'taken' as const
-      const first = (await userCount()) === 0
+      if ((await userCount()) > 0) return 'closed' as const
       return prisma.user.create({
         data: {
           email,
           name,
-          role: first ? 'admin' : 'user',
+          role: 'admin',
           passwordHash: hashPassword(String(req.body.password)),
         },
         select: publicUser,
@@ -142,6 +142,10 @@ authRouter.post('/signup', async (req, res) => {
     })
     if (created === 'taken') {
       res.status(409).json({ error: 'Someone already uses that email. Sign in instead.' })
+      return
+    }
+    if (created === 'closed') {
+      res.status(403).json({ error: 'Public sign-up is off. Only admins can sign in from Settings.' })
       return
     }
     const user = toSessionUser(created)
@@ -175,6 +179,10 @@ authRouter.post('/login', async (req, res) => {
     return
   }
   const user = toSessionUser(row)
+  if (user.role !== 'admin') {
+    res.status(403).json({ error: 'Only admins can sign in.' })
+    return
+  }
   accountsExist = true
   setSessionCookie(req, res, user, await issuingSessionEpoch())
   res.json({ user })
@@ -266,6 +274,10 @@ authRouter.post('/reset/:token', async (req, res) => {
     })
   })
   const user = toSessionUser(updated)
+  if (user.role !== 'admin') {
+    res.status(403).json({ error: 'Only admins can sign in.' })
+    return
+  }
   setSessionCookie(req, res, user, await issuingSessionEpoch())
   res.json({ user })
 })

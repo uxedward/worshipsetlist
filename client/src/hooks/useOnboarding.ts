@@ -86,6 +86,6 @@ export function useOnboarding() {
     complete,
     total: visible.length,
     allDone: complete === visible.length,
-    show: !loading && !dismissed,
+    show: Boolean(user) && !loading && !dismissed,
   }
 }

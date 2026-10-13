@@ -5,7 +5,6 @@ import {
   useLogin,
   useResetToken,
   useSetupAdmin,
-  useSignup,
   clearResetTokenFromUrl,
 } from '../hooks/useAuth.ts'
 import { ApiError } from '../lib/api.ts'
@@ -27,13 +26,13 @@ export function newPasswordProblem(password: string, confirm: string): string | 
 }
 
 export function AuthScreen({
-  needsSetup,
+  needsSetup = false,
   resetToken,
   onResetDone,
   checking,
   loadError,
 }: {
-  needsSetup: boolean
+  needsSetup?: boolean
   resetToken: string | null
   onResetDone: () => void
   checking?: boolean
@@ -42,7 +41,11 @@ export function AuthScreen({
   if (resetToken) return <ResetPasswordPanel token={resetToken} onDone={onResetDone} />
   if (checking) return <CheckingPanel />
   if (needsSetup) return <CreateAdminPanel />
-  return <SignInOrSignUp loadError={loadError} />
+  return (
+    <AuthShell title="Admin sign in" blurb="Guests can use Setflow without an account. Sign in here only if you manage the library.">
+      <AdminSignInForm loadError={loadError} />
+    </AuthShell>
+  )
 }
 
 /* ------------------------------------------------------------------- shell */
@@ -172,7 +175,7 @@ function CheckingPanel() {
 
 /* --------------------------------------------------------- first run: admin */
 
-function CreateAdminPanel() {
+export function CreateAdminForm() {
   const setup = useSetupAdmin()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -193,69 +196,69 @@ function CreateAdminPanel() {
   }
 
   return (
+    <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <Field label="Your name">
+        <input
+          className={inputClass}
+          style={inputStyle}
+          autoFocus
+          required
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Jordan"
+        />
+      </Field>
+      <Field label="Email">
+        <input
+          className={inputClass}
+          style={inputStyle}
+          type="email"
+          required
+          autoComplete="username"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </Field>
+      <PasswordField
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="new-password"
+        placeholder={`At least ${MIN_PASSWORD} characters`}
+      />
+      <PasswordField
+        label="Confirm password"
+        value={confirm}
+        onChange={setConfirm}
+        autoComplete="new-password"
+      />
+      <ErrorNote>{localError ?? (setup.error ? message(setup.error, 'Could not create that account.') : null)}</ErrorNote>
+      <SubmitButton busy={setup.isPending}>Create admin account</SubmitButton>
+    </form>
+  )
+}
+
+function CreateAdminPanel() {
+  return (
     <AuthShell
       title="Create your admin account"
-      blurb="You're first, so this account runs the library, Present, and who else can sign in. It only takes a few seconds."
-      footer="After this, your team can create their own accounts from the sign-in page."
+      blurb="You're first, so this account runs the song library and everything that can be added or removed. Guests will not need to sign in."
+      footer="After this, visitors can open Setflow without an account. Admins sign in from Settings."
     >
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <Field label="Your name">
-          <input
-            className={inputClass}
-            style={inputStyle}
-            autoFocus
-            required
-            autoComplete="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Jordan"
-          />
-        </Field>
-        <Field label="Email">
-          <input
-            className={inputClass}
-            style={inputStyle}
-            type="email"
-            required
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Field>
-        <PasswordField
-          label="Password"
-          value={password}
-          onChange={setPassword}
-          autoComplete="new-password"
-          placeholder={`At least ${MIN_PASSWORD} characters`}
-        />
-        <PasswordField
-          label="Confirm password"
-          value={confirm}
-          onChange={setConfirm}
-          autoComplete="new-password"
-        />
-        <ErrorNote>{localError ?? (setup.error ? message(setup.error, 'Could not create that account.') : null)}</ErrorNote>
-        <SubmitButton busy={setup.isPending}>Create admin account</SubmitButton>
-      </form>
+      <CreateAdminForm />
     </AuthShell>
   )
 }
 
 /* ----------------------------------------------------------------- sign in */
 
-function SignInOrSignUp({ loadError }: { loadError?: string | null }) {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
-  if (mode === 'signup') return <SignUpPanel onSignIn={() => setMode('signin')} />
-  return <SignInPanel loadError={loadError} onSignUp={() => setMode('signup')} />
-}
-
-function SignInPanel({
+export function AdminSignInForm({
   loadError,
-  onSignUp,
+  compact,
 }: {
   loadError?: string | null
-  onSignUp: () => void
+  compact?: boolean
 }) {
   const login = useLogin()
   const [email, setEmail] = useState('')
@@ -263,131 +266,47 @@ function SignInPanel({
   const [showHelp, setShowHelp] = useState(false)
 
   return (
-    <AuthShell
-      title="Sign in"
-      blurb="Your team's songs, charts, and Present mode."
-      footer={
-        <div className="flex flex-col gap-2">
-          <button type="button" onClick={onSignUp} style={{ color: 'var(--accent)' }}>
-            Create an account
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        login.mutate({ email, password })
+      }}
+      className="flex flex-col gap-4"
+    >
+      <Field label="Email">
+        <input
+          className={inputClass}
+          style={inputStyle}
+          type="email"
+          required
+          autoFocus
+          autoComplete="username"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </Field>
+      <PasswordField
+        label="Password"
+        value={password}
+        onChange={setPassword}
+        autoComplete="current-password"
+      />
+      <ErrorNote>
+        {login.error ? message(login.error, 'Could not sign you in.') : loadError ?? null}
+      </ErrorNote>
+      <SubmitButton busy={login.isPending}>Sign in</SubmitButton>
+      {compact ? (
+        showHelp ? (
+          <p className="text-caption" style={{ color: 'var(--text-secondary)' }}>
+            Ask an admin to open Settings → Accounts and send a reset link. Links last 24 hours.
+          </p>
+        ) : (
+          <button type="button" onClick={() => setShowHelp(true)} className="text-left text-caption" style={{ color: 'var(--text-secondary)' }}>
+            Forgot your password?
           </button>
-          {showHelp ? (
-            <span>
-              Ask an admin to open <strong>Settings → Accounts</strong> and send you a reset link. Links last 24 hours.
-            </span>
-          ) : (
-            <button type="button" onClick={() => setShowHelp(true)} style={{ color: 'var(--text-secondary)' }}>
-              Forgot your password?
-            </button>
-          )}
-        </div>
-      }
-    >
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          login.mutate({ email, password })
-        }}
-        className="flex flex-col gap-4"
-      >
-        <Field label="Email">
-          <input
-            className={inputClass}
-            style={inputStyle}
-            type="email"
-            required
-            autoFocus
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Field>
-        <PasswordField
-          label="Password"
-          value={password}
-          onChange={setPassword}
-          autoComplete="current-password"
-        />
-        <ErrorNote>
-          {login.error ? message(login.error, 'Could not sign you in.') : loadError ?? null}
-        </ErrorNote>
-        <SubmitButton busy={login.isPending}>Sign in</SubmitButton>
-      </form>
-    </AuthShell>
-  )
-}
-
-function SignUpPanel({ onSignIn }: { onSignIn: () => void }) {
-  const signup = useSignup()
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [localError, setLocalError] = useState<string | null>(null)
-
-  function onSubmit(event: FormEvent) {
-    event.preventDefault()
-    if (!name.trim()) {
-      setLocalError('A name is required.')
-      return
-    }
-    const problem = newPasswordProblem(password, confirm)
-    setLocalError(problem)
-    if (problem) return
-    signup.mutate({ email, password, name: name.trim() })
-  }
-
-  return (
-    <AuthShell
-      title="Create an account"
-      blurb="Join this Setflow library. You'll be able to add songs, build setlists, and run Present."
-      footer={
-        <button type="button" onClick={onSignIn} style={{ color: 'var(--accent)' }}>
-          Already have an account? Sign in
-        </button>
-      }
-    >
-      <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <Field label="Your name">
-          <input
-            className={inputClass}
-            style={inputStyle}
-            autoFocus
-            required
-            autoComplete="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Alex"
-          />
-        </Field>
-        <Field label="Email">
-          <input
-            className={inputClass}
-            style={inputStyle}
-            type="email"
-            required
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Field>
-        <PasswordField
-          label="Password"
-          value={password}
-          onChange={setPassword}
-          autoComplete="new-password"
-          placeholder={`At least ${MIN_PASSWORD} characters`}
-        />
-        <PasswordField
-          label="Confirm password"
-          value={confirm}
-          onChange={setConfirm}
-          autoComplete="new-password"
-        />
-        <ErrorNote>{localError ?? (signup.error ? message(signup.error, 'Could not create that account.') : null)}</ErrorNote>
-        <SubmitButton busy={signup.isPending}>Create account</SubmitButton>
-      </form>
-    </AuthShell>
+        )
+      ) : null}
+    </form>
   )
 }
 
@@ -423,7 +342,7 @@ function ResetPasswordPanel({ token, onDone }: { token: string; onDone: () => vo
             onDone()
           }}
         >
-          Back to sign in
+          Back to Setflow
         </button>
       </AuthShell>
     )
